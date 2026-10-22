@@ -115,7 +115,11 @@ class PlanTab(private val a: MainActivity, root: View) {
         val plan = PlanData.load(a)
         val stops = PlanData.withPlaces(a, plan.stops)
         val opts = PlanData.options(a, plan)
-        val r = VehiclePlanner.plan(stops, opts)
+        zones = PlanData.zones(a, stops, opts.places, opts.dc)
+        // Small Upcountry / Local stores (below the zone's minimum volume) get no vehicle today.
+        val heldCodes = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
+        val held = stops.filter { it.code in heldCodes }
+        val r = VehiclePlanner.plan(stops.filter { it.code !in heldCodes }, opts)
         result = r
         dcPlace = opts.dc
         places = opts.places
@@ -146,7 +150,6 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
         typeChips.visibility = if (r.byType.isEmpty()) View.GONE else View.VISIBLE
         clubText.text = a.getString(R.string.plan_club_text, vol(PlanData.clubBelow(a)), PlanData.maxStops(a))
-        zones = PlanData.zones(a, stops, opts.places, opts.dc)
         showZones(r)
         showGeo(stops)
         showMap(r, stops)
@@ -191,6 +194,7 @@ class PlanTab(private val a: MainActivity, root: View) {
             })
             for ((i, l) in loads) list.addView(card(inflater, i, l))
         }
+        showHeld(held.filter { zoneFilter == null || zones[it.code] == zoneFilter })
         updateSelectBar()
     }
 
@@ -436,6 +440,44 @@ class PlanTab(private val a: MainActivity, root: View) {
             else a.getString(R.string.zone_line, PlanData.dcCity(a), state)
     }
 
+    /** Stores left out for being below their zone's minimum volume; tap one to plan it anyway. */
+    private fun showHeld(held: List<PlanStop>) {
+        if (held.isEmpty()) return
+        val d = a.resources.displayMetrics.density
+        list.addView(TextView(a).apply {
+            text = a.getString(R.string.held_title, held.size, vol(held.sumOf { it.volume }))
+            setTextColor(Ui.color(a, R.color.ink)); textSize = 14.5f
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.jakarta_bold)
+            setPadding((20 * d).toInt(), (22 * d).toInt(), (20 * d).toInt(), (2 * d).toInt())
+        })
+        list.addView(TextView(a).apply {
+            text = a.getString(R.string.held_hint, vol(PlanData.zoneMin(a, Zone.UPCOUNTRY)), vol(PlanData.zoneMin(a, Zone.LOCAL)))
+            setTextColor(Ui.color(a, R.color.muted)); textSize = 12.5f
+            setPadding((20 * d).toInt(), 0, (20 * d).toInt(), (6 * d).toInt())
+        })
+        for (s in held.sortedBy { it.volume }) {
+            list.addView(TextView(a).apply {
+                text = "${s.code} · ${s.shownName}
+" + Ui.joinNonBlank(zones[s.code]?.let { zoneName(it) }.orEmpty(), s.city,
+                    a.getString(R.string.held_volume, vol(s.volume)))
+                setTextColor(Ui.color(a, R.color.ink)); textSize = 13.5f
+                setBackgroundResource(android.R.drawable.list_selector_background)
+                setPadding((20 * d).toInt(), (8 * d).toInt(), (20 * d).toInt(), (8 * d).toInt())
+                setOnClickListener {
+                    MaterialAlertDialogBuilder(a)
+                        .setTitle(a.getString(R.string.held_plan_title, s.code))
+                        .setMessage(a.getString(R.string.held_plan_message, s.shownName, vol(s.volume)))
+                        .setPositiveButton(R.string.held_plan_yes) { _, _ -> PlanData.setForced(a, PlanData.forced(a) + s.code); refresh() }
+                        .setNeutralButton(R.string.plan_remove_store) { _, _ ->
+                            val p = PlanData.load(a); PlanData.save(a, p.copy(stops = p.stops.filter { it.code != s.code })); refresh()
+                        }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                }
+            })
+        }
+    }
+
     /** The DC's local city and state, and how near a store with no city must be to count as local. */
     private fun editZones() {
         val d = a.resources.displayMetrics.density
@@ -451,6 +493,10 @@ class PlanTab(private val a: MainActivity, root: View) {
         val city = field(R.string.zone_field_city, PlanData.dcCity(a), words)
         val state = field(R.string.zone_field_state, PlanData.dcState(a).orEmpty(), words)
         val near = field(R.string.zone_field_km, km(PlanData.localKm(a)), InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
+        val num = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        val minUp = field(R.string.zone_field_min_up, vol(PlanData.zoneMin(a, Zone.UPCOUNTRY)), num)
+        val minNon = field(R.string.zone_field_min_non, vol(PlanData.zoneMin(a, Zone.NON_LOCAL)), num)
+        val minLocal = field(R.string.zone_field_min_local, vol(PlanData.zoneMin(a, Zone.LOCAL)), num)
         MaterialAlertDialogBuilder(a)
             .setTitle(R.string.zone_title)
             .setMessage(R.string.zone_message)
@@ -463,6 +509,9 @@ class PlanTab(private val a: MainActivity, root: View) {
                     if (c == DispatchZone.dcCityLabel(StoreGeo.dcQuery(a)) && PlanData.dcCityTyped(a).isBlank()) "" else c,
                     if (PlanData.dcStateTyped(a).isBlank() && DispatchZone.canonical(st) == PlanData.dcState(a)) "" else st)
                 SheetReader.number(near.text?.toString().orEmpty())?.takeIf { it > 0 }?.let { PlanData.setLocalKm(a, it) }
+                for ((z, f) in listOf(Zone.UPCOUNTRY to minUp, Zone.NON_LOCAL to minNon, Zone.LOCAL to minLocal)) {
+                    SheetReader.number(f.text?.toString().orEmpty())?.let { PlanData.setZoneMin(a, z, it) }
+                }
                 refresh()
             }
             .setNegativeButton(android.R.string.cancel, null)

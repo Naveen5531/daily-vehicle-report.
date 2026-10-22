@@ -35,4 +35,13 @@ class DispatchZoneTest {
         assertEquals(Zone.UPCOUNTRY, DispatchZone.ofLoad(listOf(Zone.LOCAL, Zone.UPCOUNTRY)))
         assertEquals(Zone.NON_LOCAL, DispatchZone.ofLoad(listOf(Zone.LOCAL, Zone.NON_LOCAL)))
     }
+
+    @Test fun smallUpcountryAndLocalStoresAreHeldBack() {
+        val stops = listOf(PlanStop("U1", "a", 150.0), PlanStop("U2", "b", 250.0), PlanStop("L1", "c", 60.0),
+            PlanStop("L2", "d", 90.0), PlanStop("N1", "e", 20.0))
+        val zones = mapOf("U1" to Zone.UPCOUNTRY, "U2" to Zone.UPCOUNTRY, "L1" to Zone.LOCAL, "L2" to Zone.LOCAL, "N1" to Zone.NON_LOCAL)
+        val min = { z: Zone -> when (z) { Zone.UPCOUNTRY -> 200.0; Zone.LOCAL -> 80.0; else -> 0.0 } }
+        assertEquals(setOf("U1", "L1"), DispatchZone.held(stops, zones, min))
+        assertEquals(setOf("L1"), DispatchZone.held(stops, zones, min, force = setOf("U1")))
+    }
 }

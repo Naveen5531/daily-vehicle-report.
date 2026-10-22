@@ -122,6 +122,16 @@ object DispatchZone {
         return if (state.equals(dcState, ignoreCase = true)) Zone.NON_LOCAL else Zone.UPCOUNTRY
     }
 
+    /**
+     * Stores held back from the day's plan: volume below the minimum of their zone ([minimum], 0 = none), unless
+     * chosen to go anyway ([force]).
+     */
+    fun held(stops: List<PlanStop>, zones: Map<String, Zone>, minimum: (Zone) -> Double, force: Set<String> = emptySet()): Set<String> =
+        stops.filter { s ->
+            val min = minimum(zones[s.code] ?: Zone.UNKNOWN)
+            s.code !in force && min > 0 && s.volume < min - 1e-6
+        }.map { it.code }.toSet()
+
     /** A vehicle's zone is its farthest stop's: Upcountry over Non-local over not known over Local. */
     fun ofLoad(zones: List<Zone>): Zone = zones.maxByOrNull { rank(it) } ?: Zone.UNKNOWN
 

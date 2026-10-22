@@ -572,9 +572,18 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="zone_line">Local = %1$s · Non-local = rest of %2$s · Upcountry = other states. Tap to change</string>
     <string name="zone_line_no_state">Local = %1$s · DC state not known. Tap to set it</string>
     <string name="zone_title">Local, Non-local, Upcountry</string>
-    <string name="zone_message">Local: stores in the DC\'s city. Non-local: other towns of the DC\'s state. Upcountry: stores in another state. A store with no city on the store list counts as local within the km below.</string>
+    <string name="zone_message">Local: stores in the DC\'s city. Non-local: other towns of the DC\'s state. Upcountry: stores in another state. A store with no city on the store list counts as local within the km below. Stores below a zone\'s minimum volume get no vehicle that day (0 = plan every store).</string>
     <string name="zone_field_city">DC\'s local city</string>
     <string name="zone_field_state">DC\'s state</string>
     <string name="zone_field_km">Local within (km), for stores with no city</string>
     <string name="zone_showing">Showing %1$s: %2$d vehicles · %3$s volume</string>
+    <string name="held_title">Held back · %1$d stores · %2$s volume</string>
+    <string name="held_hint">Below the minimum volume (Upcountry %1$s, Local %2$s), so no vehicle today. Tap a store to send it anyway.</string>
+    <string name="held_volume">volume %1$s</string>
+    <string name="held_plan_title">Send %1$s today?</string>
+    <string name="held_plan_message">%1$s has only %2$s volume, below the minimum for its zone. Plan a vehicle for it anyway?</string>
+    <string name="held_plan_yes">Plan anyway</string>
+    <string name="zone_field_min_up">Upcountry: skip stores below (volume)</string>
+    <string name="zone_field_min_non">Non-local: skip stores below (volume)</string>
+    <string name="zone_field_min_local">Local: skip stores below (volume)</string>
 </resources>

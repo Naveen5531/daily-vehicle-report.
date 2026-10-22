@@ -90,7 +90,7 @@ object PlanData {
         return plan
     }
 
-    fun clear(c: Context) = p(c).edit().remove(KEY).apply()
+    fun clear(c: Context) = p(c).edit().remove(KEY).remove(KEY_FORCE).apply()
 
     fun types(c: Context): List<VehicleCap> {
         val a = try { JSONArray(p(c).getString(KEY_TYPES, null) ?: return VehiclePlanner.DEFAULT_TYPES) } catch (e: Exception) { return VehiclePlanner.DEFAULT_TYPES }
@@ -145,6 +145,21 @@ object PlanData {
     /** A store with no city on the list counts as local within this many km of the DC. */
     fun localKm(c: Context): Double = p(c).getFloat(KEY_LOCAL_KM, 40f).toDouble()
     fun setLocalKm(c: Context, v: Double) = p(c).edit().putFloat(KEY_LOCAL_KM, v.toFloat()).apply()
+
+    private const val KEY_MIN = "plan_zone_min_"
+    private const val KEY_FORCE = "plan_force_json"
+
+    /** Stores of a zone with less volume than this get no vehicle that day (Upcountry 200, Local 80 by default; 0 = none). */
+    fun zoneMin(c: Context, z: Zone): Double = p(c).getFloat(KEY_MIN + z.name, when (z) {
+        Zone.UPCOUNTRY -> 200f; Zone.LOCAL -> 80f; else -> 0f
+    }).toDouble()
+    fun setZoneMin(c: Context, z: Zone, v: Double) = p(c).edit().putFloat(KEY_MIN + z.name, v.coerceAtLeast(0.0).toFloat()).apply()
+
+    /** Stores below their zone's minimum that are planned anyway (chosen by hand; cleared with a new plan). */
+    fun forced(c: Context): Set<String> = try {
+        JSONArray(p(c).getString(KEY_FORCE, null) ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) }.toSet() }
+    } catch (e: Exception) { emptySet() }
+    fun setForced(c: Context, codes: Set<String>) = p(c).edit().putString(KEY_FORCE, JSONArray(codes.toList()).toString()).apply()
 
     /** Local / Non-local / Upcountry for each store of the plan (by store code). */
     fun zones(c: Context, stops: List<PlanStop>, places: Map<String, LatLon>, dc: LatLon?): Map<String, Zone> {
