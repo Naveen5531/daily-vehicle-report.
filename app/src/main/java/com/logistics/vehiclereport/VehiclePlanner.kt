@@ -95,8 +95,20 @@ object VehiclePlanner {
         val nearKm: Double = 10.0,
         val detourShare: Double = 0.08,
         /** Never more than this many km out of the way for a clubbed stop (unless [nearKm] is set higher). */
-        val maxDetourKm: Double = 30.0
-    )
+        val maxDetourKm: Double = 30.0,
+        /** Upcountry stores (by code): they go only on [upcountryType] and are clubbed along the route as much as fits. */
+        val upcountry: Set<String> = emptySet(),
+        val upcountryType: VehicleCap? = null,
+        /** Most stores on one Upcountry vehicle. */
+        val upcountryMaxStops: Int = 3
+    ) {
+        fun copy(
+            types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
+            upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
+            upcountryMaxStops: Int = this.upcountryMaxStops
+        ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
+            upcountry, upcountryType, upcountryMaxStops)
+    }
 
     /** Straight-line km between two places. */
     fun km(a: LatLon, b: LatLon): Double {
@@ -202,7 +214,27 @@ object VehiclePlanner {
         val codes get() = parts.map { it.first.code }.toSet()
     }
 
+    /**
+     * Upcountry stores are planned on their own: only the Upcountry vehicle ([Options.upcountryType], 20 ft by default),
+     * full loads first, then every part load may ride with another Upcountry load on the same route (not only small
+     * ones), up to [Options.upcountryMaxStops] stores, to fill the vehicles. The rest is planned as usual.
+     */
     fun plan(stops: List<PlanStop>, o: Options = Options()): PlanResult {
+        val up = o.upcountryType
+        if (up == null || up.capacity <= 0 || stops.none { it.code in o.upcountry }) return planGroup(stops, o)
+        val upType = up.copy(on = true)
+        val near = planGroup(stops.filter { it.code !in o.upcountry }, o.copy(upcountry = emptySet(), upcountryType = null))
+        val far = planGroup(stops.filter { it.code in o.upcountry },
+            o.copy(types = listOf(upType), clubBelow = upType.capacity + 1.0, maxStops = o.upcountryMaxStops,
+                upcountry = emptySet(), upcountryType = null))
+        val order = stops.filter { it.volume > EPS }.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
+        val loads = (near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume })
+        val types = (o.types.filter { it.on && it.capacity > 0 } + upType).distinctBy { it.name }.sortedByDescending { it.capacity }
+        val byType = types.map { t -> t to loads.count { it.type?.name == t.name } }.filter { it.second > 0 }
+        return PlanResult(loads, byType, near.totalVolume + far.totalVolume)
+    }
+
+    private fun planGroup(stops: List<PlanStop>, o: Options): PlanResult {
         val types = o.types.filter { it.on && it.capacity > 0 }.sortedByDescending { it.capacity }
         val valid = stops.filter { it.volume > EPS }
         if (types.isEmpty()) {

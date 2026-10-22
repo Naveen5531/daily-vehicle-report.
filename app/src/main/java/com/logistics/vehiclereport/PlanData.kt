@@ -161,6 +161,15 @@ object PlanData {
     } catch (e: Exception) { emptySet() }
     fun setForced(c: Context, codes: Set<String>) = p(c).edit().putString(KEY_FORCE, JSONArray(codes.toList()).toString()).apply()
 
+    private const val KEY_UP_STOPS = "plan_up_max_stops"
+
+    /** The only vehicle used for Upcountry stores: the 20 ft (1109), with its capacity from Sizes. */
+    fun upcountryType(c: Context): VehicleCap =
+        (types(c).firstOrNull { it.name.startsWith("20 ft") } ?: VehiclePlanner.DEFAULT_TYPES.first { it.name.startsWith("20 ft") }).copy(on = true)
+    /** Most stores on one Upcountry vehicle (route clubbing). */
+    fun upcountryMaxStops(c: Context): Int = p(c).getInt(KEY_UP_STOPS, 3).coerceAtLeast(1)
+    fun setUpcountryMaxStops(c: Context, n: Int) = p(c).edit().putInt(KEY_UP_STOPS, n.coerceIn(1, 6)).apply()
+
     /** Local / Non-local / Upcountry for each store of the plan (by store code). */
     fun zones(c: Context, stops: List<PlanStop>, places: Map<String, LatLon>, dc: LatLon?): Map<String, Zone> {
         val mapStates = StoreGeo.states(c)

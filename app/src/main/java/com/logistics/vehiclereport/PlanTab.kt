@@ -119,7 +119,9 @@ class PlanTab(private val a: MainActivity, root: View) {
         // Small Upcountry / Local stores (below the zone's minimum volume) get no vehicle today.
         val heldCodes = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val held = stops.filter { it.code in heldCodes }
-        val r = VehiclePlanner.plan(stops.filter { it.code !in heldCodes }, opts)
+        val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
+        val r = VehiclePlanner.plan(stops.filter { it.code !in heldCodes },
+            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryMaxStops = PlanData.upcountryMaxStops(a)))
         result = r
         dcPlace = opts.dc
         places = opts.places
@@ -496,6 +498,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         val minUp = field(R.string.zone_field_min_up, vol(PlanData.zoneMin(a, Zone.UPCOUNTRY)), num)
         val minNon = field(R.string.zone_field_min_non, vol(PlanData.zoneMin(a, Zone.NON_LOCAL)), num)
         val minLocal = field(R.string.zone_field_min_local, vol(PlanData.zoneMin(a, Zone.LOCAL)), num)
+        val upStops = field(R.string.zone_field_up_stops, PlanData.upcountryMaxStops(a).toString(), InputType.TYPE_CLASS_NUMBER)
         MaterialAlertDialogBuilder(a)
             .setTitle(R.string.zone_title)
             .setMessage(R.string.zone_message)
@@ -511,6 +514,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 for ((z, f) in listOf(Zone.UPCOUNTRY to minUp, Zone.NON_LOCAL to minNon, Zone.LOCAL to minLocal)) {
                     SheetReader.number(f.text?.toString().orEmpty())?.let { PlanData.setZoneMin(a, z, it) }
                 }
+                upStops.text?.toString()?.trim()?.toIntOrNull()?.let { PlanData.setUpcountryMaxStops(a, it) }
                 refresh()
             }
             .setNegativeButton(android.R.string.cancel, null)

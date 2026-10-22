@@ -152,4 +152,17 @@ class VehiclePlannerTest {
         assertEquals("TOTAL", rows.last()[0])
         assertEquals(r.vehicles.toString(), rows.last()[1])
     }
+
+    @Test fun upcountryUsesOnlyTwentyFeetAndClubsAlongTheRoute() {
+        val twenty = VehiclePlanner.DEFAULT_TYPES.first { it.name.startsWith("20 ft") }
+        // Vizag stores (other state from Isnapur) of 500, 300, 40 and a big one; Champapet stays local.
+        val stops = listOf(s("GJW", 500.0), s("SHL", 300.0), s("VPG", 40.0), s("CTC", 1000.0), s("CHM", 100.0))
+        val r = VehiclePlanner.plan(stops, geo().copy(upcountry = setOf("GJW", "SHL", "VPG", "CTC"), upcountryType = twenty))
+        val up = r.loads.filter { l -> l.codes.any { it != "CHM" } }
+        assertTrue(up.all { it.type?.name == twenty.name })                 // even the small parts go on a 20 ft
+        val vizag = up.first { "GJW" in it.codes }
+        assertEquals(setOf("GJW", "SHL", "VPG"), vizag.codes.toSet())       // 500 + 300 + 40 = 840 on one 20 ft
+        assertTrue(up.none { "CTC" in it.codes && "GJW" in it.codes })      // Cuttack is far past Vizag: never clubbed with it
+        assertEquals("Pickup", r.loads.first { "CHM" in it.codes }.type?.name) // local stores keep the smallest vehicle
+    }
 }

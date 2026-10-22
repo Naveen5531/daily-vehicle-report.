@@ -572,7 +572,7 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="zone_line">Local = %1$s · Non-local = rest of %2$s · Upcountry = other states. Tap to change</string>
     <string name="zone_line_no_state">Local = %1$s · DC state not known. Tap to set it</string>
     <string name="zone_title">Local, Non-local, Upcountry</string>
-    <string name="zone_message">Local: stores in the DC\'s city. Non-local: other towns of the DC\'s state. Upcountry: stores in another state. A store with no city on the store list counts as local within the km below. Stores below a zone\'s minimum volume get no vehicle that day (0 = plan every store).</string>
+    <string name="zone_message">Local: stores in the DC\'s city. Non-local: other towns of the DC\'s state. Upcountry: stores in another state. A store with no city on the store list counts as local within the km below. Stores below a zone\'s minimum volume get no vehicle that day (0 = plan every store). Upcountry stores go only on the 20 ft (1109) and are clubbed along the route to fill it.</string>
     <string name="zone_field_city">DC\'s local city</string>
     <string name="zone_field_state">DC\'s state</string>
     <string name="zone_field_km">Local within (km), for stores with no city</string>
@@ -586,4 +586,5 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="zone_field_min_up">Upcountry: skip stores below (volume)</string>
     <string name="zone_field_min_non">Non-local: skip stores below (volume)</string>
     <string name="zone_field_min_local">Local: skip stores below (volume)</string>
+    <string name="zone_field_up_stops">Upcountry: most stores per 20 ft vehicle</string>
 </resources>
