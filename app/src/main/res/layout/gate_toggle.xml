@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yet to report / Reported / Departed: one tap marks the vehicle; tapping the chosen one again clears it. -->
+<com.google.android.material.button.MaterialButtonToggleGroup xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/gateGroup"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:selectionRequired="false"
+    app:singleSelection="true">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gateYet"
+        style="@style/DSeg"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.15"
+        android:text="@string/gate_yet" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gateReported"
+        style="@style/DSeg"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/gate_reported" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gateDeparted"
+        style="@style/DSeg"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/gate_departed" />
+</com.google.android.material.button.MaterialButtonToggleGroup>

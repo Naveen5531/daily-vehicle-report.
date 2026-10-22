@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Where to hold the number plate on the camera screen. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="18dp" />
+    <stroke android:width="3dp" android:color="#9FF2C4" />
+    <solid android:color="#00000000" />
+</shape>

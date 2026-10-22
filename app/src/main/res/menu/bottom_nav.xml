@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_today" android:icon="@drawable/ic_dashboard" android:title="@string/tab_today" />
+    <item android:id="@+id/nav_whatsapp" android:icon="@drawable/ic_chat" android:title="@string/tab_whatsapp" />
+    <item android:id="@+id/nav_vehicles" android:icon="@drawable/ic_truck" android:title="@string/tab_vehicles" />
+    <item android:id="@+id/nav_plan" android:icon="@drawable/ic_route" android:title="@string/tab_plan" />
+    <item android:id="@+id/nav_export" android:icon="@drawable/ic_download" android:title="@string/tab_export" />
+</menu>

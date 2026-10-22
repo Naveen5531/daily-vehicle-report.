@@ -1,0 +1,85 @@
+# Builds the APK on GitHub on every push to main. The APK is kept on the "apk-builds" branch
+# (Daily_Vehicle_Report.apk) and in the run's artifacts. The Play upload key is never in the code:
+# it comes from the repository secrets UPLOAD_JKS_BASE64 and UPLOAD_PASSWORD.
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Restore the Play upload key from secrets
+        env:
+          JKS: ${{ secrets.UPLOAD_JKS_BASE64 }}
+          PW: ${{ secrets.UPLOAD_PASSWORD }}
+        shell: bash
+        run: |
+          if [ -n "$JKS" ] && [ -n "$PW" ]; then
+            echo "$JKS" | base64 -d > app/upload.jks
+            printf 'password=%s\n' "$PW" > app/upload.properties
+            echo "HAS_UPLOAD_KEY=1" >> "$GITHUB_ENV"
+          else
+            echo "::notice::No upload key in secrets: building the APK only (no Play bundle)"
+          fi
+
+      - name: Test and build debug APK
+        shell: bash
+        run: |
+          set -o pipefail
+          TASKS="testDebugUnitTest assembleDebug"
+          # The Play Store version also builds the signed bundle (.aab) for uploading.
+          if [ "${HAS_UPLOAD_KEY}" = "1" ]; then TASKS="$TASKS bundleRelease"; fi
+          gradle $TASKS --no-daemon --continue 2>&1 | tee build.log
+
+      - name: Show errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "^e: |error:|ERROR|Error:|FAILED|AAPT|Unresolved|Expected|Type mismatch|not found" build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+          for f in app/build/test-results/testDebugUnitTest/*.xml; do
+            [ -f "$f" ] || continue
+            python3 - "$f" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          for tc in ET.parse(sys.argv[1]).getroot().iter("testcase"):
+              for fl in tc.findall("failure"):
+                  msg = (fl.get("message") or "").replace("\n", " ")[:300]
+                  print(f"::error title=Test {tc.get('name')}::{msg}")
+          PY
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Daily-Vehicle-Report-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK file to the apk-builds branch
+        shell: bash
+        run: |
+          mkdir out
+          cp app/build/outputs/apk/debug/app-debug.apk out/Daily_Vehicle_Report.apk
+          BR=apk-builds
+          cp app/build/outputs/bundle/release/app-release.aab out/Daily_Vehicle_Report_Play.aab 2>/dev/null || true
+          cd out
+          git init -q
+          git checkout -q -b $BR
+          git add .
+          git -c user.name=github-actions -c user.email=actions@github.com commit -qm "Build from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" $BR

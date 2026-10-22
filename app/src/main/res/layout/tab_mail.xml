@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginStart="2dp"
+            android:text="@string/mail_recipients" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/DField.Dense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/mail_to"
+            app:helperText="@string/mail_to_help">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/mailTo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress|textMultiLine" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/DField.Dense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/mail_cc">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/mailCc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress|textMultiLine" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/DField.Dense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/mail_subject">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/mailSubject"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapSentences" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginStart="2dp"
+            android:text="@string/mail_period" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/mailDates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginStart="2dp"
+            android:text="@string/mail_attach" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/mailDaily"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/rep_daily_title" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/mailLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rep_log_title" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/mailSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rep_summary_title" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/mailDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rep_details_title" />
+
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginStart="2dp"
+            android:text="@string/mail_body" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/mailPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:padding="12dp"
+                android:textIsSelectable="true"
+                android:textSize="12.5sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mailSend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/mail_send"
+            app:icon="@drawable/ic_mail" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/mail_note"
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

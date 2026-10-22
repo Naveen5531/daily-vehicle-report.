@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Live has no bottom-bar button (the bar holds 5); it opens from the "Live" chip at the top. -->
+    <item name="nav_live" type="id" />
+    <!-- Rates opens from the "Rate card" button on the Vehicles tab. -->
+    <item name="nav_rates" type="id" />
+    <!-- Mail opens from the Export tab ("Send report by mail"); the bar's 5th place is Plan. -->
+    <item name="nav_mail" type="id" />
+</resources>

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Today tab row: vendor initials, vehicle number, details, status and call; below it Yet to report / Reported / Departed. -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="2dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="18dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/avatar"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/avatar_bg"
+            android:fontFamily="@font/jakarta_bold"
+            android:gravity="center"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/plateText"
+                style="@style/Plate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/meta1"
+                style="@style/Meta" />
+
+            <TextView
+                android:id="@+id/meta2"
+                style="@style/Meta"
+                android:textColor="@color/faint" />
+
+            <!-- Only the last 4 were posted: scan the plate; or when it was scanned -->
+            <TextView
+                android:id="@+id/plateNote"
+                style="@style/Meta"
+                android:fontFamily="@font/jakarta_semibold"
+                android:textColor="@color/chk"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/gateTimes"
+                style="@style/Meta"
+                android:maxLines="2"
+                android:fontFamily="@font/jakarta_semibold"
+                android:textColor="@color/ok"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/statusPill"
+                style="@style/StatusPill" />
+
+            <TextView
+                android:id="@+id/timeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:fontFamily="@font/jakarta_semibold"
+                android:textColor="@color/muted"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/scanButton"
+            style="@style/RoundIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/scan_plate"
+            android:visibility="gone"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_camera" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/callButton"
+            style="@style/RoundIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/call"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_phone" />
+    </LinearLayout>
+
+    <include
+        layout="@layout/gate_toggle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

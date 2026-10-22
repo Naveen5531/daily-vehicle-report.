@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="16dp">
+
+        <TextView
+            style="@style/SectionLabel"
+            android:text="@string/live_section" />
+
+        <include android:id="@+id/liveScreen" layout="@layout/report_card" />
+        <include android:id="@+id/liveNotif" layout="@layout/report_card" />
+        <include android:id="@+id/liveExport" layout="@layout/report_card" />
+
+        <TextView
+            style="@style/SectionLabel"
+            android:text="@string/live_status_section" />
+
+        <TextView
+            android:id="@+id/liveStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/box_bg"
+            android:lineSpacingExtra="4dp"
+            android:padding="14dp"
+            android:textColor="@color/ink"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="16dp"
+            android:lineSpacingExtra="3dp"
+            android:text="@string/live_restricted_help"
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

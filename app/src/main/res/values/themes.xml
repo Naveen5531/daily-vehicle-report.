@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Design D "Emerald card".
+  Plus Jakarta Sans for text, Bricolage Grotesque (heavy) for titles and numbers.
+  Soft green-grey page, white cards with a light shadow and generous corners,
+  one deep emerald card for the day's headline, a floating tab bar.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.DailyVehicleReport" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/emerald</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/brand_light</item>
+        <item name="colorOnPrimaryContainer">@color/emerald</item>
+        <item name="colorSecondary">@color/emerald</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">@color/brand_light</item>
+        <item name="colorOnSecondaryContainer">@color/emerald</item>
+        <item name="colorTertiary">@color/no</item>
+        <item name="android:colorBackground">@color/bg_light</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="colorOutline">#D3DDD8</item>
+        <item name="android:statusBarColor">@color/bg_light</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/bg_light</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+
+        <!-- Only android:fontFamily here: an app-level fontFamily in the theme would override
+             every TextView's own font (AppCompat reads it first). -->
+        <item name="android:fontFamily">@font/jakarta</item>
+        <item name="android:textViewStyle">@style/Text</item>
+        <!-- Keep white cards white (no green tint added for elevation). -->
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.D.Dialog</item>
+        <item name="textAppearanceHeadlineSmall">@style/TA.Headline</item>
+        <item name="textAppearanceTitleLarge">@style/TA.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TA.TitleMedium</item>
+        <item name="textAppearanceTitleSmall">@style/TA.TitleSmall</item>
+        <item name="textAppearanceBodyLarge">@style/TA.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TA.BodyMedium</item>
+        <item name="textAppearanceBodySmall">@style/TA.BodySmall</item>
+        <item name="textAppearanceLabelLarge">@style/TA.LabelLarge</item>
+        <item name="textAppearanceLabelMedium">@style/TA.LabelMedium</item>
+        <item name="textAppearanceLabelSmall">@style/TA.LabelSmall</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/Shape.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/Shape.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/Shape.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/Shape.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/Shape.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/Shape.Large</item>
+
+        <item name="materialButtonStyle">@style/DButton</item>
+        <item name="materialButtonOutlinedStyle">@style/DOutlined</item>
+        <item name="chipStyle">@style/DChipAssist</item>
+        <item name="textInputStyle">@style/DField</item>
+        <item name="extendedFloatingActionButtonStyle">@style/DFab</item>
+        <item name="materialSwitchStyle">@style/DSwitch</item>
+        <item name="bottomNavigationStyle">@style/DNav</item>
+    </style>
+
+    <!-- Type -->
+    <style name="Text" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/jakarta</item>
+    </style>
+    <!-- Dialogs: white, rounded, Bricolage title in a size that fits a question on two lines. -->
+    <style name="ThemeOverlay.D.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="materialAlertDialogTitleTextStyle">@style/D.DialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/D.DialogBody</item>
+    </style>
+    <style name="D.DialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:fontFamily">@font/bricolage_extrabold</item>
+        <item name="fontFamily">@font/bricolage_extrabold</item>
+    </style>
+    <style name="D.DialogBody" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+        <item name="android:textColor">@color/muted</item>
+        <item name="android:fontFamily">@font/jakarta</item>
+        <item name="fontFamily">@font/jakarta</item>
+    </style>
+    <style name="TA.Headline" parent="TextAppearance.Material3.HeadlineSmall"><item name="fontFamily">@font/bricolage_extrabold</item><item name="android:fontFamily">@font/bricolage_extrabold</item></style>
+    <style name="TA.TitleLarge" parent="TextAppearance.Material3.TitleLarge"><item name="fontFamily">@font/bricolage_extrabold</item><item name="android:fontFamily">@font/bricolage_extrabold</item></style>
+    <style name="TA.TitleMedium" parent="TextAppearance.Material3.TitleMedium"><item name="fontFamily">@font/jakarta_bold</item><item name="android:fontFamily">@font/jakarta_bold</item></style>
+    <style name="TA.TitleSmall" parent="TextAppearance.Material3.TitleSmall"><item name="fontFamily">@font/jakarta_semibold</item><item name="android:fontFamily">@font/jakarta_semibold</item></style>
+    <style name="TA.BodyLarge" parent="TextAppearance.Material3.BodyLarge"><item name="fontFamily">@font/jakarta</item><item name="android:fontFamily">@font/jakarta</item></style>
+    <style name="TA.BodyMedium" parent="TextAppearance.Material3.BodyMedium"><item name="fontFamily">@font/jakarta</item><item name="android:fontFamily">@font/jakarta</item></style>
+    <style name="TA.BodySmall" parent="TextAppearance.Material3.BodySmall"><item name="fontFamily">@font/jakarta</item><item name="android:fontFamily">@font/jakarta</item></style>
+    <style name="TA.LabelLarge" parent="TextAppearance.Material3.LabelLarge"><item name="fontFamily">@font/jakarta_bold</item><item name="android:fontFamily">@font/jakarta_bold</item><item name="android:letterSpacing">0</item></style>
+    <style name="TA.LabelMedium" parent="TextAppearance.Material3.LabelMedium"><item name="fontFamily">@font/jakarta_semibold</item><item name="android:fontFamily">@font/jakarta_semibold</item></style>
+    <style name="TA.LabelSmall" parent="TextAppearance.Material3.LabelSmall"><item name="fontFamily">@font/jakarta_bold</item><item name="android:fontFamily">@font/jakarta_bold</item><item name="android:textSize">12sp</item></style>
+
+    <!-- Shapes -->
+    <style name="Shape.Small" parent=""><item name="cornerFamily">rounded</item><item name="cornerSize">14dp</item></style>
+    <style name="Shape.Medium" parent=""><item name="cornerFamily">rounded</item><item name="cornerSize">20dp</item></style>
+    <style name="Shape.Large" parent=""><item name="cornerFamily">rounded</item><item name="cornerSize">28dp</item></style>
+    <style name="Shape.Pill" parent=""><item name="cornerFamily">rounded</item><item name="cornerSize">50%</item></style>
+
+    <!-- Buttons, chips, fields -->
+    <style name="DButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+    </style>
+    <!-- One part of the Yet to report / Reported / Departed choice on a vehicle. -->
+    <style name="DSeg" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">38dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:fontFamily">@font/jakarta_semibold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="strokeColor">@color/line</item>
+        <item name="backgroundTint">@color/seg_bg</item>
+        <item name="android:textColor">@color/seg_text</item>
+        <item name="rippleColor">#1F0B3D2E</item>
+    </style>
+
+    <style name="DOutlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="strokeColor">@color/line</item>
+        <item name="backgroundTint">@color/surface</item>
+        <item name="android:textColor">@color/emerald</item>
+    </style>
+    <style name="DOutlined.Icon" parent="Widget.Material3.Button.OutlinedButton.Icon">
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="strokeColor">@color/line</item>
+        <item name="backgroundTint">@color/surface</item>
+        <item name="android:textColor">@color/emerald</item>
+        <item name="iconTint">@color/emerald</item>
+    </style>
+    <style name="DTonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="cornerRadius">24dp</item>
+        <item name="backgroundTint">@color/brand_light</item>
+        <item name="android:textColor">@color/emerald</item>
+    </style>
+    <style name="DTonal.Icon" parent="Widget.Material3.Button.TonalButton.Icon">
+        <item name="cornerRadius">24dp</item>
+        <item name="backgroundTint">@color/brand_light</item>
+        <item name="android:textColor">@color/emerald</item>
+        <item name="iconTint">@color/emerald</item>
+    </style>
+    <!-- Filter chips on the page: white with a soft shadow, dark emerald when chosen. -->
+    <style name="DChip" parent="Widget.Material3.Chip.Filter.Elevated">
+        <item name="chipCornerRadius">19dp</item>
+        <item name="chipMinHeight">38dp</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipBackgroundColor">@color/chip_bg</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="chipStartPadding">8dp</item>
+        <item name="chipEndPadding">8dp</item>
+        <item name="android:textAppearance">@style/TA.ChipText</item>
+    </style>
+    <!-- Chips inside a card (quick dates, choices): soft grey, dark emerald when chosen. -->
+    <style name="DChipAssist" parent="Widget.Material3.Chip.Assist">
+        <item name="chipCornerRadius">19dp</item>
+        <item name="chipMinHeight">38dp</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipBackgroundColor">@color/chip_bg_soft</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="chipIconTint">@color/chip_text</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="android:textAppearance">@style/TA.ChipText</item>
+    </style>
+    <style name="TA.ChipText" parent="TextAppearance.Material3.LabelLarge">
+        <item name="fontFamily">@font/jakarta_bold</item>
+        <item name="android:fontFamily">@font/jakarta_bold</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/chip_text</item>
+    </style>
+    <style name="DField" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxBackgroundColor">@color/surface</item>
+        <item name="boxStrokeColor">@color/emerald</item>
+    </style>
+    <style name="DField.Dense" parent="Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxBackgroundColor">@color/surface</item>
+        <item name="boxStrokeColor">@color/emerald</item>
+    </style>
+    <style name="DField.Dropdown" parent="Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxBackgroundColor">@color/surface</item>
+    </style>
+    <style name="DFab" parent="Widget.Material3.ExtendedFloatingActionButton.Icon.Primary">
+        <item name="backgroundTint">@color/emerald</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="iconTint">#FFFFFF</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.Pill</item>
+    </style>
+    <style name="DSwitch" parent="Widget.Material3.CompoundButton.MaterialSwitch" />
+
+    <!-- Floating tab bar: the open tab becomes a dark emerald pill. -->
+    <style name="DNav" parent="Widget.Material3.BottomNavigationView">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="itemIconTint">@color/nav_icon</item>
+        <item name="itemTextColor">@color/nav_item</item>
+        <item name="itemActiveIndicatorStyle">@style/DNavIndicator</item>
+        <item name="labelVisibilityMode">selected</item>
+        <item name="itemPaddingTop">9dp</item>
+        <item name="itemPaddingBottom">8dp</item>
+        <item name="itemIconSize">22dp</item>
+        <item name="itemTextAppearanceActive">@style/TA.LabelSmall</item>
+        <item name="itemTextAppearanceInactive">@style/TA.LabelSmall</item>
+    </style>
+    <style name="DNavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/emerald</item>
+        <item name="android:width">60dp</item>
+        <item name="android:height">34dp</item>
+        <item name="shapeAppearance">@style/Shape.Pill</item>
+    </style>
+
+    <!-- Section heading: "By vendor", "Vehicles" -->
+    <style name="SectionLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">20dp</item>
+        <item name="android:layout_marginEnd">20dp</item>
+        <item name="android:layout_marginTop">22dp</item>
+        <item name="android:layout_marginBottom">10dp</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">@font/bricolage_extrabold</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <!-- White card with a soft shadow, no outline. -->
+    <style name="Card">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">2dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="android:outlineSpotShadowColor" tools:targetApi="28">#330B3D2E</item>
+        <item name="android:outlineAmbientShadowColor" tools:targetApi="28">#140B3D2E</item>
+    </style>
+
+    <!-- Vehicle number -->
+    <style name="Plate">
+        <item name="android:fontFamily">@font/jakarta_bold</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textSize">15.5sp</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
+
+    <style name="Meta">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:textSize">12.5sp</item>
+        <item name="android:textColor">@color/muted</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="StatusPill">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/pill_bg</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">5dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/jakarta_bold</item>
+    </style>
+
+    <!-- Small chip inside a WhatsApp entry -->
+    <style name="InfoChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/round_bg</item>
+        <item name="android:backgroundTint">@color/soft</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">5dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/jakarta_semibold</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <!-- Big numbers -->
+    <style name="Figure">
+        <item name="android:fontFamily">@font/bricolage_extrabold</item>
+    </style>
+
+    <style name="RoundIcon" parent="Widget.Material3.Button.OutlinedButton.Icon">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">18dp</item>
+        <item name="iconTint">@color/emerald</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="backgroundTint">@color/soft</item>
+        <item name="cornerRadius">22dp</item>
+    </style>
+</resources>
