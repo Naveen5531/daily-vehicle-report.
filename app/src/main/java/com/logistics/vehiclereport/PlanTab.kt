@@ -457,8 +457,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         })
         for (s in held.sortedBy { it.volume }) {
             list.addView(TextView(a).apply {
-                text = "${s.code} · ${s.shownName}
-" + Ui.joinNonBlank(zones[s.code]?.let { zoneName(it) }.orEmpty(), s.city,
+                text = "${s.code} · ${s.shownName}\n" + Ui.joinNonBlank(zones[s.code]?.let { zoneName(it) }.orEmpty(), s.city,
                     a.getString(R.string.held_volume, vol(s.volume)))
                 setTextColor(Ui.color(a, R.color.ink)); textSize = 13.5f
                 setBackgroundResource(android.R.drawable.list_selector_background)
