@@ -18,8 +18,8 @@ android {
         targetSdk = 36
         // Every GitHub build gets a higher number, so phones always accept it as an update.
         val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toIntOrNull() ?: 0
-        versionCode = 1000 + run
-        versionName = "6.1.$run"
+        versionCode = 1100 + run  // new repo: starts above the old builds (last was 1087)
+        versionName = "6.2.$run"
     }
 
     // Fixed key so every GitHub build installs as an update over the previous one.
