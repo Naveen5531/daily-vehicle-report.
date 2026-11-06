@@ -252,8 +252,7 @@ class VehicleDetailAdapter(
         h.meta3.text = "📍 " + pick(v.route, p?.route).ifBlank { "—" }
         h.edit.setOnClickListener { onEdit(v) }
         h.itemView.setOnClickListener { onOpen(v) }
-        val mobile = v.mobile.ifBlank { d.gate?.mobile.orEmpty() }
-        h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
-        h.call.setOnClickListener { Ui.dial(ctx, mobile) }
+        h.call.visibility = if (v.mobile.isBlank()) View.GONE else View.VISIBLE
+        h.call.setOnClickListener { Ui.dial(ctx, v.mobile) }
     }
 }
