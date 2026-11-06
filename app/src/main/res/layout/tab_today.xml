@@ -301,6 +301,17 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Mark reported from a camera scan at the gate, a photo or an Excel file -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/markReportedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="16dp"
+            android:text="@string/mark_button"
+            app:icon="@drawable/ic_truck" />
+
         <!-- Progress per transporter -->
         <LinearLayout
             android:id="@+id/vendorSection"

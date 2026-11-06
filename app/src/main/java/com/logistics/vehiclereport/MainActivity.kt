@@ -323,6 +323,149 @@ class MainActivity : AppCompatActivity() {
 
     fun pickChatExport() = chatPicker.launch(arrayOf("text/plain", "application/zip", "application/x-zip-compressed", "*/*"))
 
+    // ---------- Mark reported: camera (gate in / out), photo, Excel ----------
+
+    /** true = the next camera scan is a Gate Out (Departed), false = Gate In (Reported). */
+    private var gateScanOut = false
+    private var markShot: Uri? = null
+
+    private val gateScanLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val plate = res.data?.getStringExtra(PlateScanActivity.EXTRA_PLATE)
+        if (res.resultCode == RESULT_OK && plate != null) markFromCamera(plate, gateScanOut)
+    }
+    private val markCameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) takeMarkPhoto() else Toast.makeText(this, R.string.plan_camera_needed, Toast.LENGTH_LONG).show()
+    }
+    private val markCamera = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = markShot
+        if (ok && u != null) markFromPhoto(u)
+    }
+    private val markGallery = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) markFromPhoto(uri)
+    }
+    private val markFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) markFromFile(uri)
+    }
+
+    /** Today → Mark reported: how to read the vehicle numbers. */
+    fun openMarkReported() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mark_title)
+            .setItems(arrayOf(getString(R.string.mark_cam_in), getString(R.string.mark_cam_out),
+                getString(R.string.mark_photo_take), getString(R.string.mark_photo_pick), getString(R.string.mark_file))) { _, which ->
+                when (which) {
+                    0 -> startGateScan(false)
+                    1 -> startGateScan(true)
+                    2 -> if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED) takeMarkPhoto()
+                        else markCameraPermission.launch(android.Manifest.permission.CAMERA)
+                    3 -> markGallery.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    else -> markFile.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "text/csv", "text/comma-separated-values", "text/plain", "*/*"))
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun startGateScan(out: Boolean) {
+        gateScanOut = out
+        gateScanLauncher.launch(Intent(this, PlateScanActivity::class.java)
+            .putStringArrayListExtra(PlateScanActivity.EXTRA_KNOWN, ArrayList(knownNumbers())))
+    }
+
+    private fun takeMarkPhoto() {
+        val f = java.io.File(cacheDir, "reports/mark_${System.currentTimeMillis()}.jpg").apply { parentFile?.mkdirs() }
+        val u = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+        markShot = u
+        markCamera.launch(u)
+    }
+
+    /** Numbers a scan may stand for: the vehicle list, plus today's posted numbers and replacements. */
+    private fun knownNumbers(): Set<String> {
+        val today = ReportBuilder.startOfDay()
+        val posts = VehicleStore.getAll(this).filter { it.time >= today }
+        return (VehicleStore.getVehicles(this).map { it.number } + posts.map { it.vehicle } +
+            posts.mapNotNull { p -> p.replacement.takeIf { it.isNotBlank() }?.let { DrishtiData.plate(it) } }).toSet()
+    }
+
+    private fun markFromCamera(plate: String, out: Boolean) {
+        val now = System.currentTimeMillis()
+        val today = ReportBuilder.startOfDay()
+        val known = knownNumbers()
+        if (plate !in known) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(PlateReader.pretty(plate))
+                .setMessage(R.string.mark_cam_not_listed)
+                .setPositiveButton(R.string.mark_add_record) { _, _ ->
+                    VehicleStore.addFromGate(this, listOf(DrishtiRow("", plate, "", "", "", now, if (out) now else 0L)))
+                    applyMarks(listOf(listOf("", plate, "", "", "", now.toString(), if (out) now.toString() else "", "")), emptyList(), out)
+                }
+                .setNeutralButton(R.string.mark_scan_next) { _, _ -> startGateScan(out) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        // Gate Out keeps the time it came in (or now, when it was never marked in).
+        val inAt = if (out) GateMarks.forDay(this, today)[plate]?.reportedAt?.takeIf { it > 0 } ?: now else now
+        applyMarks(listOf(listOf("", plate, "", "", "", inAt.toString(), if (out) now.toString() else "", "")), emptyList(), out)
+    }
+
+    private fun markFromPhoto(uri: Uri) {
+        Toast.makeText(this, R.string.mark_reading, Toast.LENGTH_SHORT).show()
+        PlanData.readPhoto(this, uri) { words, err ->
+            if (words == null) {
+                Toast.makeText(this, getString(R.string.mark_read_failed, err?.message ?: ""), Toast.LENGTH_LONG).show()
+                return@readPhoto
+            }
+            val found = ReportImport.fromLines(ReportImport.lines(words), knownNumbers(), System.currentTimeMillis())
+            applyMarks(found.cells, found.unmatched, null)
+        }
+    }
+
+    private fun markFromFile(uri: Uri) {
+        val found = try {
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+            val zip = bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
+            val sheets = if (zip) VehicleListImporter.xlsxSheets(bytes) else listOf(VehicleListImporter.textRows(bytes))
+            ReportImport.fromSheets(sheets, knownNumbers(), ReportBuilder.startOfDay(), System.currentTimeMillis())
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.mark_read_failed, e.message ?: ""), Toast.LENGTH_LONG).show(); return
+        }
+        applyMarks(found.cells, found.unmatched, null)
+    }
+
+    /** Marks what was found and says what happened. [cameraOut] = came from a camera scan (Gate Out or In), else null. */
+    private fun applyMarks(cells: List<List<String>>, unmatched: List<String>, cameraOut: Boolean?) {
+        holdTodayOrder()
+        val app = applicationContext
+        Thread {
+            val r = if (cells.isEmpty()) null else try {
+                DrishtiStore.apply(app, cells, ReportBuilder.startOfDay(), fromDrishti = false)
+            } catch (e: Throwable) { CrashLog.save(app, "Mark reported", e); null }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val msg = buildString {
+                    if (r == null) append(getString(R.string.mark_none))
+                    else append(getString(R.string.mark_summary, r.read, r.reported, r.departed))
+                    if (unmatched.isNotEmpty()) {
+                        append("\n\n").append(getString(R.string.mark_unmatched, unmatched.size))
+                        append("\n").append(unmatched.take(15).joinToString(", ") { PlateReader.pretty(it) })
+                        if (unmatched.size > 15) append(" …")
+                    }
+                }
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.mark_done_title)
+                    .setMessage(msg)
+                    .apply {
+                        if (cameraOut != null) setNeutralButton(R.string.mark_scan_next) { _, _ -> startGateScan(cameraOut) }
+                    }
+                    .setPositiveButton(R.string.done, null)
+                    .show()
+            }
+        }.start()
+    }
+
     // ---------- Plan: photos or Excel of the vehicle request sheet ----------
 
     private val planGallery = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->

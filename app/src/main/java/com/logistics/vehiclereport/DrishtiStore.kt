@@ -28,6 +28,7 @@ object DrishtiStore {
     const val KEY_STATUS = "drishti_status"
     private const val KEY_LAST = "drishti_last_pull"
     private const val KEY_LAST_COUNT = "drishti_last_count"
+    private const val KEY_LAST_IMPORT = "gate_last_import"
     private const val KEY_AUTO = "drishti_auto"
     const val KEY_GATE_ONLY = "drishti_gate_only"
     const val KEY_LIVE = "drishti_live"
@@ -70,6 +71,8 @@ object DrishtiStore {
     fun setLive(c: Context, on: Boolean) = VehicleStore.prefs(c).edit().putBoolean(KEY_LIVE, on).apply()
 
     fun status(c: Context): String = VehicleStore.prefs(c).getString(KEY_STATUS, "") ?: ""
+    /** Last time vehicles were marked from a scan, photo or file (0 = never). */
+    fun lastImport(c: Context): Long = VehicleStore.prefs(c).getLong(KEY_LAST_IMPORT, 0L)
     fun lastPull(c: Context): Long = VehicleStore.prefs(c).getLong(KEY_LAST, 0L)
     fun lastCount(c: Context): Int = VehicleStore.prefs(c).getInt(KEY_LAST_COUNT, 0)
 
@@ -81,8 +84,8 @@ object DrishtiStore {
     fun everWorked(c: Context) = lastPull(c) > 0
 
     /** Saves what was read from the page and applies it. [cells] = one list of cells per row (see [DrishtiData]). */
-    fun apply(c: Context, cells: List<List<String>>, pageDay: Long): DrishtiResult {
-        val rows = DrishtiData.rows(cells, pageDay, site(c))
+    fun apply(c: Context, cells: List<List<String>>, pageDay: Long, fromDrishti: Boolean = true): DrishtiResult {
+        val rows = DrishtiData.rows(cells, pageDay, if (fromDrishti) site(c) else "")
         saveLog(c, rows)
         val (added, _) = VehicleStore.addFromGate(c, rows)
         val vehicles = VehicleStore.getVehicles(c)
@@ -90,11 +93,13 @@ object DrishtiStore {
         val entries = DrishtiData.marks(rows, vehicles, records) { day -> GateMarks.markedOn(c, day) }
         val changed = GateMarks.applyGate(c, entries)
         val dedicated = vehicles.filter { it.dedicated }.map { it.number }.toSet()
-        VehicleStore.prefs(c).edit()
+        // A scan or file import is not a Drishti read: the Drishti status stays as it was.
+        if (fromDrishti) VehicleStore.prefs(c).edit()
             .putString(KEY_STATUS, OK)
             .putLong(KEY_LAST, System.currentTimeMillis())
             .putInt(KEY_LAST_COUNT, rows.size)
             .apply()
+        else VehicleStore.prefs(c).edit().putLong(KEY_LAST_IMPORT, System.currentTimeMillis()).apply()
         return DrishtiResult(
             read = rows.size,
             inList = rows.count { it.vehicle in dedicated },

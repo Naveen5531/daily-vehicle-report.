@@ -114,6 +114,7 @@ class TodayTab(private val a: MainActivity, root: View) {
         root.findViewById<View>(R.id.drishtiCard).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
+        root.findViewById<MaterialButton>(R.id.markReportedButton).setOnClickListener { a.openMarkReported() }
 
         val labels = mapOf(TodayState.NOT_POSTED to R.string.st_not_posted, TodayState.YET to R.string.gate_yet,
             TodayState.REPORTED to R.string.st_reported, TodayState.DEPARTED to R.string.gate_departed)
@@ -217,7 +218,7 @@ class TodayTab(private val a: MainActivity, root: View) {
             else -> R.string.hero_sub_reported
         }) + if (toCheck > 0) " · " + a.getString(R.string.hero_to_check, toCheck) else ""
         val lastPost = s.records.filter { it.time >= ReportBuilder.startOfDay() }.maxOfOrNull { it.time }
-        val lastGate = DrishtiStore.lastPull(a).takeIf { it >= today }
+        val lastGate = maxOf(DrishtiStore.lastPull(a), DrishtiStore.lastImport(a)).takeIf { it >= today }
         heroUpdated.text = when {
             gateOnly && lastGate != null -> a.getString(R.string.gate_updated_at, clock.format(Date(lastGate)))
             gateOnly -> a.getString(R.string.gate_not_read_today)

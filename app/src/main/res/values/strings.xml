@@ -640,4 +640,21 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
         <item quantity="one">1 gate update</item>
         <item quantity="other">%d gate updates</item>
     </plurals>
+    <!-- Mark reported: camera scan at the gate, photo, Excel -->
+    <string name="mark_button">Mark reported – scan / photo / Excel</string>
+    <string name="mark_title">Mark vehicles from</string>
+    <string name="mark_cam_in">📷 Camera – Gate IN (Reported)</string>
+    <string name="mark_cam_out">📷 Camera – Gate OUT (Departed)</string>
+    <string name="mark_photo_take">🖼 Take a photo (register / screen / list)</string>
+    <string name="mark_photo_pick">🖼 Pick a photo or screenshot</string>
+    <string name="mark_file">📄 Excel or CSV file</string>
+    <string name="mark_reading">Reading vehicle numbers…</string>
+    <string name="mark_read_failed">Couldn\'t read it: %1$s</string>
+    <string name="mark_none">No vehicle number from your list was found.</string>
+    <string name="mark_summary">%1$d vehicles matched.\nMarked Reported: %2$d · Departed: %3$d</string>
+    <string name="mark_unmatched">Not in your vehicle list (%1$d):</string>
+    <string name="mark_done_title">Vehicles marked</string>
+    <string name="mark_scan_next">Scan next</string>
+    <string name="mark_cam_not_listed">This vehicle is not in your vehicle list or today\'s posts. Save it as a record only (it will not count as a dedicated vehicle)?</string>
+    <string name="mark_add_record">Save as record</string>
 </resources>
