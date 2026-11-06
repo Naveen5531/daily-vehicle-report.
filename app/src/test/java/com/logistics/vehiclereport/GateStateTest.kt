@@ -64,7 +64,8 @@ class GateStateTest {
         assertTrue(d.getValue("TS08UC3307").last4Only)
         val rows = ReportBuilder.dailyRows(vehicles, recs, day, day)
         val h = rows.first(); val num = h.indexOf("Vehicle Number"); val chk = h.indexOf("Number Check")
-        assertEquals(h.size - 1, chk)
+        assertEquals(h.size - 2, chk)
+        assertEquals(h.size - 1, h.indexOf("Drishti Gate"))
         val byNum = rows.drop(1).filter { it[0] != "TOTAL" }.associateBy { it[num] }
         assertTrue(byNum.getValue("TS09UB4821")[chk].startsWith("Plate scanned"))
         assertEquals("Last 4 only – full number not checked", byNum.getValue("TS08UC3307")[chk])
