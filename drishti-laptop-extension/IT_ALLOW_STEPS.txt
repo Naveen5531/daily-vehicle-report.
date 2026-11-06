@@ -1,0 +1,21 @@
+Daily Vehicle Report - Drishti link (Chrome add-on)
+Extension ID: lcggcfiaoffmkoomhdeenjpnaidalbea
+Needs access to: https://*.meradmart.com/* (read Vehicle Summary page), https://ntfy.sh/* (send encrypted gate log)
+
+To allow it on one Windows laptop (Command Prompt as Administrator), then restart Chrome:
+
+  reg add "HKLM\SOFTWARE\Policies\Google\Chrome\ExtensionInstallAllowlist" /v 101 /t REG_SZ /d lcggcfiaoffmkoomhdeenjpnaidalbea /f
+  reg add "HKLM\SOFTWARE\Policies\Google\Chrome" /v ExtensionDeveloperModeSettings /t REG_DWORD /d 0 /f
+
+(If the value name 101 is already used under ExtensionInstallAllowlist, pick any unused number.)
+Check: open chrome://policy -> Reload policies -> both should show Status OK.
+
+If the laptop uses Microsoft Edge instead of Chrome, use the same two lines with
+HKLM\SOFTWARE\Policies\Microsoft\Edge instead of HKLM\SOFTWARE\Policies\Google\Chrome.
+
+If policies are managed by domain Group Policy, set the same two policies there
+(Google Chrome > Extensions > "Configure extension installation allow list" and
+"Control the availability of developer mode on extensions page" = Allow), then run: gpupdate /force
+
+Then: chrome://extensions -> Developer mode ON -> Load unpacked -> select this folder.
+The ID shown must be lcggcfiaoffmkoomhdeenjpnaidalbea.

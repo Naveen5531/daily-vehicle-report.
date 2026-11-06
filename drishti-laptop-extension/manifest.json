@@ -1,10 +1,24 @@
 {
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkGl1a2DMWESHHw6WJPUm3itONU4ZsqM+30n8OiAXmgrxqZwoCNxMaAZhD8nXSduAkeScHtQjAGJDdb6S8SKGjd8Mq2L0Y9490LmbOvAHfPToQ8s4Bh40xWDPB7M2UKuvw8WrvV4KIs2OwklYnmWVPEI5FPzhz29R981G4Oz17RQMsie3/zIvQtA+P2B4/MSpQhiGJ0P2l9YLeLbz9aySbDQhY0uCTlSClG2vTg4HbVvx+RHvS0Kh8P9tHwTiyZHGXqc4gkM4B51Nr+PT/hYvSDuTz4uIbV+yXyBhIg/kYtF6VUs6mJYRSi9D5cuzy0GFxa2S0ThhN6Y/i5KWJGoJkwIDAQAB",
   "manifest_version": 3,
-  "name": "Daily Vehicle Report – Drishti link",
+  "name": "Daily Vehicle Report \u2013 Drishti link",
   "version": "1.0.0",
   "description": "Sends the DC gate log (Drishti Vehicle Summary, read with your own sign-in) to your Daily Vehicle Report app every 3 minutes, encrypted.",
-  "permissions": ["alarms", "storage", "scripting", "tabs"],
-  "host_permissions": ["https://*.meradmart.com/*", "https://ntfy.sh/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html", "default_title": "Drishti → Daily Vehicle Report" }
+  "permissions": [
+    "alarms",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.meradmart.com/*",
+    "https://ntfy.sh/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Drishti \u2192 Daily Vehicle Report"
+  }
 }
