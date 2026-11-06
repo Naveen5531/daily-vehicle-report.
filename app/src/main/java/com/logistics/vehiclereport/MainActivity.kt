@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var liveRing: View
     private lateinit var liveText: TextView
 
-    private val watchedKeys = setOf(VehicleStore.KEY_RECORDS, VehicleStore.KEY_DEDICATED, VehicleStore.KEY_UNMATCHED, GateMarks.KEY, PlateScans.KEY, DrishtiStore.KEY_STATUS)
+    private val watchedKeys = setOf(VehicleStore.KEY_RECORDS, VehicleStore.KEY_DEDICATED, VehicleStore.KEY_UNMATCHED, GateMarks.KEY, PlateScans.KEY, DrishtiStore.KEY_STATUS, DrishtiStore.KEY_LOG, DrishtiStore.KEY_GATE_ONLY)
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key in watchedKeys) runOnUiThread { refreshAll() }
     }
@@ -396,6 +396,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { }
         }
         refreshAll()
+        safe("Drishti live") { DrishtiLiveService.startIfOn(this) }
         safe("Drishti") { drishti?.resume() }
     }
 

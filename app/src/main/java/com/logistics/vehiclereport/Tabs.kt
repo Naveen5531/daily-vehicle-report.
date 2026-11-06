@@ -113,6 +113,7 @@ class TodayTab(private val a: MainActivity, root: View) {
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
         root.findViewById<View>(R.id.drishtiCard).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
+        root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
 
         val labels = mapOf(TodayState.NOT_POSTED to R.string.st_not_posted, TodayState.YET to R.string.gate_yet,
             TodayState.REPORTED to R.string.st_reported, TodayState.DEPARTED to R.string.gate_departed)
@@ -175,8 +176,13 @@ class TodayTab(private val a: MainActivity, root: View) {
         val today = ReportBuilder.startOfDay()
         val gates = GateMarks.gates(a)
         val marks = gates.forDay(today)
-        val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today))
-        val days = ReportBuilder.dayStatus(s.vehicles, s.records, today, marks, gates.legacy(today)) + extras
+        val gateMap = gates.gateLog(today)
+        val gateOnly = gates.gateOnly && !gates.legacy(today)
+        val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
+        val days = ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras
+        // Gate mode: nothing is "Not posted" (WhatsApp is not needed), so that tile and chip are hidden.
+        tiles.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
+        chipFor.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
         val counts = TodayState.values().associateWith { st -> days.count { it.state == st } }
         val total = days.size
         // Only full numbers can be added to the list; a 4-digit code alone is not enough.
@@ -211,8 +217,13 @@ class TodayTab(private val a: MainActivity, root: View) {
             else -> R.string.hero_sub_reported
         }) + if (toCheck > 0) " · " + a.getString(R.string.hero_to_check, toCheck) else ""
         val lastPost = s.records.filter { it.time >= ReportBuilder.startOfDay() }.maxOfOrNull { it.time }
-        heroUpdated.text = if (lastPost == null) a.getString(R.string.no_posts_yet)
-            else a.getString(R.string.updated_at, clock.format(Date(lastPost)))
+        val lastGate = DrishtiStore.lastPull(a).takeIf { it >= today }
+        heroUpdated.text = when {
+            gateOnly && lastGate != null -> a.getString(R.string.gate_updated_at, clock.format(Date(lastGate)))
+            gateOnly -> a.getString(R.string.gate_not_read_today)
+            lastPost == null -> a.getString(R.string.no_posts_yet)
+            else -> a.getString(R.string.updated_at, clock.format(Date(lastPost)))
+        }
 
         tiles.forEach { (st, tile) ->
             tile.findViewById<TextView>(R.id.statNumber).text = counts.getValue(st).toString()
@@ -224,7 +235,7 @@ class TodayTab(private val a: MainActivity, root: View) {
         val chipText = mapOf(TodayState.NOT_POSTED to R.string.chip_not_posted, TodayState.YET to R.string.chip_yet,
             TodayState.REPORTED to R.string.chip_reported, TodayState.DEPARTED to R.string.chip_departed, TodayState.CHECK to R.string.chip_check)
         chipFor.forEach { (st, chip) -> chip.text = a.getString(chipText.getValue(st), counts.getValue(st)) }
-        val last4 = days.count { it.last4Only }
+        val last4 = days.count { it.last4Only && it.gate == null }
         chipLast4.text = a.getString(R.string.chip_last4, last4)
         chipLast4.visibility = if (last4 > 0 || last4Filter) View.VISIBLE else View.GONE
         // "Check" only when a shared last 4 needs a look (or it is the chosen filter).
@@ -232,7 +243,7 @@ class TodayTab(private val a: MainActivity, root: View) {
 
         val m = MasterData.get(a)
         val filtered = days.filter {
-            (if (last4Filter) it.last4Only else filter == null || it.state == filter) && matchesSearch(it, query, m)
+            (if (last4Filter) it.last4Only && it.gate == null else filter == null || it.state == filter) && matchesSearch(it, query, m)
         }
         val list = if (timeWise) ReportBuilder.timeWise(filtered) else {
             // Status-wise: what still needs action first.

@@ -54,7 +54,10 @@ class StatusAdapter(
         val withRepl = d.hits.firstOrNull { it.replacement.isNotBlank() }
         h.meta2.text = when {
             withRepl != null -> Ui.joinNonBlank(ctx.getString(R.string.replacement_line, withRepl.replacement), withRepl.city)
+            d.gate != null && d.gate.vehicle != v.number ->
+                Ui.joinNonBlank(ctx.getString(R.string.gate_replacement_line, d.gate.vehicle), d.gate.destination)
             first != null -> Ui.joinNonBlank(ctx.getString(R.string.sent_by, first.typed, first.sender), first.city)
+            d.gate != null -> Ui.joinNonBlank(ctx.getString(R.string.gate_source), d.gate.destination, d.gate.driver)
             else -> v.route
         }
         h.meta2.visibility = if (h.meta2.text.isNullOrBlank()) View.GONE else View.VISIBLE
@@ -63,8 +66,10 @@ class StatusAdapter(
         h.gateTimes.text = Ui.gateTimes(ctx, d.mark)
         h.gateTimes.visibility = if (h.gateTimes.text.isNullOrBlank()) View.GONE else View.VISIBLE
         Ui.bindGate(h.gate, d.state) { onGate(d, it) }
+        // The gate log has the full number, so a last-4 post needs no plate scan.
+        val needScan = d.last4Only && d.gate == null
         when {
-            d.last4Only -> {
+            needScan -> {
                 h.plateNote.setText(R.string.last4_note)
                 h.plateNote.setTextColor(Ui.color(ctx, R.color.chk))
             }
@@ -75,15 +80,18 @@ class StatusAdapter(
             else -> h.plateNote.text = ""
         }
         h.plateNote.visibility = if (h.plateNote.text.isNullOrBlank()) View.GONE else View.VISIBLE
-        h.scan.visibility = if (d.last4Only) View.VISIBLE else View.GONE
+        h.scan.visibility = if (needScan) View.VISIBLE else View.GONE
         h.scan.setOnClickListener { onScan(d) }
+        val gateIn = d.gate?.checkIn?.takeIf { it > 0 }
         h.timeText.text = when {
+            (first == null || d.gateOnly) && gateIn != null -> time.format(Date(gateIn))
             first == null -> "—"
             d.hits.sumOf { it.count } > 1 -> time.format(Date(first.time)) + " · ${d.hits.sumOf { it.count }}×"
             else -> time.format(Date(first.time))
         }
-        h.call.visibility = if (v.mobile.isBlank()) View.GONE else View.VISIBLE
-        h.call.setOnClickListener { Ui.dial(ctx, v.mobile) }
+        val mobile = v.mobile.ifBlank { d.gate?.mobile.orEmpty() }
+        h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
+        h.call.setOnClickListener { Ui.dial(ctx, mobile) }
         h.itemView.setOnClickListener { onOpen(d) }
     }
 }
@@ -244,7 +252,8 @@ class VehicleDetailAdapter(
         h.meta3.text = "📍 " + pick(v.route, p?.route).ifBlank { "—" }
         h.edit.setOnClickListener { onEdit(v) }
         h.itemView.setOnClickListener { onOpen(v) }
-        h.call.visibility = if (v.mobile.isBlank()) View.GONE else View.VISIBLE
-        h.call.setOnClickListener { Ui.dial(ctx, v.mobile) }
+        val mobile = v.mobile.ifBlank { d.gate?.mobile.orEmpty() }
+        h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
+        h.call.setOnClickListener { Ui.dial(ctx, mobile) }
     }
 }

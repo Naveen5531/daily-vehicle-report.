@@ -50,7 +50,13 @@ object GateMarks {
     fun gates(c: Context): ReportBuilder.Gates {
         val all = read(c)
         val cache = HashMap<String, Map<String, GateMark>>()
-        return ReportBuilder.Gates(since(c)) { day -> dayKey(day).let { k -> cache.getOrPut(k) { parse(all.optJSONObject(k)) } } }
+        val logs = HashMap<Long, Map<String, DrishtiRow>>()
+        return ReportBuilder.Gates(
+            since = since(c),
+            forDay = { day -> dayKey(day).let { k -> cache.getOrPut(k) { parse(all.optJSONObject(k)) } } },
+            gateOnly = DrishtiStore.gateOnly(c),
+            gateLog = { day -> logs.getOrPut(day) { DrishtiData.byVehicle(DrishtiStore.log(c, day)) } }
+        )
     }
 
     /** Moves a day's mark from [from] to [to] (the camera showed the vehicle is really [to]); [to]'s own mark wins. */

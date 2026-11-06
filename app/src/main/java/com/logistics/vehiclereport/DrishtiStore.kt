@@ -24,18 +24,22 @@ object DrishtiStore {
     const val HOST = "meradmart.com"
 
     private const val KEY_SITE = "drishti_site"
-    private const val KEY_LOG = "drishti_log_json"
+    const val KEY_LOG = "drishti_log_json"
     const val KEY_STATUS = "drishti_status"
     private const val KEY_LAST = "drishti_last_pull"
     private const val KEY_LAST_COUNT = "drishti_last_count"
     private const val KEY_AUTO = "drishti_auto"
+    const val KEY_GATE_ONLY = "drishti_gate_only"
+    const val KEY_LIVE = "drishti_live"
     private const val KEEP_DAYS = 14
 
     /** Status of the last try: OK, LOGIN (sign in needed), NO_TABLE (page did not show the vehicle log), "" never. */
     const val OK = "OK"; const val LOGIN = "LOGIN"; const val NO_TABLE = "NO_TABLE"
 
     /** Auto pull every this long while the app is open. */
-    const val AUTO_EVERY_MS = 20L * 60 * 1000
+    const val AUTO_EVERY_MS = 3L * 60 * 1000
+    /** Live (even with the app closed): read the gate log every this long. */
+    const val LIVE_EVERY_MS = 3L * 60 * 1000
 
     fun isDrishtiUrl(url: String?): Boolean {
         if (url == null || !url.startsWith("https://")) return false
@@ -56,6 +60,14 @@ object DrishtiStore {
 
     fun autoOn(c: Context) = VehicleStore.prefs(c).getBoolean(KEY_AUTO, true)
     fun setAuto(c: Context, on: Boolean) = VehicleStore.prefs(c).edit().putBoolean(KEY_AUTO, on).apply()
+
+    /** Reported / Departed come from the Drishti gate only; WhatsApp posts are not needed (on by default). */
+    fun gateOnly(c: Context) = VehicleStore.prefs(c).getBoolean(KEY_GATE_ONLY, true)
+    fun setGateOnly(c: Context, on: Boolean) = VehicleStore.prefs(c).edit().putBoolean(KEY_GATE_ONLY, on).apply()
+
+    /** Live updates in the background (a notification stays while it runs). */
+    fun liveOn(c: Context) = VehicleStore.prefs(c).getBoolean(KEY_LIVE, false)
+    fun setLive(c: Context, on: Boolean) = VehicleStore.prefs(c).edit().putBoolean(KEY_LIVE, on).apply()
 
     fun status(c: Context): String = VehicleStore.prefs(c).getString(KEY_STATUS, "") ?: ""
     fun lastPull(c: Context): Long = VehicleStore.prefs(c).getLong(KEY_LAST, 0L)

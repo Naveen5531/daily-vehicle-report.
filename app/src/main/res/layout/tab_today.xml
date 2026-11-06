@@ -284,11 +284,19 @@
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drishtiCardOpen"
+                    android:id="@+id/drishtiCardLog"
                     style="@style/DTonal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:text="@string/drishti_card_log" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/drishtiCardOpen"
+                    style="@style/DTonal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
                     android:text="@string/drishti_open" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

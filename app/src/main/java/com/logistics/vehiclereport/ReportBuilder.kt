@@ -29,13 +29,23 @@ data class VehicleDay(
     /** The DC's hand mark for the day, if any. */
     val mark: GateMark? = null,
     /** Days before the marks existed: a post counts as reported, as it always did. */
-    val legacy: Boolean = false
+    val legacy: Boolean = false,
+    /** The Drishti gate log row for this vehicle that day (its own, or the replacement that came for it). */
+    val gate: DrishtiRow? = null,
+    /** Reporting comes from the Drishti gate: no WhatsApp post is needed, a vehicle not at the gate is Yet to report. */
+    val gateOnly: Boolean = false
 ) {
     val state: TodayState get() = when (mark?.gate) {
         Gate.REPORTED -> TodayState.REPORTED
         Gate.DEPARTED -> TodayState.DEPARTED
         Gate.YET -> TodayState.YET
-        null -> when (status) {
+        // Gate mode with no mark yet: the gate log row itself says where the vehicle is.
+        null -> if (gateOnly) when {
+            gate == null -> TodayState.YET
+            gate.checkOut > 0 -> TodayState.DEPARTED
+            gate.checkIn > 0 -> TodayState.REPORTED
+            else -> TodayState.YET
+        } else when (status) {
             DayStatus.PENDING -> TodayState.NOT_POSTED
             DayStatus.CHECK -> TodayState.CHECK
             DayStatus.REPORTED -> if (legacy) TodayState.REPORTED else TodayState.YET
@@ -69,14 +79,22 @@ object ReportBuilder {
      * The DC's hand marks: [forDay] gives a day's marks by vehicle number; days before [since] had no marks,
      * so there a post still counts as reported. The default (no marks, every day before) is the old behaviour.
      */
-    class Gates(val since: Long = Long.MAX_VALUE, val forDay: (Long) -> Map<String, GateMark> = { emptyMap() }) {
+    class Gates(
+        val since: Long = Long.MAX_VALUE,
+        val forDay: (Long) -> Map<String, GateMark> = { emptyMap() },
+        /** Status comes from the Drishti gate log only (WhatsApp posts are extra information). */
+        val gateOnly: Boolean = false,
+        /** The day's Drishti gate log by vehicle number. */
+        val gateLog: (Long) -> Map<String, DrishtiRow> = { emptyMap() }
+    ) {
         fun legacy(dayStart: Long) = dayStart < since
     }
 
     /** Status of every dedicated vehicle for the day starting at [dayStart], with the DC's [marks] for that day. */
     fun dayStatus(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long,
-        marks: Map<String, GateMark> = emptyMap(), legacy: Boolean = false
+        marks: Map<String, GateMark> = emptyMap(), legacy: Boolean = false,
+        gate: Map<String, DrishtiRow> = emptyMap(), gateOnly: Boolean = false
     ): List<VehicleDay> {
         val day = records.filter { it.time >= dayStart && it.time < dayStart + DAY_MS }.sortedBy { it.time }
         // Record-only vehicles appear only on days they reported (or were marked); they are never "Not posted".
@@ -84,17 +102,21 @@ object ReportBuilder {
             val hits = day.filter { v.number in it.candidates }
             val mark = marks[v.number]
             if (!v.dedicated && hits.isEmpty() && mark == null) return@mapNotNull null
+            // Its own gate row, else the gate row of the replacement posted for it.
+            val g = gate[v.number] ?: hits.asReversed().firstNotNullOfOrNull { h ->
+                h.replacement.takeIf { it.isNotBlank() }?.let { DrishtiData.plate(it) }?.let { gate[it] }
+            }
             val status = when {
                 hits.isEmpty() -> DayStatus.PENDING
                 hits.any { it.match != MatchType.MULTI } -> DayStatus.REPORTED
                 else -> DayStatus.CHECK
             }
-            VehicleDay(v, status, hits, mark = mark, legacy = legacy)
+            VehicleDay(v, status, hits, mark = mark, legacy = legacy, gate = g, gateOnly = gateOnly && !legacy)
         }
     }
 
     fun dayStatus(vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long, gates: Gates) =
-        dayStatus(vehicles, records, dayStart, gates.forDay(dayStart), gates.legacy(dayStart))
+        dayStatus(vehicles, records, dayStart, gates.forDay(dayStart), gates.legacy(dayStart), gates.gateLog(dayStart), gates.gateOnly)
 
     /** Words for a state, as shown in the app and written in the Excel reports. */
     fun stateLabel(st: TodayState) = when (st) {
@@ -112,7 +134,8 @@ object ReportBuilder {
      */
     fun notInList(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long,
-        marks: Map<String, GateMark> = emptyMap(), legacy: Boolean = false
+        marks: Map<String, GateMark> = emptyMap(), legacy: Boolean = false,
+        gate: Map<String, DrishtiRow> = emptyMap(), gateOnly: Boolean = false
     ): List<VehicleDay> {
         val known = vehicles.map { it.number }.toSet()
         return records.filter {
@@ -121,7 +144,8 @@ object ReportBuilder {
             fun pick(f: (VehicleRecord) -> String) = hits.lastOrNull { f(it).isNotBlank() }?.let(f).orEmpty()
             VehicleDay(
                 DedicatedVehicle(num, type = pick { it.size }, driver = pick { it.driver }, mobile = pick { it.mobile }, transporter = pick { it.vendor }, route = pick { it.city }),
-                DayStatus.REPORTED, hits, inList = false, mark = marks[num], legacy = legacy
+                DayStatus.REPORTED, hits, inList = false, mark = marks[num], legacy = legacy,
+                gate = gate[num], gateOnly = gateOnly && !legacy
             )
         }
     }
@@ -176,8 +200,24 @@ object ReportBuilder {
     fun timeWise(days: List<VehicleDay>): List<VehicleDay> =
         days.sortedWith(
             compareBy<VehicleDay> { if (it.state == TodayState.NOT_POSTED) 1 else 0 }
-                .thenBy { it.hits.firstOrNull()?.time ?: it.mark?.reportedAt?.takeIf { t -> t > 0 } ?: Long.MAX_VALUE }
+                .thenBy {
+                    // Gate mode: the order they came in at the gate; otherwise the order they were posted.
+                    val gateAt = it.mark?.reportedAt?.takeIf { t -> t > 0 } ?: it.gate?.checkIn?.takeIf { t -> t > 0 }
+                    if (it.gateOnly) gateAt ?: Long.MAX_VALUE
+                    else it.hits.firstOrNull()?.time ?: gateAt ?: Long.MAX_VALUE
+                }
         )
+
+    /** "In 09:12 AM · Out 10:40 AM" from the Drishti gate log ("as TS08XX1234" when the replacement came). */
+    fun gateText(d: VehicleDay): String {
+        val g = d.gate ?: return if (d.gateOnly) "Not at gate yet" else ""
+        val t = timeFmt()
+        val parts = listOfNotNull(
+            g.checkIn.takeIf { it > 0 }?.let { "In " + t.format(Date(it)) },
+            g.checkOut.takeIf { it > 0 }?.let { "Out " + t.format(Date(it)) }
+        ).joinToString(" · ")
+        return if (g.vehicle != d.vehicle.number) "$parts (as ${g.vehicle})" else parts
+    }
 
     private val DETAIL_HEADERS = listOf("Vehicle Type", "Driver Name", "Driver Mobile", "Transporter", "Route")
     private fun details(v: DedicatedVehicle?) =
@@ -222,7 +262,7 @@ object ReportBuilder {
 
     // ---------- 1. Daily dedicated report ----------
 
-    val DAILY_WIDTHS = listOf(6, 12, 16, 8, 13, 16, 14, 22, 24, 22, 12, 12, 20, 18, 10, 30, 18, 15, 18, 22, 34, 12, 12, 12, 14, 11, 18, 12, 12, 18, 22, 9, 45, 26)
+    val DAILY_WIDTHS = listOf(6, 12, 16, 8, 13, 16, 14, 22, 24, 22, 12, 12, 20, 18, 10, 30, 18, 15, 18, 22, 34, 12, 12, 12, 14, 11, 18, 12, 12, 18, 22, 9, 45, 26, 30)
 
     /** Daily report for every day from [from] to [to] (inclusive), numbered straight through, with a total. */
     fun dailyRows(
@@ -231,7 +271,7 @@ object ReportBuilder {
     ): List<List<String>> {
         val header = listOf("S.No", "Date", "Vehicle Number", "Last 4") + DETAIL_HEADERS +
             listOf("Status", "Reported At", "Departed At") + PLACE_HEADERS + listOf("Replacement Vehicle No", "First Report", "Last Report", "Reported By", "WhatsApp Group", "Times Reported", "Message",
-                "Number Check")
+                "Number Check", "Drishti Gate")
         val rows = mutableListOf(header)
         var sn = 1
         var day = startOfDay(from)
@@ -254,21 +294,41 @@ object ReportBuilder {
         fun at(ms: Long) = if (ms > 0) t.format(Date(ms)) else ""
         val marks = gates.forDay(dayStart)
         val legacy = gates.legacy(dayStart)
+        val gateLog = gates.gateLog(dayStart)
         fun check(d: VehicleDay) = when {
-            d.hits.isEmpty() -> ""
+            d.hits.isEmpty() -> if (d.gate != null) "Full number from Drishti gate" else ""
             d.scannedAt > 0 -> "Plate scanned ${at(d.scannedAt)}"
+            d.gate != null -> "Full number from Drishti gate"
             d.last4Only -> "Last 4 only – full number not checked"
             else -> "Full number posted"
         }
+        val used = HashSet<String>()
         var sn = firstSn
-        for (d in timeWise(dayStatus(vehicles, records, dayStart, marks, legacy))) {
+        for (d in timeWise(dayStatus(vehicles, records, dayStart, marks, legacy, gateLog, gates.gateOnly))) {
             val v = d.vehicle
+            used += v.number
+            d.gate?.let { used += it.vehicle }
+            val g = d.gate
             val base = listOf(sn++.toString(), date, v.number, VehicleParser.last4(v.number)) + details(v)
-            val times = listOf(at(d.mark?.reportedAt ?: 0), at(d.mark?.departedAt ?: 0))
+            val times = listOf(at(d.mark?.reportedAt?.takeIf { it > 0 } ?: g?.checkIn ?: 0),
+                at(d.mark?.departedAt?.takeIf { it > 0 } ?: g?.checkOut?.takeIf { d.state == TodayState.DEPARTED } ?: 0))
             rows += if (d.hits.isEmpty()) {
-                val label = stateLabel(d.state) + if (!v.dedicated) " (dedicated storage)" else ""
-                base + listOf(label) + times + listOf(Masters.DISPATCH_FROM) + List(PLACE_HEADERS.size - 2) { "" } +
-                    listOf("Not posted") + List(5) { "" } + listOf("0", "", "")
+                val label = stateLabel(d.state) + when {
+                    g != null && g.vehicle != v.number -> " (Replacement)"
+                    !v.dedicated -> " (dedicated storage)"
+                    else -> ""
+                }
+                if (g == null) {
+                    base + listOf(label) + times + listOf(Masters.DISPATCH_FROM) + List(PLACE_HEADERS.size - 1) { "" } +
+                        listOf("", "", "", if (d.gateOnly) "" else "Not posted", "", "0", "", "", gateText(d))
+                } else {
+                    // Not posted in WhatsApp, but the DC gate (Drishti) has it: its details fill the row.
+                    base + listOf(label) + times + listOf(
+                        *place(g.destination, g.mobile, "", lk, "", "", v.transporter, g.type, v.type, g.driver),
+                        if (g.vehicle != v.number) g.vehicle else "",
+                        at(g.checkIn), at(g.checkOut), "Drishti gate", "", "0", "", check(d), gateText(d)
+                    )
+                }
             } else {
                 val f = d.hits.first()
                 val repl = d.hits.lastOrNull { it.replacement.isNotBlank() }?.replacement.orEmpty()
@@ -279,15 +339,15 @@ object ReportBuilder {
                     else -> ""
                 }
                 base + listOf(status) + times + listOf(
-                    *place(d.hits.lastOrNull { it.city.isNotBlank() }?.city.orEmpty(),
-                        d.hits.lastOrNull { it.mobile.isNotBlank() }?.mobile.orEmpty(),
+                    *place(d.hits.lastOrNull { it.city.isNotBlank() }?.city ?: g?.destination.orEmpty(),
+                        d.hits.lastOrNull { it.mobile.isNotBlank() }?.mobile ?: g?.mobile.orEmpty(),
                         d.hits.lastOrNull { it.vendor.isNotBlank() }?.vendor.orEmpty(), lk,
                         f.chat, d.hits.last().message, v.transporter,
-                        d.hits.lastOrNull { it.size.isNotBlank() }?.size.orEmpty(), v.type,
-                        d.hits.lastOrNull { it.driver.isNotBlank() }?.driver.orEmpty()),
+                        d.hits.lastOrNull { it.size.isNotBlank() }?.size ?: g?.type.orEmpty(), v.type,
+                        d.hits.lastOrNull { it.driver.isNotBlank() }?.driver ?: g?.driver.orEmpty()),
                     repl,
                     t.format(Date(f.time)), t.format(Date(d.hits.maxOf { it.lastTime })),
-                    f.sender, f.chat, d.hits.sumOf { it.count }.toString(), f.message, check(d)
+                    f.sender, f.chat, d.hits.sumOf { it.count }.toString(), f.message, check(d), gateText(d)
                 )
             }
         }
@@ -297,11 +357,25 @@ object ReportBuilder {
             it.time >= dayStart && it.time < dayStart + DAY_MS && (it.match == MatchType.FULL || it.match == MatchType.CODE) && it.vehicle !in known
         }.sortedBy { it.time }.groupBy { it.vehicle }.forEach { (num, hits) ->
             val f = hits.first()
-            val day = VehicleDay(DedicatedVehicle(num), DayStatus.REPORTED, hits, inList = false, mark = marks[num], legacy = legacy)
+            used += num
+            val day = VehicleDay(DedicatedVehicle(num), DayStatus.REPORTED, hits, inList = false, mark = marks[num], legacy = legacy,
+                gate = gateLog[num], gateOnly = gates.gateOnly && !legacy)
             rows += listOf(sn++.toString(), date, num, VehicleParser.last4(num)) + details(null) + listOf(
                 stateLabel(day.state) + " (not in dedicated list)", at(day.mark?.reportedAt ?: 0), at(day.mark?.departedAt ?: 0), *place(f.city, f.mobile, f.vendor, lk, f.chat, f.message, "", f.size, "", f.driver),
                 f.replacement, t.format(Date(f.time)), t.format(Date(hits.maxOf { it.lastTime })),
-                f.sender, f.chat, hits.sumOf { it.count }.toString(), f.message, check(day)
+                f.sender, f.chat, hits.sumOf { it.count }.toString(), f.message, check(day), gateText(day)
+            )
+        }
+        // Everything else that came through the DC gate that day: kept as a record to tally (never "Not reported").
+        val byNumber = vehicles.associateBy { it.number }
+        for (g in gateLog.values.sortedBy { it.checkIn }) {
+            if (g.vehicle in used) continue
+            val v = byNumber[g.vehicle] ?: DedicatedVehicle(g.vehicle, type = g.type, driver = g.driver, mobile = g.mobile, dedicated = false)
+            val day = VehicleDay(v, DayStatus.PENDING, emptyList(), inList = false, gate = g, gateOnly = true)
+            rows += listOf(sn++.toString(), date, g.vehicle, VehicleParser.last4(g.vehicle)) + details(v) + listOf(
+                (if (g.checkOut > 0) "Departed" else "Reported") + " (gate only – not dedicated)", at(g.checkIn), at(g.checkOut),
+                *place(g.destination, g.mobile, "", lk, "", "", v.transporter, g.type, v.type, g.driver),
+                "", at(g.checkIn), at(g.checkOut), "Drishti gate", "", "0", "", check(day), gateText(day)
             )
         }
         return sn

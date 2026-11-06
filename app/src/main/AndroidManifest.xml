@@ -9,6 +9,11 @@
     <!-- Camera: only to read a vehicle's number plate on the phone (no picture is saved or sent). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Drishti live: reads the DC gate log every few minutes with a notification showing, even when the app is closed -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name=".DailyApp"
@@ -61,6 +66,15 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <service
+            android:name=".DrishtiLiveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Reads the user's own DC gate log (DMart Drishti, signed in by the user) every few minutes so vehicle check-in / check-out shows on the Today list in real time." />
+        </service>
 
         <activity
             android:name=".SignInActivity"

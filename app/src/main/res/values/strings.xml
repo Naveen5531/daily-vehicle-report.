@@ -537,9 +537,9 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="drishti_menu_report">Open Vehicle Summary</string>
     <string name="drishti_menu_reload">Reload page</string>
     <string name="drishti_menu_site">Site code: %1$s</string>
-    <string name="drishti_menu_auto_on">Turn on auto pull (every 20 min)</string>
+    <string name="drishti_menu_auto_on">Turn on auto pull (every 3 min)</string>
     <string name="drishti_menu_auto_off">Turn off auto pull</string>
-    <string name="drishti_auto_on_done">Auto pull on: every 20 minutes while the app is open</string>
+    <string name="drishti_auto_on_done">Auto pull on: every 3 minutes while the app is open</string>
     <string name="drishti_auto_off_done">Auto pull off: use Pull now</string>
     <string name="drishti_menu_signout">Sign out of Drishti</string>
     <string name="drishti_signout_msg">Removes the Drishti sign-in from this app. The gate times already read stay.</string>
@@ -548,7 +548,7 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="drishti_site_msg">Only rows of this site are read (e.g. 1041). Leave empty to read every site on the page.</string>
     <string name="drishti_status_new">Check-in / check-out from the DC gate mark vehicles Reported and Departed. Tap to log in.</string>
     <string name="drishti_status_ok">Last read %1$s · %2$d vehicles</string>
-    <string name="drishti_auto_suffix"> · auto every 20 min</string>
+    <string name="drishti_auto_suffix"> · auto every 3 min</string>
     <string name="drishti_status_login">Drishti sign-in expired. Tap to log in again.</string>
     <string name="drishti_status_none">Last try didn\'t find the vehicle log. Tap to open it.</string>
     <!-- Plan map -->
@@ -587,4 +587,57 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="zone_field_min_non">Non-local: skip stores below (volume)</string>
     <string name="zone_field_min_local">Local: skip stores below (volume)</string>
     <string name="zone_field_up_stops">Upcountry: most stores per 20 ft vehicle</string>
+    <!-- Drishti gate: live reporting and mapping to the day's vehicle data -->
+    <string name="drishti_menu_live_on">Turn on live updates (app closed too)</string>
+    <string name="drishti_menu_live_off">Turn off live updates</string>
+    <string name="drishti_menu_source_wa">Report from: Drishti gate ✓ (switch to WhatsApp)</string>
+    <string name="drishti_menu_source_gate">Report from: WhatsApp ✓ (switch to Drishti gate)</string>
+    <string name="drishti_source_gate_done">Today now goes by the Drishti gate: check-in = Reported, check-out = Departed. No WhatsApp post needed.</string>
+    <string name="drishti_source_wa_done">Today goes by WhatsApp posts again (vehicles not posted show Not posted).</string>
+    <string name="drishti_live_off_done">Live updates off</string>
+    <string name="drishti_live_need_pull">Log in to Drishti and tap Pull now once first, then turn on live updates.</string>
+    <string name="drishti_live_on_title">Live updates on</string>
+    <string name="drishti_live_on_msg">The gate log is read every 3 minutes, even when the app is closed. You get a notification when a dedicated vehicle checks in or out.
+
+On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn on Autostart, so the phone does not stop it.</string>
+    <string name="drishti_live_battery">Open App info</string>
+    <string name="drishti_live_suffix"> · live every 3 min</string>
+    <string name="drishti_gate_suffix"> · gate mode</string>
+    <string name="drishti_card_log">Gate log</string>
+    <string name="gate_updated_at">Drishti gate read at %1$s</string>
+    <string name="gate_not_read_today">Drishti gate not read yet today – open Drishti and log in</string>
+    <string name="gate_replacement_line">Came as replacement %1$s (gate)</string>
+    <string name="gate_source">At gate (Drishti)</string>
+    <string name="gate_log_title">Drishti gate log – today</string>
+    <string name="gate_log_summary">%1$d vehicles at the gate · %2$d of %3$d dedicated came · %4$d still inside</string>
+    <string name="gate_f_all">All %1$d</string>
+    <string name="gate_f_dedicated">Dedicated %1$d</string>
+    <string name="gate_f_repl">Replacement %1$d</string>
+    <string name="gate_f_other">Others %1$d</string>
+    <string name="gate_f_missing">Not at gate %1$d</string>
+    <string name="gate_l_dedicated">Dedicated</string>
+    <string name="gate_l_repl">Replacement</string>
+    <string name="gate_l_posted">Posted</string>
+    <string name="gate_l_other">Other</string>
+    <string name="gate_inside">Still inside</string>
+    <string name="gate_for_vehicle">For dedicated vehicle %1$s</string>
+    <string name="gate_store_line">To %1$s → %2$s %3$s</string>
+    <string name="gate_dest_line">To %1$s (no store match)</string>
+    <string name="gate_not_in_log">Not in the Drishti gate log today</string>
+    <string name="gate_log_empty">Nothing read from Drishti today yet. Open Drishti and tap Pull now.</string>
+    <string name="live_channel">Drishti live</string>
+    <string name="live_alert_channel">Gate check-in / check-out</string>
+    <string name="live_title">Drishti live – gate log</string>
+    <string name="live_starting">Starting… reading the gate log every 3 minutes</string>
+    <string name="live_stop">Stop</string>
+    <string name="live_no_table">Couldn\'t find the vehicle log on the last try – trying again in 3 minutes</string>
+    <string name="live_summary">%1$d of %2$d dedicated reported · %3$d departed · read %4$s</string>
+    <string name="live_in">%1$s reported at gate %2$s</string>
+    <string name="live_out">%1$s departed %2$s</string>
+    <string name="live_login_title">Drishti sign-in expired</string>
+    <string name="live_login_text">Live updates stopped. Open the app → Drishti, log in, and turn live updates on again.</string>
+    <plurals name="live_changes">
+        <item quantity="one">1 gate update</item>
+        <item quantity="other">%d gate updates</item>
+    </plurals>
 </resources>

@@ -94,6 +94,47 @@ object DrishtiData {
         return out.values.toList()
     }
 
+    /**
+     * The day's gate log by vehicle number: a vehicle that came in more than once shows its first check-in and its
+     * last check-out (still inside = no check-out).
+     */
+    fun byVehicle(rows: List<DrishtiRow>): Map<String, DrishtiRow> {
+        val out = LinkedHashMap<String, DrishtiRow>()
+        for (r in rows.sortedBy { it.checkIn }) {
+            val old = out[r.vehicle]
+            out[r.vehicle] = if (old == null) r else old.copy(
+                checkIn = listOf(old.checkIn, r.checkIn).filter { it > 0 }.minOrNull() ?: 0L,
+                // Back in after leaving: inside again, so no check-out yet.
+                checkOut = if (r.checkIn > old.checkOut && r.checkOut == 0L && old.checkOut > 0) 0L else maxOf(old.checkOut, r.checkOut),
+                type = old.type.ifBlank { r.type }, driver = old.driver.ifBlank { r.driver },
+                mobile = old.mobile.ifBlank { r.mobile }, destination = old.destination.ifBlank { r.destination }
+            )
+        }
+        return out
+    }
+
+    /** What a gate row is to the day's vehicle data. */
+    enum class Link { DEDICATED, REPLACEMENT, POSTED, OTHER }
+
+    /** How one gate row maps to the vehicle list and the day's WhatsApp posts; [forVehicle] = the dedicated vehicle it counts for. */
+    data class Mapped(val row: DrishtiRow, val link: Link, val forVehicle: String)
+
+    fun map(rows: List<DrishtiRow>, vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long): List<Mapped> {
+        val dedicated = vehicles.filter { it.dedicated }.map { it.number }.toSet()
+        val posts = records.filter { it.time >= dayStart && it.time < dayStart + ReportBuilder.DAY_MS }
+        return byVehicle(rows).values.map { r ->
+            val replaced = posts.firstOrNull { p ->
+                p.replacement.isNotBlank() && p.candidates.size == 1 && plate(p.replacement) == r.vehicle && p.candidates[0] != r.vehicle
+            }?.candidates?.get(0)
+            when {
+                r.vehicle in dedicated -> Mapped(r, Link.DEDICATED, r.vehicle)
+                replaced != null -> Mapped(r, Link.REPLACEMENT, replaced)
+                posts.any { r.vehicle in it.candidates || it.vehicle == r.vehicle } -> Mapped(r, Link.POSTED, r.vehicle)
+                else -> Mapped(r, Link.OTHER, r.vehicle)
+            }
+        }.sortedBy { it.row.checkIn }
+    }
+
     /** "TN12BH6176", "ts 08 uk 0437" -> canonical plate; anything that is not a plate -> null. */
     fun plate(text: String): String? {
         if (text.isBlank()) return null

@@ -22,7 +22,9 @@ class DrishtiAuto(private val a: MainActivity, private val host: ViewGroup) : Dr
     /** When the last try started (a failed try also waits a full round before the next). */
     private var lastTry = 0L
 
-    private fun allowed() = DrishtiStore.autoOn(a) && DrishtiStore.everWorked(a) && DrishtiStore.status(a) != DrishtiStore.LOGIN
+    // While Drishti live runs in the background it does the reading; this one waits.
+    private fun allowed() = DrishtiStore.autoOn(a) && DrishtiStore.everWorked(a) && DrishtiStore.status(a) != DrishtiStore.LOGIN &&
+        !DrishtiLiveService.running
 
     fun resume() {
         main.removeCallbacks(tick)

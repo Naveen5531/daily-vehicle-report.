@@ -83,7 +83,7 @@ object VehicleDetailSheet {
         val marks = gates.forDay(today)
         val todayDay = when {
             codeOnly -> null
-            v != null -> ReportBuilder.dayStatus(listOf(v), s.records, today, marks, gates.legacy(today)).firstOrNull()
+            v != null -> ReportBuilder.dayStatus(listOf(v), s.records, today, gates).firstOrNull()
             posts.any { it.time >= today } || marks[number] != null -> VehicleDay(DedicatedVehicle(number), DayStatus.REPORTED,
                 posts.filter { it.time >= today }, inList = false, mark = marks[number], legacy = gates.legacy(today))
             else -> null

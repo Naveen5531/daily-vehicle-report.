@@ -191,7 +191,9 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
         m.menu.add(0, 2, 1, R.string.drishti_menu_reload)
         m.menu.add(0, 3, 2, getString(R.string.drishti_menu_site, DrishtiStore.site(this).ifBlank { "–" }))
         m.menu.add(0, 4, 3, if (DrishtiStore.autoOn(this)) R.string.drishti_menu_auto_off else R.string.drishti_menu_auto_on)
-        m.menu.add(0, 5, 4, R.string.drishti_menu_signout)
+        m.menu.add(0, 6, 4, if (DrishtiStore.liveOn(this)) R.string.drishti_menu_live_off else R.string.drishti_menu_live_on)
+        m.menu.add(0, 7, 5, if (DrishtiStore.gateOnly(this)) R.string.drishti_menu_source_wa else R.string.drishti_menu_source_gate)
+        m.menu.add(0, 5, 6, R.string.drishti_menu_signout)
         m.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> { autoReadDone = false; page.openReport() }
@@ -204,10 +206,56 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
                     showStatus()
                 }
                 5 -> signOut()
+                6 -> toggleLive()
+                7 -> {
+                    val on = !DrishtiStore.gateOnly(this)
+                    DrishtiStore.setGateOnly(this, on)
+                    Toast.makeText(this, if (on) R.string.drishti_source_gate_done else R.string.drishti_source_wa_done, Toast.LENGTH_LONG).show()
+                    showStatus()
+                }
             }
             true
         }
         m.show()
+    }
+
+    // ---------- Live ----------
+
+    private val askNotify = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+        startLive()
+    }
+
+    private fun toggleLive() {
+        if (DrishtiStore.liveOn(this)) {
+            DrishtiLiveService.stop(this)
+            Toast.makeText(this, R.string.drishti_live_off_done, Toast.LENGTH_SHORT).show()
+            showStatus()
+            return
+        }
+        if (!DrishtiStore.everWorked(this) || DrishtiStore.status(this) == DrishtiStore.LOGIN) {
+            Toast.makeText(this, R.string.drishti_live_need_pull, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !DrishtiLiveService.canNotify(this)) {
+            askNotify.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else startLive()
+    }
+
+    private fun startLive() {
+        DrishtiStore.setLive(this, true)
+        DrishtiLiveService.startIfOn(this)
+        showStatus()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.drishti_live_on_title)
+            .setMessage(R.string.drishti_live_on_msg)
+            .setPositiveButton(R.string.drishti_live_battery) { _, _ ->
+                try {
+                    startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:$packageName")))
+                } catch (e: Exception) { }
+            }
+            .setNegativeButton(R.string.close, null)
+            .show()
     }
 
     private fun askSite() {
@@ -237,6 +285,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
                 WebStorage.getInstance().deleteAllData()
                 web.clearCache(true)
                 DrishtiStore.setStatus(this, DrishtiStore.LOGIN)
+                DrishtiLiveService.stop(this)
                 autoReadDone = false
                 page.openReport()
                 showStatus()
@@ -249,7 +298,11 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
         /** One line about Drishti for this screen and the Today card. */
         fun statusText(a: android.content.Context): String {
             val last = DrishtiStore.lastPull(a)
-            val auto = if (DrishtiStore.autoOn(a)) a.getString(R.string.drishti_auto_suffix) else ""
+            val auto = when {
+                DrishtiStore.liveOn(a) -> a.getString(R.string.drishti_live_suffix)
+                DrishtiStore.autoOn(a) -> a.getString(R.string.drishti_auto_suffix)
+                else -> ""
+            } + if (DrishtiStore.gateOnly(a)) a.getString(R.string.drishti_gate_suffix) else ""
             return when (DrishtiStore.status(a)) {
                 DrishtiStore.LOGIN -> a.getString(R.string.drishti_status_login)
                 DrishtiStore.NO_TABLE -> a.getString(R.string.drishti_status_none)
