@@ -124,6 +124,28 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
 
     private fun startRead(silent: Boolean) {
         if (page.isReading) return
+        if (LaptopLink.linked(this)) {
+            if (silent) return
+            // Linked to the office laptop: take what it sent.
+            pull.isEnabled = false
+            status.setText(R.string.laptop_checking)
+            val app = applicationContext
+            Thread {
+                val r = try { Result.success(LaptopLink.pullAndApply(app)) } catch (e: Throwable) { Result.failure(e) }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    done(); showStatus()
+                    val res = r.getOrNull()
+                    val text = when {
+                        r.isFailure -> getString(R.string.laptop_net_error, r.exceptionOrNull()?.message ?: "")
+                        res == null -> getString(R.string.laptop_nothing_new)
+                        else -> getString(R.string.drishti_summary, res.read, res.inList, res.reported, res.departed, res.newVehicles)
+                    }
+                    Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+                }
+            }.start()
+            return
+        }
         silentRead = silent
         if (!DrishtiStore.isDrishtiUrl(page.url) || !page.url.contains("drishti")) {
             if (!silent) {
@@ -193,7 +215,8 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
         m.menu.add(0, 4, 3, if (DrishtiStore.autoOn(this)) R.string.drishti_menu_auto_off else R.string.drishti_menu_auto_on)
         m.menu.add(0, 6, 4, if (DrishtiStore.liveOn(this)) R.string.drishti_menu_live_off else R.string.drishti_menu_live_on)
         m.menu.add(0, 7, 5, if (DrishtiStore.gateOnly(this)) R.string.drishti_menu_source_wa else R.string.drishti_menu_source_gate)
-        m.menu.add(0, 5, 6, R.string.drishti_menu_signout)
+        m.menu.add(0, 8, 6, if (LaptopLink.linked(this)) R.string.laptop_menu_linked else R.string.laptop_menu_link)
+        m.menu.add(0, 5, 7, R.string.drishti_menu_signout)
         m.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> { autoReadDone = false; page.openReport() }
@@ -207,6 +230,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
                 }
                 5 -> signOut()
                 6 -> toggleLive()
+                8 -> showLaptopLink(this) { showStatus() }
                 7 -> {
                     val on = !DrishtiStore.gateOnly(this)
                     DrishtiStore.setGateOnly(this, on)
@@ -232,7 +256,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
             showStatus()
             return
         }
-        if (!DrishtiStore.everWorked(this) || DrishtiStore.status(this) == DrishtiStore.LOGIN) {
+        if (!DrishtiStore.everWorked(this) || (!LaptopLink.linked(this) && DrishtiStore.status(this) == DrishtiStore.LOGIN)) {
             Toast.makeText(this, R.string.drishti_live_need_pull, Toast.LENGTH_LONG).show()
             return
         }
@@ -295,9 +319,38 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
     }
 
     companion object {
+        /** The office laptop link: the code to paste into the Chrome add-on, copy / share, new code, unlink. */
+        fun showLaptopLink(a: android.app.Activity, changed: () -> Unit) {
+            val code = LaptopLink.code(a)
+            changed()
+            MaterialAlertDialogBuilder(a)
+                .setTitle(R.string.laptop_title)
+                .setMessage(a.getString(R.string.laptop_msg, code))
+                .setPositiveButton(R.string.laptop_copy) { _, _ ->
+                    val cm = a.getSystemService(android.content.ClipboardManager::class.java)
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("Drishti link code", code))
+                    Toast.makeText(a, R.string.laptop_copied, Toast.LENGTH_SHORT).show()
+                }
+                .setNeutralButton(R.string.laptop_share) { _, _ ->
+                    a.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, code), null))
+                }
+                .setNegativeButton(R.string.laptop_unlink) { _, _ ->
+                    LaptopLink.unlink(a)
+                    Toast.makeText(a, R.string.laptop_unlinked, Toast.LENGTH_SHORT).show()
+                    changed()
+                }
+                .show()
+        }
+
         /** One line about Drishti for this screen and the Today card. */
         fun statusText(a: android.content.Context): String {
             val last = DrishtiStore.lastPull(a)
+            if (LaptopLink.linked(a)) return when {
+                DrishtiStore.status(a) == DrishtiStore.LOGIN -> a.getString(R.string.laptop_login)
+                last <= 0 -> a.getString(R.string.laptop_waiting)
+                else -> a.getString(R.string.laptop_status, ReportBuilder.timeFmt().format(Date(last)), DrishtiStore.lastCount(a))
+            } + if (DrishtiStore.liveOn(a)) a.getString(R.string.drishti_live_suffix) else ""
             val auto = when {
                 DrishtiStore.liveOn(a) -> a.getString(R.string.drishti_live_suffix)
                 DrishtiStore.autoOn(a) -> a.getString(R.string.drishti_auto_suffix)

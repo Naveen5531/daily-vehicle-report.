@@ -81,10 +81,11 @@ object DrishtiStore {
     }
 
     /** Drishti has worked on this phone at least once (auto pull only runs then). */
-    fun everWorked(c: Context) = lastPull(c) > 0
+    fun everWorked(c: Context) = lastPull(c) > 0 || LaptopLink.linked(c)
 
     /** Saves what was read from the page and applies it. [cells] = one list of cells per row (see [DrishtiData]). */
-    fun apply(c: Context, cells: List<List<String>>, pageDay: Long, fromDrishti: Boolean = true): DrishtiResult {
+    fun apply(c: Context, cells: List<List<String>>, pageDay: Long, fromDrishti: Boolean = true,
+              readAt: Long = System.currentTimeMillis()): DrishtiResult {
         val rows = DrishtiData.rows(cells, pageDay, if (fromDrishti) site(c) else "")
         saveLog(c, rows)
         val (added, _) = VehicleStore.addFromGate(c, rows)
@@ -96,7 +97,7 @@ object DrishtiStore {
         // A scan or file import is not a Drishti read: the Drishti status stays as it was.
         if (fromDrishti) VehicleStore.prefs(c).edit()
             .putString(KEY_STATUS, OK)
-            .putLong(KEY_LAST, System.currentTimeMillis())
+            .putLong(KEY_LAST, readAt)
             .putInt(KEY_LAST_COUNT, rows.size)
             .apply()
         else VehicleStore.prefs(c).edit().putLong(KEY_LAST_IMPORT, System.currentTimeMillis()).apply()

@@ -103,7 +103,7 @@ class DrishtiLiveService : Service(), DrishtiPage.Listener {
     private fun schedule() {
         main.removeCallbacks(tick)
         if (!DrishtiStore.liveOn(this)) { stopSelf(); return }
-        main.postDelayed(tick, DrishtiStore.LIVE_EVERY_MS)
+        main.postDelayed(tick, if (LaptopLink.linked(this)) 60_000L else DrishtiStore.LIVE_EVERY_MS)
         // Keep the phone able to wake for the next read.
         holdWake(DrishtiStore.LIVE_EVERY_MS + 4 * 60_000L)
     }
@@ -112,6 +112,7 @@ class DrishtiLiveService : Service(), DrishtiPage.Listener {
         if (!DrishtiStore.liveOn(this)) { stopSelf(); return }
         if (page != null) return
         holdWake(4 * 60_000L)
+        if (LaptopLink.linked(this)) { pullFromLaptop(); return }
         val w = try { WebView(this) } catch (e: Throwable) { schedule(); return }
         // Off screen, but laid out like a computer screen so the page draws its table rows.
         w.visibility = View.VISIBLE
@@ -156,6 +157,24 @@ class DrishtiLiveService : Service(), DrishtiPage.Listener {
                 if (result != null) {
                     announce(before, after)
                     updateOngoing(summary(after))
+                }
+                schedule()
+            }
+        }.start()
+    }
+
+    /** Office laptop link: take what the laptop sent (it reads Drishti), no browser here. */
+    private fun pullFromLaptop() {
+        val app = applicationContext
+        Thread {
+            val today = ReportBuilder.startOfDay()
+            val before = GateMarks.forDay(app, today)
+            val result = try { LaptopLink.pullAndApply(app) } catch (e: Throwable) { null }
+            val after = GateMarks.forDay(app, today)
+            main.post {
+                when {
+                    result != null -> { announce(before, after); updateOngoing(summary(after)) }
+                    DrishtiStore.status(app) == DrishtiStore.LOGIN -> updateOngoing(getString(R.string.laptop_login))
                 }
                 schedule()
             }

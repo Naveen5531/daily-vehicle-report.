@@ -91,4 +91,6 @@ dependencies {
     // Map on the Plan tab: OpenStreetMap tiles, no API key or sign-in needed
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for unit tests (Android's copy is only a stub there).
+    testImplementation("org.json:json:20240303")
 }

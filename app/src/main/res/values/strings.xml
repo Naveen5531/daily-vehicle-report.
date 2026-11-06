@@ -657,4 +657,20 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="mark_scan_next">Scan next</string>
     <string name="mark_cam_not_listed">This vehicle is not in your vehicle list or today\'s posts. Save it as a record only (it will not count as a dedicated vehicle)?</string>
     <string name="mark_add_record">Save as record</string>
+    <!-- Office laptop link (Chrome add-on reads Drishti on the laptop and sends it here) -->
+    <string name="laptop_menu_link">Link office laptop (Chrome add-on)</string>
+    <string name="laptop_menu_linked">Office laptop linked ✓ – code / unlink</string>
+    <string name="laptop_title">Link office laptop</string>
+    <string name="laptop_msg">1. On the office laptop, install the "Daily Vehicle Report – Drishti link" Chrome add-on.\n2. Open Drishti → Vehicle Summary in Chrome and keep that tab open.\n3. Click the add-on, paste this code, tap Save code and tick "Send every 3 minutes".\n\n%1$s\n\nThe gate log is sent encrypted; only this phone can read it. Keep the code private.</string>
+    <string name="laptop_copy">Copy code</string>
+    <string name="laptop_share">Share</string>
+    <string name="laptop_unlink">Unlink</string>
+    <string name="laptop_copied">Link code copied</string>
+    <string name="laptop_unlinked">Office laptop unlinked</string>
+    <string name="laptop_checking">Checking what the office laptop sent…</string>
+    <string name="laptop_nothing_new">Nothing new from the office laptop yet. Is Chrome open there with Vehicle Summary and the add-on on?</string>
+    <string name="laptop_net_error">Couldn\'t reach the relay: %1$s</string>
+    <string name="laptop_status">Office laptop · last read %1$s · %2$d vehicles</string>
+    <string name="laptop_waiting">Office laptop linked – waiting for its first send</string>
+    <string name="laptop_login">Office laptop: Drishti sign-in expired – log in again on the laptop</string>
 </resources>

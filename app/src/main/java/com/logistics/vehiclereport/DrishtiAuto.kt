@@ -23,14 +23,15 @@ class DrishtiAuto(private val a: MainActivity, private val host: ViewGroup) : Dr
     private var lastTry = 0L
 
     // While Drishti live runs in the background it does the reading; this one waits.
-    private fun allowed() = DrishtiStore.autoOn(a) && DrishtiStore.everWorked(a) && DrishtiStore.status(a) != DrishtiStore.LOGIN &&
-        !DrishtiLiveService.running
+    private fun allowed() = DrishtiStore.autoOn(a) && DrishtiStore.everWorked(a) &&
+        (LaptopLink.linked(a) || DrishtiStore.status(a) != DrishtiStore.LOGIN) && !DrishtiLiveService.running
 
     fun resume() {
         main.removeCallbacks(tick)
         if (!allowed()) return
-        val due = maxOf(DrishtiStore.lastPull(a), lastTry) + DrishtiStore.AUTO_EVERY_MS - System.currentTimeMillis()
-        main.postDelayed(tick, due.coerceIn(5_000L, DrishtiStore.AUTO_EVERY_MS))
+        val every = if (LaptopLink.linked(a)) 60_000L else DrishtiStore.AUTO_EVERY_MS
+        val due = (if (LaptopLink.linked(a)) lastTry else maxOf(DrishtiStore.lastPull(a), lastTry)) + every - System.currentTimeMillis()
+        main.postDelayed(tick, due.coerceIn(5_000L, every))
     }
 
     fun pause() {
@@ -41,6 +42,15 @@ class DrishtiAuto(private val a: MainActivity, private val host: ViewGroup) : Dr
     private fun runNow() {
         if (!allowed() || page != null) { resume(); return }
         lastTry = System.currentTimeMillis()
+        if (LaptopLink.linked(a)) {
+            // The office laptop reads Drishti; take what it sent.
+            val app = a.applicationContext
+            Thread {
+                try { LaptopLink.pullAndApply(app) } catch (e: Throwable) { }
+                main.post { resume() }
+            }.start()
+            return
+        }
         val w = try { WebView(a) } catch (e: Throwable) { resume(); return } // no WebView on this phone right now
         // Attached but not seen: 1 x 1 pixel, invisible.
         w.visibility = View.INVISIBLE

@@ -112,6 +112,10 @@ class TodayTab(private val a: MainActivity, root: View) {
         }
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
         root.findViewById<View>(R.id.drishtiCard).setOnClickListener { a.openDrishti() }
+        // Long press: link the office laptop (the Chrome add-on reads Drishti there and sends it here).
+        root.findViewById<View>(R.id.drishtiCard).setOnLongClickListener {
+            DrishtiActivity.showLaptopLink(a) { last?.let { refresh(it) } }; true
+        }
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
         root.findViewById<MaterialButton>(R.id.markReportedButton).setOnClickListener { a.openMarkReported() }
