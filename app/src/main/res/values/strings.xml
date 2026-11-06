@@ -629,7 +629,7 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="live_alert_channel">Gate check-in / check-out</string>
     <string name="live_title">Drishti live – gate log</string>
     <string name="live_starting">Starting… reading the gate log every 3 minutes</string>
-    <string name="live_stop">Stop</string>
+    <string name="drishti_live_stop">Stop</string>
     <string name="live_no_table">Couldn\'t find the vehicle log on the last try – trying again in 3 minutes</string>
     <string name="live_summary">%1$d of %2$d dedicated reported · %3$d departed · read %4$s</string>
     <string name="live_in">%1$s reported at gate %2$s</string>

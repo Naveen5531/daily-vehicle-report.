@@ -91,7 +91,7 @@ class DrishtiLiveService : Service(), DrishtiPage.Listener {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setContentIntent(open)
-            .addAction(0, getString(R.string.live_stop), stop)
+            .addAction(0, getString(R.string.drishti_live_stop), stop)
             .build()
     }
 
