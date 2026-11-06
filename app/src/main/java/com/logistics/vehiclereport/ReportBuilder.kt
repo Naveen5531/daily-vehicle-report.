@@ -81,11 +81,11 @@ object ReportBuilder {
      */
     class Gates(
         val since: Long = Long.MAX_VALUE,
-        val forDay: (Long) -> Map<String, GateMark> = { emptyMap() },
         /** Status comes from the Drishti gate log only (WhatsApp posts are extra information). */
         val gateOnly: Boolean = false,
         /** The day's Drishti gate log by vehicle number. */
-        val gateLog: (Long) -> Map<String, DrishtiRow> = { emptyMap() }
+        val gateLog: (Long) -> Map<String, DrishtiRow> = { emptyMap() },
+        val forDay: (Long) -> Map<String, GateMark> = { emptyMap() }
     ) {
         fun legacy(dayStart: Long) = dayStart < since
     }
