@@ -263,12 +263,18 @@ class PlanTab(private val a: MainActivity, root: View) {
             val all = result?.loads.orEmpty()
             val name = { code: String -> l.parts.firstOrNull { it.first.code == code }?.first?.shownName.orEmpty() }
             if (l.codes.size > 1) {
-                addView(pill(a.getString(R.string.pv_club_with, l.codes.joinToString(" + ") { "$it ${name(it)}".trim() }), R.color.wait, R.color.wait_bg))
+                // Each store with the volume it has on this vehicle: "Chirala 400 + Ongole 300".
+                val volOf = { code: String -> l.parts.filter { it.first.code == code }.sumOf { it.second } }
+                addView(pill(a.getString(R.string.pv_club_with,
+                    l.codes.sortedByDescending { volOf(it) }.joinToString(" + ") { "${name(it).ifBlank { it }} ${vol(volOf(it))}" }),
+                    R.color.wait, R.color.wait_bg))
             } else {
                 val code = l.codes.firstOrNull()
                 all.withIndex().filter { (j, ld) -> j != index && ld.codes.size > 1 && code in ld.codes }.forEach { (j, ld) ->
-                    val others = ld.parts.map { it.first }.filter { it.code != code }.distinctBy { it.code }.joinToString(", ") { it.shownName }
-                    addView(pill(a.getString(R.string.pv_rest_on, j + 1, others), R.color.wait, R.color.wait_bg))
+                    val others = ld.parts.filter { it.first.code != code }.groupBy { it.first.code }
+                        .entries.joinToString(", ") { (_, ps) -> "${ps.first().first.shownName} ${vol(ps.sumOf { it.second })}" }
+                    val rest = ld.parts.filter { it.first.code == code }.sumOf { it.second }
+                    addView(pill(a.getString(R.string.pv_rest_on, vol(rest), j + 1, others), R.color.wait, R.color.wait_bg))
                 }
             }
         }
