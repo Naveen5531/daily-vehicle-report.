@@ -67,6 +67,15 @@ class VehiclePlannerTest {
         assertEquals(4, far.vehicles)
     }
 
+    @Test fun maxClubKmStopsFartherClubbing() {
+        // Kodad is on the way to Vijayawada (~100 km apart): clubbed with no limit, not with a 50 km limit.
+        assertEquals(1, VehiclePlanner.plan(listOf(s("VJA", 800.0), s("KDD", 23.58)), geo()).vehicles)
+        val o = VehiclePlanner.Options(places = at, dc = dc, maxClubKm = 50.0)
+        assertEquals(2, VehiclePlanner.plan(listOf(s("VJA", 800.0), s("KDD", 23.58)), o).vehicles)
+        // Champapet and Kachiguda (~5 km) still share.
+        assertEquals(1, VehiclePlanner.plan(listOf(s("CHM", 600.0), s("KCG", 100.0)), o).vehicles)
+    }
+
     @Test fun nearbyStoresShareAVehicle() {
         val r = VehiclePlanner.plan(listOf(s("CHM", 634.9), s("KCG", 205.5), s("WGL", 175.5)), geo())
         assertEquals(2, r.vehicles)

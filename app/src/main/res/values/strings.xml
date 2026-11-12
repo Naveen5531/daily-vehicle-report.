@@ -160,6 +160,9 @@
     <string name="plan_club_title">Club small stores</string>
     <string name="plan_club_text">Stores below %1$s ride with a vehicle going nearby, or passing them on its way from the DC: %2$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
     <string name="plan_max_stops_label">Most stores per vehicle</string>
+    <string name="plan_max_club_km_label">Max km between clubbed stores</string>
+    <string name="plan_no_limit">No limit</string>
+    <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>
     <string name="plan_too_many_stores">%1$d stores picked: one vehicle takes %2$d at most (change it in Sizes)</string>
     <string name="plan_empty">Add photos of the vehicle request sheet, or its Excel file. Each store gets the vehicle its volume needs, small stores are clubbed only with nearby or on-the-way stores, and you can change any of it.</string>

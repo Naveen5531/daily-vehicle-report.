@@ -21,6 +21,7 @@ object PlanData {
     private const val KEY_CLUB_BELOW = "plan_club_below"
     private const val KEY_AUTO = "plan_auto_club"
     private const val KEY_NEAR = "plan_near_km"
+    private const val KEY_MAX_CLUB_KM = "plan_max_club_km"
     private const val KEY_MAX_STOPS = "plan_max_stops"
     /** Set once 22 ft and 24 ft were turned off in sizes saved before 20 ft became the biggest by default. */
     private const val KEY_MAX20 = "plan_sizes_max20"
@@ -120,6 +121,10 @@ object PlanData {
     fun nearKm(c: Context): Double = p(c).getFloat(KEY_NEAR, 10f).toDouble()
     fun setNearKm(c: Context, v: Double) = p(c).edit().putFloat(KEY_NEAR, v.toFloat()).apply()
 
+    /** Most km (straight line) between two stores on one clubbed vehicle; 0 = no limit. */
+    fun maxClubKm(c: Context): Double = p(c).getFloat(KEY_MAX_CLUB_KM, 0f).toDouble()
+    fun setMaxClubKm(c: Context, v: Double) = p(c).edit().putFloat(KEY_MAX_CLUB_KM, v.coerceAtLeast(0.0).toFloat()).apply()
+
     /** Most stores on one vehicle when clubbing. */
     fun maxStops(c: Context): Int = p(c).getInt(KEY_MAX_STOPS, 2).coerceAtLeast(1)
     fun setMaxStops(c: Context, n: Int) = p(c).edit().putInt(KEY_MAX_STOPS, n.coerceIn(1, 6)).apply()
@@ -184,7 +189,7 @@ object PlanData {
 
     fun options(c: Context, plan: Plan) = VehiclePlanner.Options(
         types = types(c), clubBelow = clubBelow(c), autoClub = autoClub(c), maxStops = maxStops(c), noClub = plan.noClub, clubs = plan.clubs,
-        places = StoreGeo.places(c), dc = StoreGeo.dc(c), nearKm = nearKm(c)
+        places = StoreGeo.places(c), dc = StoreGeo.dc(c), nearKm = nearKm(c), maxClubKm = maxClubKm(c)
     )
 
     /** City and region of each store from the store list (by store code). */

@@ -154,7 +154,8 @@ class PlanTab(private val a: MainActivity, root: View) {
             })
         }
         typeChips.visibility = if (r.byType.isEmpty()) View.GONE else View.VISIBLE
-        clubText.text = a.getString(R.string.plan_club_text, vol(PlanData.clubBelow(a)), PlanData.maxStops(a))
+        clubText.text = a.getString(R.string.plan_club_text, vol(PlanData.clubBelow(a)), PlanData.maxStops(a)) +
+            PlanData.maxClubKm(a).takeIf { it > 0 }?.let { " " + a.getString(R.string.plan_club_km_text, km(it)) }.orEmpty()
         showZones(r)
         showGeo(stops)
         showMap(r, stops)
@@ -485,6 +486,16 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
         stopsRow.addView(maxStops, LinearLayout.LayoutParams((96 * d).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
         box.addView(stopsRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val kmRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+        kmRow.addView(TextView(a).apply { setText(R.string.plan_max_club_km_label); textSize = 14.5f; setTextColor(Ui.color(a, R.color.ink)) },
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val maxClubKm = TextInputEditText(a).apply {
+            setText(PlanData.maxClubKm(a).takeIf { it > 0 }?.let { km(it) }.orEmpty()); hint = a.getString(R.string.plan_no_limit)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setSingleLine(); textSize = 14.5f; gravity = android.view.Gravity.END
+        }
+        kmRow.addView(maxClubKm, LinearLayout.LayoutParams((96 * d).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
+        box.addView(kmRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         MaterialAlertDialogBuilder(a)
             .setTitle(R.string.plan_sizes_title)
             .setMessage(R.string.plan_sizes_message)
@@ -495,6 +506,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 })
                 SheetReader.number(clubBelow.text?.toString().orEmpty())?.let { PlanData.setClubBelow(a, it) }
                 maxStops.text?.toString()?.trim()?.toIntOrNull()?.let { PlanData.setMaxStops(a, it) }
+                PlanData.setMaxClubKm(a, SheetReader.number(maxClubKm.text?.toString().orEmpty()) ?: 0.0)
                 refresh()
             }
             .setNeutralButton(R.string.plan_sizes_reset) { _, _ ->

@@ -100,14 +100,16 @@ object VehiclePlanner {
         val upcountry: Set<String> = emptySet(),
         val upcountryType: VehicleCap? = null,
         /** Most stores on one Upcountry vehicle. */
-        val upcountryMaxStops: Int = 3
+        val upcountryMaxStops: Int = 3,
+        /** Most km (straight line) between two stores of one clubbed vehicle; 0 = no limit. */
+        val maxClubKm: Double = 0.0
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
             upcountryMaxStops: Int = this.upcountryMaxStops
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm)
     }
 
     /** Straight-line km between two places. */
@@ -142,6 +144,11 @@ object VehiclePlanner {
         if (all.map { it.code }.distinct().size <= 1) return true
         val hp = host.map { o.places[it.code] }
         val ap = add.map { o.places[it.code] }
+        // The set limit: every added store within that many km of a store already on the vehicle.
+        if (o.maxClubKm > 0) {
+            if ((hp + ap).any { it == null }) return false
+            if (ap.any { x -> hp.none { y -> km(x!!, y!!) <= o.maxClubKm + EPS } }) return false
+        }
         if ((hp + ap).all { it != null }) {
             val h = hp.filterNotNull(); val a = ap.filterNotNull()
             val dc = o.dc
