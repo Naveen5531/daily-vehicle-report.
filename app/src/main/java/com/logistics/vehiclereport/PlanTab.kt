@@ -111,6 +111,9 @@ class PlanTab(private val a: MainActivity, root: View) {
     private fun pct(f: Double) = "${Math.round(f * 100)}%"
     private fun km(v: Double) = Math.round(v).toString()
 
+    /** The store's town for the city totals: the store list's city, else the store's name. */
+    private fun cityOf(s: PlanStop) = s.city.trim().ifBlank { s.shownName.trim() }.replaceFirstChar { it.uppercase() }
+
     fun refresh() {
         val plan = PlanData.load(a)
         val stops = PlanData.withPlaces(a, plan.stops)
@@ -204,9 +207,16 @@ class PlanTab(private val a: MainActivity, root: View) {
         val v = inflater.inflate(R.layout.item_plan_vehicle, list, false) as MaterialCardView
         v.findViewById<TextView>(R.id.pvNo).text = (index + 1).toString()
         v.findViewById<TextView>(R.id.pvType).text = l.type?.name ?: a.getString(R.string.plan_no_type)
+        // Each city on this vehicle: its total volume today and on how many vehicles it goes.
+        val cityLines = l.parts.map { it.first }.distinctBy { cityOf(it) }.joinToString("") { s ->
+            val c = cityOf(s)
+            val onPlan = result?.loads.orEmpty().filter { ld -> ld.parts.any { cityOf(it.first) == c } }
+            val total = onPlan.sumOf { ld -> ld.parts.filter { cityOf(it.first) == c }.sumOf { it.second } }
+            "\n" + a.getString(R.string.plan_city_total, c, vol(total), onPlan.size)
+        }
         v.findViewById<TextView>(R.id.pvCap).text = a.getString(R.string.plan_cap_line,
             l.type?.let { vol(it.capacity) } ?: "–", vol(l.volume), l.codes.size) +
-            (l.routeKm?.let { "\n" + a.getString(R.string.plan_route_line, km(it)) } ?: "")
+            (l.routeKm?.let { "\n" + a.getString(R.string.plan_route_line, km(it)) } ?: "") + cityLines
         val fill = v.findViewById<TextView>(R.id.pvFill)
         fill.text = pct(l.fill)
         val (fg, bg) = when {
@@ -248,7 +258,15 @@ class PlanTab(private val a: MainActivity, root: View) {
         v.findViewById<View>(R.id.pvFoot).visibility = if (l.clubbed) View.VISIBLE else View.GONE
         v.findViewById<TextView>(R.id.pvClubTag).apply {
             setTextColor(Ui.color(a, R.color.wait)); backgroundTintList = ColorStateList.valueOf(Ui.color(a, R.color.wait_bg))
-            text = l.extraKm?.let { a.getString(R.string.plan_clubbed_km, km(it)) } ?: a.getString(R.string.plan_clubbed)
+            // Store to store as driven (road km, same as Google Maps), shown with "~" (straight line) until known.
+            val pts = l.codes.map { places[it] }
+            text = if (l.codes.size > 1 && pts.all { it != null }) {
+                val p = pts.filterNotNull()
+                val road = RoadKm.cached(a, p)
+                if (road == null) RoadKm.fetch(a, p) { refresh() }
+                if (road != null) a.getString(R.string.plan_clubbed_road, km(road))
+                else a.getString(R.string.plan_clubbed_straight, km(RoadKm.straight(p)))
+            } else l.extraKm?.let { a.getString(R.string.plan_clubbed_km, km(it)) } ?: a.getString(R.string.plan_clubbed)
         }
         v.findViewById<MaterialButton>(R.id.pvRoute).apply {
             // A vehicle with more than one store: store → store in order (no DC), as directions in Google Maps.

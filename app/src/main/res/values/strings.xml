@@ -183,6 +183,9 @@
     </plurals>
     <string name="plan_clubbed">Clubbed</string>
     <string name="plan_clubbed_km">Clubbed · +%1$s km</string>
+    <string name="plan_clubbed_road">Clubbed · stores %1$s km apart by road</string>
+    <string name="plan_clubbed_straight">Clubbed · stores ~%1$s km apart (straight line, road km loading)</string>
+    <string name="plan_city_total">%1$s total: %2$s volume on %3$d vehicle(s)</string>
     <string name="plan_route_line">Trip ≈ %1$s km from the DC (straight line)</string>
     <string name="plan_km_from_dc">%1$s km from DC</string>
     <string name="plan_not_on_map">not on map</string>
