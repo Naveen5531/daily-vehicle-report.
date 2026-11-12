@@ -764,7 +764,7 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="laptop_menu_link">Link office laptop (Chrome add-on)</string>
     <string name="laptop_menu_linked">Office laptop linked ✓ – code / unlink</string>
     <string name="laptop_title">Link office laptop</string>
-    <string name="laptop_msg">1. On the office laptop, install the "Daily Vehicle Report – Drishti link" Chrome add-on.\n2. Open Drishti → Vehicle Summary in Chrome and keep that tab open.\n3. Click the add-on, paste this code, tap Save code and tick "Send every 3 minutes".\n\n%1$s\n\nThe gate log is sent encrypted; only this phone can read it. Keep the code private.</string>
+    <string name="laptop_msg">Office Excel (App Data workbook): paste this code in sheet "App Link", cell B2. Its live sync then sends the gate log, Standing and In-transit here.\n\nOr the Chrome add-on: open Drishti → Vehicle Summary in Chrome, click the add-on, paste this code, Save code and tick "Send every 3 minutes".\n\n%1$s\n\nEverything is sent encrypted; only this phone can read it. Keep the code private.</string>
     <string name="laptop_copy">Copy code</string>
     <string name="laptop_share">Share</string>
     <string name="laptop_unlink">Unlink</string>
@@ -776,4 +776,21 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="laptop_status">Office laptop · last read %1$s · %2$d vehicles</string>
     <string name="laptop_waiting">Office laptop linked – waiting for its first send</string>
     <string name="laptop_login">Office laptop: Drishti sign-in expired – log in again on the laptop</string>
+
+    <!-- Yard: Standing / In-transit / At DC now, sent by the office Excel (App Data workbook) -->
+    <string name="yard_title">Yard</string>
+    <string name="yard_button">Yard · Standing &amp; In-transit</string>
+    <string name="drishti_menu_yard">Yard · Standing &amp; In-transit (from Excel)</string>
+    <string name="yard_pull">Pull now</string>
+    <string name="yard_search">Search vehicle, transporter, driver…</string>
+    <string name="yard_dedicated_only">Dedicated</string>
+    <string name="yard_dedicated">DEDICATED</string>
+    <string name="yard_updated">From office Excel · updated %1$s</string>
+    <string name="yard_never">Nothing from the office Excel yet</string>
+    <string name="yard_tab_count">%1$s (%2$d)</string>
+    <string name="yard_empty_never">Nothing received yet.\n\nOn the office laptop: open App Data Excel → sheet "App Link" → paste this phone\'s link code (Drishti → ⋮ → Link office laptop → Copy code) in B2. Live sync then sends Standing, In-transit and the gate log here.</string>
+    <string name="yard_empty_none">No vehicles in this list right now.</string>
+    <string name="yard_empty_filter">No vehicle matches the search.</string>
+    <string name="yard_copied">%1$s copied</string>
+    <string name="yard_not_linked">Link the office laptop first: Drishti → ⋮ → Link office laptop, then paste the code in the App Data Excel (sheet "App Link", cell B2).</string>
 </resources>

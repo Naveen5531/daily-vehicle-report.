@@ -25,7 +25,9 @@ object LaptopLink {
     private const val RELAY = "https://ntfy.sh/"
 
     /** What came from the laptop: same as one read of the Drishti page. */
-    data class Read(val status: String, val cells: List<List<String>>, val pageDay: Long, val at: Long)
+    data class Read(val status: String, val cells: List<List<String>>, val pageDay: Long, val at: Long,
+                    /** Standing / Transit / At DC now tables, sent by the office Excel (null from the Chrome add-on). */
+                    val sheets: JSONObject? = null)
 
     // The link is per phone, not per account (kept out of the account data and its cloud copy).
     private fun p(c: Context) = c.getSharedPreferences("laptop_link", Context.MODE_PRIVATE)
@@ -97,7 +99,7 @@ object LaptopLink {
         }
         val day = DrishtiData.parseTime(o.optString("pageDate") + " 00:00", 0L)
             .takeIf { it > 0 }?.let { ReportBuilder.startOfDay(it) } ?: ReportBuilder.startOfDay()
-        return Read(status, cells, day, o.optLong("at", System.currentTimeMillis()))
+        return Read(status, cells, day, o.optLong("at", System.currentTimeMillis()), o.optJSONObject("sheets"))
     }
 
     private fun get(url: String): ByteArray {
@@ -117,6 +119,7 @@ object LaptopLink {
      */
     fun pullAndApply(c: Context): DrishtiResult? {
         val r = fetch(c) ?: return null
+        r.sheets?.let { YardStore.save(c, it, r.at) }
         if (r.status != DrishtiStore.OK) { DrishtiStore.setStatus(c, r.status); return null }
         return DrishtiStore.apply(c, r.cells, r.pageDay, readAt = r.at)
     }

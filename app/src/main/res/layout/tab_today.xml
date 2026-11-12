@@ -301,6 +301,15 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Yard: Standing / In-transit vehicles sent by the office Excel -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/yardButton"
+            style="@style/DTonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/yard_button" />
+
         <!-- Mark reported from a camera scan at the gate, a photo or an Excel file -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/markReportedButton"

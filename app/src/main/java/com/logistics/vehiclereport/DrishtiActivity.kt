@@ -216,6 +216,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
         m.menu.add(0, 6, 4, if (DrishtiStore.liveOn(this)) R.string.drishti_menu_live_off else R.string.drishti_menu_live_on)
         m.menu.add(0, 7, 5, if (DrishtiStore.gateOnly(this)) R.string.drishti_menu_source_wa else R.string.drishti_menu_source_gate)
         m.menu.add(0, 8, 6, if (LaptopLink.linked(this)) R.string.laptop_menu_linked else R.string.laptop_menu_link)
+        m.menu.add(0, 9, 6, R.string.drishti_menu_yard)
         m.menu.add(0, 5, 7, R.string.drishti_menu_signout)
         m.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -231,6 +232,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
                 5 -> signOut()
                 6 -> toggleLive()
                 8 -> showLaptopLink(this) { showStatus() }
+                9 -> YardActivity.open(this)
                 7 -> {
                     val on = !DrishtiStore.gateOnly(this)
                     DrishtiStore.setGateOnly(this, on)

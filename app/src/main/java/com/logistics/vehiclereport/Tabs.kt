@@ -118,6 +118,7 @@ class TodayTab(private val a: MainActivity, root: View) {
         }
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
+        root.findViewById<MaterialButton>(R.id.yardButton).setOnClickListener { YardActivity.open(a) }
         root.findViewById<MaterialButton>(R.id.markReportedButton).setOnClickListener { a.openMarkReported() }
 
         val labels = mapOf(TodayState.NOT_POSTED to R.string.st_not_posted, TodayState.YET to R.string.gate_yet,

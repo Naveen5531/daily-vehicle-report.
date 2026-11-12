@@ -77,6 +77,9 @@
         </service>
 
         <activity
+            android:name=".YardActivity"
+            android:exported="false" />
+        <activity
             android:name=".SignInActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
