@@ -136,6 +136,7 @@ class SignInActivity : AppCompatActivity() {
     private fun finishSignIn(uid: String, mail: String, name: String) {
         Account.signedIn(this, uid, mail, name)
         busy(true)
+        FirebaseLink.start(this)
         CloudSync.restoreOrUpload(this) { restored ->
             busy(false)
             if (restored) toast(R.string.sign_restored)

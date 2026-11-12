@@ -47,12 +47,14 @@ object Account {
         loadSettings(c)
         Thread { try { VehicleStore.upgradeOldRecords(c.applicationContext) } catch (e: Throwable) { } }.start()
         CloudSync.start(c)
+        FirebaseLink.start(c)
     }
 
     /** Signs out on this phone. The account's data stays in its cloud copy (and on this phone for next time). */
     fun signOut(c: Context) {
         CloudSync.flushNow(c)
         CloudSync.stop()
+        FirebaseLink.stop()
         try { if (cloudReady(c)) FirebaseAuth.getInstance().signOut() } catch (e: Exception) { }
         device(c).edit().remove(K_UID).remove(K_EMAIL).remove(K_NAME).commit()
         resetCaches()

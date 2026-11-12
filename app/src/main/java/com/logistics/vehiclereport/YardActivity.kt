@@ -301,6 +301,16 @@ class YardActivity : AppCompatActivity() {
     }
 
     private fun pullNow(quiet: Boolean) {
+        // Firebase (the app's own cloud, written by the office Excel) is the live route; ntfy is the old fallback.
+        if (FirebaseLink.available(this)) {
+            if (!quiet) subtitle.text = getString(R.string.laptop_checking)
+            FirebaseLink.pullOnce(this) { ok, err ->
+                if (isFinishing) return@pullOnce
+                refresh()
+                if (!quiet && err != null) Toast.makeText(this, getString(R.string.laptop_net_error, err), Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         if (!LaptopLink.linked(this)) {
             if (!quiet) Toast.makeText(this, R.string.yard_not_linked, Toast.LENGTH_LONG).show()
             return

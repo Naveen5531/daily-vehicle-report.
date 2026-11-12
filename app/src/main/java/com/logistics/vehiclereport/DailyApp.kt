@@ -22,6 +22,7 @@ class DailyApp : Application() {
         if (Account.isSignedIn(this)) {
             Account.loadSettings(this)
             CloudSync.start(this)
+            FirebaseLink.start(this)
             Thread {
                 try { VehicleStore.upgradeOldRecords(this) } catch (t: Throwable) { CrashLog.save(this, "Upgrading old entries", t) }
             }.start()
