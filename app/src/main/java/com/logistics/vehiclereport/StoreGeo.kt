@@ -6,6 +6,9 @@ import android.os.Handler
 import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLDecoder
 import java.util.Locale
 
 /**
@@ -75,15 +78,75 @@ object StoreGeo {
         listOf("${clean(s.shownName)}, India", "${clean(s.city)}, India", "${clean(s.name)}, India")
             .filter { it.length > 9 && !it.startsWith(",") }.distinct()
 
-    /** How far the DMart store found may be from the store's area (more means a wrong same-named store). */
-    private const val DMART_NEAR_KM = 30.0
+    /** How far the DMart store found may be from the store's own town (more means a wrong same-named store). */
+    private const val DMART_NEAR_KM = 15.0
 
-    /** "DMart Gajuwaka, Visakhapatnam, India": the store itself rather than the middle of its area. */
-    private fun dmartQuery(s: PlanStop): String? {
+    /** "DMart Tuni, India", then "DMart Tuni, Kakinada, India": the store itself rather than the middle of its area. */
+    private fun dmartQueries(s: PlanStop): List<String> {
         val name = clean(s.shownName).ifBlank { clean(s.name) }
-        if (name.length < 3) return null
+        if (name.length < 3) return emptyList()
         val city = clean(s.city).takeIf { it.isNotBlank() && !name.contains(it, ignoreCase = true) }
-        return listOfNotNull("DMart $name", city, "India").joinToString(", ")
+        return listOfNotNull("DMart $name, India", city?.let { "DMart $name, $it, India" }).distinct()
+    }
+
+    /** Marker kept as the place name for a store pinned exactly (Google Maps link or lat, long). */
+    const val EXACT = "Pinned from Google Maps"
+
+    /** True when the store's place was pinned exactly by hand. */
+    fun isExact(c: Context, code: String): Boolean = read(c).optJSONArray(code)?.optString(2)?.startsWith(EXACT) == true
+
+    /** True when the text is a Google Maps link or "lat, long" (not a place name to search). */
+    fun isLink(text: String): Boolean {
+        val t = text.trim()
+        return t.contains("http", true) || t.contains("goo.gl", true) || t.contains("google.", true) || coords(t) != null
+    }
+
+    /** Lat, long out of a Google Maps link (place pin first) or plain "17.12, 82.45". */
+    fun coords(text: String): LatLon? {
+        val t = try { URLDecoder.decode(text, "UTF-8") } catch (e: Exception) { text }
+        val num = "(-?\\d{1,2}\\.\\d{3,})"
+        val pats = listOf(
+            Regex("!3d$num!4d(-?\\d{1,3}\\.\\d{3,})"),                       // the place's own pin
+            Regex("[?&](?:q|query|ll|destination|daddr|center)=$num,\\s*(-?\\d{1,3}\\.\\d{3,})"),
+            Regex("/place/$num,\\s*(-?\\d{1,3}\\.\\d{3,})"),
+            Regex("/search/$num,\\s*\\+?(-?\\d{1,3}\\.\\d{3,})"),
+            Regex("@$num,(-?\\d{1,3}\\.\\d{3,})"),                             // map centre (last resort)
+            Regex("^\\s*$num\\s*[, ]\\s*(-?\\d{1,3}\\.\\d{3,})\\s*$")
+        )
+        for (r in pats) {
+            val m = r.find(t) ?: continue
+            val lat = m.groupValues[1].toDoubleOrNull() ?: continue
+            val lon = m.groupValues[2].toDoubleOrNull() ?: continue
+            if (lat in 5.0..38.0 && lon in 66.0..99.0) return LatLon(lat, lon)   // inside India
+        }
+        return null
+    }
+
+    /** Follows a short link (maps.app.goo.gl) to the full Google Maps link and reads the pin from it. Network: call off the main thread. */
+    private fun resolveLink(text: String): LatLon? {
+        coords(text)?.let { return it }
+        var url = Regex("https?://\\S+").find(text)?.value ?: return null
+        try {
+            repeat(6) {
+                val con = (URL(url).openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = false; connectTimeout = 10000; readTimeout = 10000
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+                }
+                val code = con.responseCode
+                val next = con.getHeaderField("Location")
+                if (code in 300..399 && next != null) {
+                    con.disconnect()
+                    url = URL(URL(url), next).toString()
+                    coords(url)?.let { return it }
+                } else {
+                    // No more redirects: the page itself may hold the pin.
+                    val body = try { con.inputStream.bufferedReader().use { r -> r.readText().take(400000) } } catch (e: Exception) { "" }
+                    con.disconnect()
+                    return coords(url) ?: coords(body)
+                }
+            }
+        } catch (e: Exception) { }
+        return coords(url)
     }
 
     /** Map search, kept within about 900 km of the DC when the DC is known (a same-named place far away is skipped). */
@@ -155,13 +218,14 @@ object StoreGeo {
                     val handTyped = typed != null && !typed.endsWith(", India")
                     if (handTyped) { found = lookup(app, "$typed, India", dc); used = typed.orEmpty() }
                     else for (q in queries(s)) { found = lookup(app, q, dc); used = q; if (found != null) break }
-                    // The DMart store itself, when the map search knows it near that area (or anywhere near the DC).
-                    if (!handTyped) {
-                        val dq = dmartQuery(s)
-                        val store = dq?.let { lookup(app, it, dc) }
-                        val area = found
-                        if (store != null && (area == null || VehiclePlanner.km(area.at, store.at) <= DMART_NEAR_KM)) {
-                            found = Found(store.at, store.state ?: area?.state); used = dq
+                    // The DMart store itself, only when the map search finds it in the store's own town.
+                    val area = found
+                    if (!handTyped && area != null) {
+                        for (dq in dmartQueries(s)) {
+                            val store = lookup(app, dq, dc) ?: continue
+                            if (VehiclePlanner.km(area.at, store.at) <= DMART_NEAR_KM) {
+                                found = Found(store.at, store.state ?: area.state); used = dq; break
+                            }
                         }
                     }
                     save(app, s.code, used, found?.at, found?.state)
@@ -182,6 +246,13 @@ object StoreGeo {
     fun setPlace(c: Context, code: String, query: String, done: (Boolean) -> Unit) {
         val app = c.applicationContext
         Thread {
+            if (isLink(query)) {
+                // Exact pin from a Google Maps link or lat, long: kept as is, never searched again.
+                val at = resolveLink(query)
+                if (at != null) save(app, code, EXACT, at, if (Geocoder.isPresent()) stateAt(app, at) else null)
+                main.post { done(at != null) }
+                return@Thread
+            }
             val found = lookup(app, if (query.contains("india", true)) query else "$query, India", dc(app))
             save(app, code, query, found?.at, found?.state)
             main.post { done(found != null) }
@@ -192,6 +263,12 @@ object StoreGeo {
     fun setDcPlace(c: Context, query: String, done: (Boolean) -> Unit) {
         val app = c.applicationContext
         Thread {
+            if (isLink(query)) {
+                val at = resolveLink(query)
+                if (at != null) setDc(app, dcQuery(app), at, if (Geocoder.isPresent()) stateAt(app, at) else null)
+                main.post { done(at != null) }
+                return@Thread
+            }
             val found = lookup(app, if (query.contains("india", true)) query else "$query, India", null)
             if (found != null) setDc(app, query, found.at, found.state)
             main.post { done(found != null) }

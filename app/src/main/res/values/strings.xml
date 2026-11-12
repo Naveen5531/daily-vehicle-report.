@@ -186,7 +186,12 @@
     <string name="plan_route_line">Trip ≈ %1$s km from the DC (straight line)</string>
     <string name="plan_km_from_dc">%1$s km from DC</string>
     <string name="plan_not_on_map">not on map</string>
-    <string name="plan_field_place">Place on map (area, town)</string>
+    <string name="plan_field_place">Place: area, town, or Google Maps link</string>
+    <string name="plan_place_exact">Exact DMart pin from Google Maps</string>
+    <string name="plan_find_in_maps">Find this DMart in Google Maps</string>
+    <string name="plan_find_in_maps_help">In Google Maps tap the DMart store → Share → Copy link, come back here and the link fills in. Tap Save.</string>
+    <string name="plan_place_pinned">Store pinned at the exact Google Maps place</string>
+    <string name="plan_place_link_bad">Could not read a place from that link. Copy the link of the DMart store from Google Maps and try again.</string>
     <string name="plan_place_found_km">On the map, %1$s km from the DC. Change the place if it is wrong.</string>
     <string name="plan_place_found">On the map. Change the place if it is wrong.</string>
     <string name="plan_place_missing">Not on the map yet. Type its area and town (like Gajuwaka, Visakhapatnam) so it is clubbed only with nearby stores.</string>

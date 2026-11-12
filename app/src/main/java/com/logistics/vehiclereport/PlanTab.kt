@@ -331,10 +331,34 @@ class PlanTab(private val a: MainActivity, root: View) {
         val volume = field(R.string.plan_field_volume, s.volume.toString(), InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
         val placeWas = StoreGeo.query(a, code)?.removeSuffix(", India").orEmpty()
         val place = field(R.string.plan_field_place, placeWas, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+        // A Google Maps link copied just before opening this: put in the place box ready to save.
+        try {
+            val cm = a.getSystemService(android.content.ClipboardManager::class.java)
+            val clip = cm?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(a)?.toString().orEmpty()
+            if (clip.isNotBlank() && StoreGeo.isLink(clip) && clip.length < 600) place.setText(clip.trim())
+        } catch (e: Exception) { }
         box.addView(TextView(a).apply {
-            text = places[code]?.let { at -> dcPlace?.let { a.getString(R.string.plan_place_found_km, km(VehiclePlanner.km(it, at))) }
-                ?: a.getString(R.string.plan_place_found) } ?: a.getString(R.string.plan_place_missing)
+            text = (if (StoreGeo.isExact(a, code)) a.getString(R.string.plan_place_exact) + "\n" else "") +
+                (places[code]?.let { at -> dcPlace?.let { a.getString(R.string.plan_place_found_km, km(VehiclePlanner.km(it, at))) }
+                ?: a.getString(R.string.plan_place_found) } ?: a.getString(R.string.plan_place_missing))
             textSize = 12f; setTextColor(Ui.color(a, R.color.muted)); setPadding((4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt(), 0)
+        })
+        box.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            setText(R.string.plan_find_in_maps)
+            setIconResource(R.drawable.ic_pin)
+            setOnClickListener {
+                val name = PlanMap.dmartName(s)
+                val near = places[code] ?: dcPlace
+                try {
+                    val uri = if (near != null) Uri.parse(String.format(Locale.US, "geo:%.6f,%.6f?q=%s", near.lat, near.lon, Uri.encode(name)))
+                        else Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(name))
+                    a.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+                } catch (e: Exception) { }
+            }
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (8 * d).toInt() })
+        box.addView(TextView(a).apply {
+            setText(R.string.plan_find_in_maps_help)
+            textSize = 12f; setTextColor(Ui.color(a, R.color.muted)); setPadding((4 * d).toInt(), (2 * d).toInt(), (4 * d).toInt(), 0)
         })
         MaterialAlertDialogBuilder(a)
             .setTitle(a.getString(R.string.plan_edit_title, s.code))
@@ -348,7 +372,13 @@ class PlanTab(private val a: MainActivity, root: View) {
                 val q = place.text?.toString()?.trim().orEmpty()
                 if (q.isNotEmpty() && (q != placeWas || places[code] == null)) {
                     StoreGeo.setPlace(a, code, q) { found ->
-                        Toast.makeText(a, if (found) a.getString(R.string.plan_place_set, q) else a.getString(R.string.plan_place_not_found, q), Toast.LENGTH_LONG).show()
+                        val link = StoreGeo.isLink(q)
+                        Toast.makeText(a, when {
+                            link && found -> a.getString(R.string.plan_place_pinned)
+                            link -> a.getString(R.string.plan_place_link_bad)
+                            found -> a.getString(R.string.plan_place_set, q)
+                            else -> a.getString(R.string.plan_place_not_found, q)
+                        }, Toast.LENGTH_LONG).show()
                         refresh()
                     }
                 }
