@@ -539,6 +539,7 @@ class VehiclesTab(private val a: MainActivity, root: View) {
                     .setTitle(R.string.masters_title)
                     .setMessage(a.getString(R.string.masters_help, m.stores.size, m.vendors.size))
                     .setPositiveButton(R.string.masters_import) { _, _ -> a.pickMastersFile() }
+                    .setNeutralButton(R.string.loc_button) { _, _ -> StoreLocations.open(a) }
                     .setNegativeButton(android.R.string.cancel, null)
                     .show()
             }

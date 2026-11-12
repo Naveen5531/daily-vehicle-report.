@@ -717,9 +717,41 @@ class MainActivity : AppCompatActivity() {
 
     fun pickMastersFile() = mastersLauncher.launch(arrayOf("*/*"))
 
+    private var storeLocDone: (() -> Unit)? = null
+    private val storeLocLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) importStoreLocations(uri, storeLocDone)
+    }
+
+    /** Excel of store locations (Store Code + Latitude/Longitude or Google Maps link) for the store location master. */
+    fun pickStoreLocationsFile(done: () -> Unit) { storeLocDone = done; storeLocLauncher.launch(arrayOf("*/*")) }
+
+    private fun importStoreLocations(uri: Uri, done: (() -> Unit)?) {
+        val rows = try {
+            StoreLocations.rowsFromWorkbook(contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0))
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.import_failed, e.message), Toast.LENGTH_LONG).show()
+            return
+        }
+        if (rows.isEmpty()) {
+            MaterialAlertDialogBuilder(this).setMessage(R.string.loc_import_none).setPositiveButton(android.R.string.ok, null).show()
+            return
+        }
+        Toast.makeText(this, getString(R.string.loc_import_busy, rows.size), Toast.LENGTH_SHORT).show()
+        StoreLocations.applyRows(this, rows) { ok, bad ->
+            MaterialAlertDialogBuilder(this).setTitle(R.string.loc_title)
+                .setMessage(getString(R.string.loc_import_done, ok, bad))
+                .setPositiveButton(android.R.string.ok, null).show()
+            done?.invoke()
+            refreshAll()
+        }
+    }
+
     private fun importMasters(uri: Uri) {
+        var locRows: List<StoreLocations.Row> = emptyList()
         val found = try {
-            MasterData.fromWorkbook(contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0))
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+            locRows = try { StoreLocations.rowsFromWorkbook(bytes) } catch (e: Exception) { emptyList() }
+            MasterData.fromWorkbook(bytes)
         } catch (e: Exception) {
             Toast.makeText(this, getString(R.string.import_failed, e.message), Toast.LENGTH_LONG).show()
             return
@@ -737,6 +769,11 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MasterData.save(this, merged)
                 Toast.makeText(this, R.string.masters_saved, Toast.LENGTH_SHORT).show()
+                // Latitude / Longitude or map link columns in the store sheet: stores pinned exactly too.
+                if (locRows.isNotEmpty()) StoreLocations.applyRows(this, locRows) { ok, _ ->
+                    Toast.makeText(this, getString(R.string.loc_import_done, ok, locRows.size - ok), Toast.LENGTH_LONG).show()
+                    refreshAll()
+                }
                 refreshAll()
             }
             .setNegativeButton(android.R.string.cancel, null)

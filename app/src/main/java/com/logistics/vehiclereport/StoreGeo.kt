@@ -92,6 +92,24 @@ object StoreGeo {
     /** Marker kept as the place name for a store pinned exactly (Google Maps link or lat, long). */
     const val EXACT = "Pinned from Google Maps"
 
+    /** How a store's place was set: exact pin, found by map search (approximate), or not on the map. */
+    enum class Kind { EXACT, AUTO, NONE }
+
+    fun kind(c: Context, code: String): Kind {
+        val a = read(c).optJSONArray(code.trim()) ?: return Kind.NONE
+        if (a.optDouble(0, 0.0) == 0.0 && a.optDouble(1, 0.0) == 0.0) return Kind.NONE
+        return if (a.optString(2).startsWith(EXACT)) Kind.EXACT else Kind.AUTO
+    }
+
+    /** Pins a store exactly (from the store location master); kept for good, never searched again. */
+    fun setExact(c: Context, code: String, at: LatLon) = save(c.applicationContext, code.trim(), EXACT, at, null)
+
+    /** Takes a store's pin off (it is searched again on the Plan tab). */
+    @Synchronized fun clear(c: Context, code: String) {
+        val o = read(c); o.remove(code.trim())
+        p(c).edit().putString(KEY, o.toString()).apply()
+    }
+
     /** True when the store's place was pinned exactly by hand. */
     fun isExact(c: Context, code: String): Boolean = read(c).optJSONArray(code)?.optString(2)?.startsWith(EXACT) == true
 
@@ -123,7 +141,7 @@ object StoreGeo {
     }
 
     /** Follows a short link (maps.app.goo.gl) to the full Google Maps link and reads the pin from it. Network: call off the main thread. */
-    private fun resolveLink(text: String): LatLon? {
+    fun resolveLink(text: String): LatLon? {
         coords(text)?.let { return it }
         var url = Regex("https?://\\S+").find(text)?.value ?: return null
         try {
