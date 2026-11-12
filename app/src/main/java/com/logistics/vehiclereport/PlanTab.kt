@@ -268,7 +268,10 @@ class PlanTab(private val a: MainActivity, root: View) {
             removeAllViews()
             addView(pill("🚚 " + (l.type?.name ?: a.getString(R.string.plan_no_type)), R.color.ink, R.color.brand_light))
             addView(pill(a.getString(R.string.pv_cap, l.type?.let { vol(it.capacity) } ?: "–"), R.color.ink, R.color.soft, false))
-            addView(pill(a.getString(R.string.pv_load, vol(l.volume)), R.color.ink, R.color.soft, false))
+            val overLoad = (l.type?.capacity ?: PlanData.types(a).filter { it.on && it.capacity > 0 }.maxOfOrNull { it.capacity })
+                ?.let { l.volume > it + 1e-6 } == true
+            addView(pill(a.getString(R.string.pv_load, vol(l.volume)), if (overLoad) R.color.surface else R.color.ink,
+                if (overLoad) R.color.no else R.color.soft, overLoad).apply { if (overLoad) textSize = 14f })
             addView(pill(a.resources.getQuantityString(R.plurals.pv_stops, l.codes.size, l.codes.size), R.color.ink, R.color.soft, false))
             l.routeKm?.let { addView(pill(a.getString(R.string.pv_trip, km(it)), R.color.ink, R.color.soft, false)) }
             // Which store it is clubbed with, and for a store split over vehicles, where its other part goes.
@@ -324,8 +327,15 @@ class PlanTab(private val a: MainActivity, root: View) {
             }
         }
         val fill = v.findViewById<TextView>(R.id.pvFill)
-        fill.text = pct(l.fill)
+        // Over 100%: the load is more than the vehicle (or the biggest size) carries – shown big, bold and red.
+        val biggest = PlanData.types(a).filter { it.on && it.capacity > 0 }.maxOfOrNull { it.capacity }
+        val shownFill = if (l.type != null) l.fill else biggest?.let { l.volume / it } ?: 0.0
+        val over = shownFill > 1.0 + 1e-6
+        fill.text = if (over) "⚠ " + pct(shownFill) else pct(l.fill)
+        fill.textSize = if (over) 17f else 12f
+        fill.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(a, if (over) R.font.bricolage_extrabold else R.font.jakarta_bold))
         val (fg, bg) = when {
+            over -> R.color.surface to R.color.no
             l.type == null -> R.color.no to R.color.no_bg
             l.fill >= 0.85 -> R.color.ok to R.color.ok_bg
             l.fill >= 0.6 -> R.color.chk to R.color.chk_bg
