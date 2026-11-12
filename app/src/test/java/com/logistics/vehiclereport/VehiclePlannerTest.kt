@@ -52,6 +52,21 @@ class VehiclePlannerTest {
         assertEquals(1975.592, r.loads.sumOf { it.volume }, 1e-6)
     }
 
+    @Test fun storeBiggerThanOneVehicleGetsFullLoadsAndItsRestIsClubbed() {
+        // 2000 with 20 ft (850) the biggest: 850 + 850 + 300; the 300 rides with the nearby store's vehicle.
+        val r = VehiclePlanner.plan(listOf(s("CHM", 2000.0), s("KCG", 400.0)), geo())
+        val chm = r.loads.filter { "CHM" in it.codes }
+        assertEquals(3, chm.size)
+        assertEquals(listOf(850.0, 850.0), chm.filter { it.codes == listOf("CHM") }.map { it.volume }.sorted().take(2))
+        assertEquals(2000.0, chm.sumOf { l -> l.parts.filter { it.first.code == "CHM" }.sumOf { it.second } }, 1e-6)
+        val shared = r.loads.single { it.codes.toSet() == setOf("CHM", "KCG") }
+        assertEquals(700.0, shared.volume, 1e-6)
+        assertEquals(3, r.vehicles)
+        // Far away: the rest keeps its own vehicle.
+        val far = VehiclePlanner.plan(listOf(s("CHM", 2000.0), s("WGL", 400.0)), geo())
+        assertEquals(4, far.vehicles)
+    }
+
     @Test fun nearbyStoresShareAVehicle() {
         val r = VehiclePlanner.plan(listOf(s("CHM", 634.9), s("KCG", 205.5), s("WGL", 175.5)), geo())
         assertEquals(2, r.vehicles)

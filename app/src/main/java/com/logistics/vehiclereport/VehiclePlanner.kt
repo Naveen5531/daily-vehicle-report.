@@ -209,7 +209,9 @@ object VehiclePlanner {
     fun fit(volume: Double, types: List<VehicleCap>): VehicleCap? =
         types.filter { it.on && it.capacity > 0 && it.capacity >= volume - EPS }.minByOrNull { it.capacity }
 
-    private class Load(val cluster: String, val parts: MutableList<Pair<PlanStop, Double>>, var clubbed: Boolean = false, val full: Boolean = false) {
+    /** [splitRest]: what is left of a store bigger than one vehicle after its full loads (always checked for clubbing). */
+    private class Load(val cluster: String, val parts: MutableList<Pair<PlanStop, Double>>, var clubbed: Boolean = false, val full: Boolean = false,
+                       val splitRest: Boolean = false) {
         val volume get() = parts.sumOf { it.second }
         val codes get() = parts.map { it.first.code }.toSet()
     }
@@ -250,7 +252,7 @@ object VehiclePlanner {
                 loads += Load(s.cluster, mutableListOf(s to max), full = true)
                 left -= max
             }
-            val l = Load(s.cluster, mutableListOf(s to left))
+            val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > max + EPS)
             loads += l
             rest[s.code] = l
         }
@@ -273,7 +275,8 @@ object VehiclePlanner {
         if (o.autoClub) {
             fun capOf(v: Double) = fit(v, types)?.capacity ?: Double.MAX_VALUE
             val candidates = loads.filter { l ->
-                !l.full && l.parts.size == 1 && l.volume < o.clubBelow - EPS &&
+                // Small loads, and the rest of a store split over several vehicles (2000 → 850 + 850 + 300: the 300).
+                !l.full && l.parts.size == 1 && (l.volume < o.clubBelow - EPS || l.splitRest) &&
                     l.parts[0].first.code !in o.noClub && l.parts[0].first.code !in inHandClub
             }.sortedByDescending { it.volume }
             for (c in candidates) {
@@ -289,7 +292,7 @@ object VehiclePlanner {
                     return added + 0.15 * abs(before.second - a.maxOf { km(dc, it) })
                 }
                 val best = loads.filter { other ->
-                    other !== c && !other.full && other.volume >= c.volume - EPS &&
+                    other !== c && !other.full && (other.volume >= c.volume - EPS || c.splitRest) &&
                         other.codes.none { it in o.noClub } && other.codes.none { it in inHandClub } &&
                         (other.codes + c.codes).size <= o.maxStops && other.volume + c.volume <= max + EPS &&
                         fitsOnRoute(other.parts.map { it.first }, c.parts.map { it.first }, o)
