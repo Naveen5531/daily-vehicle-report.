@@ -251,13 +251,12 @@ class PlanTab(private val a: MainActivity, root: View) {
             text = l.extraKm?.let { a.getString(R.string.plan_clubbed_km, km(it)) } ?: a.getString(R.string.plan_clubbed)
         }
         v.findViewById<MaterialButton>(R.id.pvRoute).apply {
-            // A vehicle with more than one store: DC → each store in order, as directions in Google Maps.
+            // A vehicle with more than one store: store → store in order (no DC), as directions in Google Maps.
             visibility = if (l.codes.size > 1) View.VISIBLE else View.GONE
             setOnClickListener {
-                val dc = dcPlace
                 val pts = l.codes.mapNotNull { places[it] }
-                if (dc == null || pts.size < l.codes.size) Toast.makeText(a, R.string.plan_route_no_place, Toast.LENGTH_LONG).show()
-                if (pts.isNotEmpty()) PlanMap.openRouteInMaps(a, dc, pts)
+                if (pts.size < l.codes.size) Toast.makeText(a, R.string.plan_route_no_place, Toast.LENGTH_LONG).show()
+                if (pts.size >= 2) PlanMap.openRouteInMaps(a, pts)
             }
         }
         v.findViewById<MaterialButton>(R.id.pvSplit).setOnClickListener { split(l) }

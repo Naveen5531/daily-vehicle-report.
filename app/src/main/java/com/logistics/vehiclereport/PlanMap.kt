@@ -226,16 +226,16 @@ object PlanMap {
     }
 
     /**
-     * Opens Google Maps with directions for a clubbed vehicle: from the DC (or the phone's own location when the DC is
-     * not on the map) through each store in order to the last store.
+     * Opens Google Maps with directions for a clubbed vehicle between its stores only (first store → … → last store),
+     * so Maps shows the distance from store to store, not from the DC.
      */
-    fun openRouteInMaps(c: Context, dc: LatLon?, stops: List<LatLon>) {
-        if (stops.isEmpty()) return
+    fun openRouteInMaps(c: Context, stops: List<LatLon>) {
+        if (stops.size < 2) return
         fun f(p: LatLon) = String.format(Locale.US, "%.6f,%.6f", p.lat, p.lon)
         val url = StringBuilder("https://www.google.com/maps/dir/?api=1&travelmode=driving")
-        if (dc != null) url.append("&origin=").append(f(dc))
+        url.append("&origin=").append(f(stops.first()))
         url.append("&destination=").append(f(stops.last()))
-        if (stops.size > 1) url.append("&waypoints=").append(Uri.encode(stops.dropLast(1).joinToString("|") { f(it) }))
+        if (stops.size > 2) url.append("&waypoints=").append(Uri.encode(stops.subList(1, stops.size - 1).joinToString("|") { f(it) }))
         val uri = Uri.parse(url.toString())
         try {
             c.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.apps.maps"))
