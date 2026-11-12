@@ -210,7 +210,7 @@ object PlanData {
                     val words = ArrayList<OcrWord>()
                     for (block in text.textBlocks) for (line in block.lines) for (el in line.elements) {
                         val b = el.boundingBox ?: continue
-                        words += OcrWord(el.text, b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(), line.angle)
+                        words += OcrWord(el.text, b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(), line.angle, line.elements.size)
                     }
                     done(words, null)
                 }

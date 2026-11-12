@@ -37,7 +37,7 @@ class SheetReaderTest {
             val angle = Math.toDegrees(Math.atan(slope.toDouble())).toFloat()
             r.forEachIndexed { k, t ->
                 val x = xs[k]; val y = 100f + 26f * i + slope * x
-                words += OcrWord(t, x, y - 6f, x + 40f, y + 6f, angle)
+                words += OcrWord(t, x, y - 6f, x + 40f, y + 6f, angle, r.size)
             }
         }
         val got = SheetReader.fromWords(words).stops.associate { it.code to it.volume }

@@ -5,7 +5,9 @@ import kotlin.math.ln
 import kotlin.math.tan
 
 /** A word the camera text reader found, with its box on the photo and the slant of its line (degrees). */
-data class OcrWord(val text: String, val left: Float, val top: Float, val right: Float, val bottom: Float, val angle: Float = 0f)
+/** [lineWords]: how many words the OCR line holds (0 = not known); a line of one word reports no slant of its own. */
+data class OcrWord(val text: String, val left: Float, val top: Float, val right: Float, val bottom: Float, val angle: Float = 0f,
+                   val lineWords: Int = 0)
 
 /**
  * Reads a "VEHICLE REQ" sheet: Ship-To, Name of the ship-to party, Volume, Total Wght, Boxes, Vehicle, Circle, Remark.
@@ -90,9 +92,9 @@ object SheetReader {
             val reach = maxOf(h * 0.6f, gap * 0.55f)
             val raw = words.filter { it.text.isNotBlank() }
             // Each word's slant: its own line's when that line has a slant, else that of slanted words near it.
-            val slants = raw.map { (it.top + it.bottom) / 2f to it.angle }.filter { abs(it.second) >= 0.1f }
-            fun slopeAt(y: Float, own: Float): Float {
-                if (abs(own) >= 0.1f) return tan(Math.toRadians(own.toDouble())).toFloat()
+            val slants = raw.filter { it.lineWords >= 2 || abs(it.angle) >= 0.1f }.map { (it.top + it.bottom) / 2f to it.angle }
+            fun slopeAt(y: Float, own: Float, ownLine: Int): Float {
+                if (ownLine >= 2 || abs(own) >= 0.1f) return tan(Math.toRadians(own.toDouble())).toFloat()
                 val near = slants.filter { abs(it.first - y) < h * 4 }.map { it.second }.sorted()
                 return if (near.isEmpty()) slope else tan(Math.toRadians(near[near.size / 2].toDouble())).toFloat()
             }
@@ -103,7 +105,7 @@ object SheetReader {
                 val cy = (r.top + r.bottom) / 2f
                 val cx = (r.left + r.right) / 2f
                 // Where this word's line meets the code column, straightened the same way as the codes.
-                val yAt = cy - (cx - anchorX) * slopeAt(cy, r.angle) - anchorX * slope
+                val yAt = cy - (cx - anchorX) * slopeAt(cy, r.angle, r.lineWords) - anchorX * slope
                 var best = -1; var bestD = Float.MAX_VALUE
                 for ((k, a) in anchors.withIndex()) { val d = abs(yAt - a.y); if (d < bestD) { bestD = d; best = k } }
                 if (best >= 0 && bestD <= reach) groups[best] += w
