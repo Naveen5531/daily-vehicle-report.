@@ -239,7 +239,7 @@ class PlanTab(private val a: MainActivity, root: View) {
             row.findViewById<TextView>(R.id.psVol).text = vol(part)
             row.findViewById<View>(R.id.psPin).apply {
                 visibility = if (at != null) View.VISIBLE else View.GONE
-                if (at != null) setOnClickListener { PlanMap.openInMaps(a, at, "${s.code} ${s.shownName}") }
+                if (at != null) setOnClickListener { PlanMap.openInMaps(a, at, PlanMap.dmartName(s)) }
             }
             row.setOnClickListener { if (selected.isNotEmpty()) toggle(index) else editStop(s.code) }
             row.setOnLongClickListener { toggle(index); true }
@@ -249,6 +249,16 @@ class PlanTab(private val a: MainActivity, root: View) {
         v.findViewById<TextView>(R.id.pvClubTag).apply {
             setTextColor(Ui.color(a, R.color.wait)); backgroundTintList = ColorStateList.valueOf(Ui.color(a, R.color.wait_bg))
             text = l.extraKm?.let { a.getString(R.string.plan_clubbed_km, km(it)) } ?: a.getString(R.string.plan_clubbed)
+        }
+        v.findViewById<MaterialButton>(R.id.pvRoute).apply {
+            // A vehicle with more than one store: DC → each store in order, as directions in Google Maps.
+            visibility = if (l.codes.size > 1) View.VISIBLE else View.GONE
+            setOnClickListener {
+                val dc = dcPlace
+                val pts = l.codes.mapNotNull { places[it] }
+                if (dc == null || pts.size < l.codes.size) Toast.makeText(a, R.string.plan_route_no_place, Toast.LENGTH_LONG).show()
+                if (pts.isNotEmpty()) PlanMap.openRouteInMaps(a, dc, pts)
+            }
         }
         v.findViewById<MaterialButton>(R.id.pvSplit).setOnClickListener { split(l) }
         val on = index in selected

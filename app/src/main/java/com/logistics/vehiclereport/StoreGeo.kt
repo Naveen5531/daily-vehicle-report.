@@ -75,6 +75,17 @@ object StoreGeo {
         listOf("${clean(s.shownName)}, India", "${clean(s.city)}, India", "${clean(s.name)}, India")
             .filter { it.length > 9 && !it.startsWith(",") }.distinct()
 
+    /** How far the DMart store found may be from the store's area (more means a wrong same-named store). */
+    private const val DMART_NEAR_KM = 30.0
+
+    /** "DMart Gajuwaka, Visakhapatnam, India": the store itself rather than the middle of its area. */
+    private fun dmartQuery(s: PlanStop): String? {
+        val name = clean(s.shownName).ifBlank { clean(s.name) }
+        if (name.length < 3) return null
+        val city = clean(s.city).takeIf { it.isNotBlank() && !name.contains(it, ignoreCase = true) }
+        return listOfNotNull("DMart $name", city, "India").joinToString(", ")
+    }
+
     /** Map search, kept within about 900 km of the DC when the DC is known (a same-named place far away is skipped). */
     @Suppress("DEPRECATION")
     private fun lookup(c: Context, query: String, near: LatLon?): Found? {
@@ -110,7 +121,9 @@ object StoreGeo {
         val now = System.currentTimeMillis()
         val todo = stops.filter { s ->
             val a = known.optJSONArray(s.code)
-            a == null || (a.optDouble(0, 0.0) == 0.0 && a.optDouble(1, 0.0) == 0.0 && now - a.optLong(3, 0L) > RETRY_MS)
+            a == null || (a.optDouble(0, 0.0) == 0.0 && a.optDouble(1, 0.0) == 0.0 && now - a.optLong(3, 0L) > RETRY_MS) ||
+                // Found earlier from the area name only: checked once more for the DMart store itself.
+                (!a.optBoolean(6, false) && a.optString(2).endsWith(", India") && (a.optDouble(0, 0.0) != 0.0 || a.optDouble(1, 0.0) != 0.0))
         }.distinctBy { it.code }
         // Stores found before states were kept: their state is looked up once from their place.
         val noState = stops.map { it.code }.distinct().filter { code ->
@@ -139,7 +152,18 @@ object StoreGeo {
                     var used = ""
                     // A place typed earlier (not found then) is tried again first.
                     val typed = known.optJSONArray(s.code)?.optString(2)?.takeIf { it.isNotBlank() }
-                    for (q in (listOfNotNull(typed) + queries(s)).distinct()) { found = lookup(app, q, dc); used = q; if (found != null) break }
+                    val handTyped = typed != null && !typed.endsWith(", India")
+                    if (handTyped) { found = lookup(app, "$typed, India", dc); used = typed.orEmpty() }
+                    else for (q in queries(s)) { found = lookup(app, q, dc); used = q; if (found != null) break }
+                    // The DMart store itself, when the map search knows it near that area (or anywhere near the DC).
+                    if (!handTyped) {
+                        val dq = dmartQuery(s)
+                        val store = dq?.let { lookup(app, it, dc) }
+                        val area = found
+                        if (store != null && (area == null || VehiclePlanner.km(area.at, store.at) <= DMART_NEAR_KM)) {
+                            found = Found(store.at, store.state ?: area?.state); used = dq
+                        }
+                    }
                     save(app, s.code, used, found?.at, found?.state)
                 }
                 val placesNow = places(app)
@@ -179,7 +203,9 @@ object StoreGeo {
 
     @Synchronized private fun save(c: Context, code: String, query: String, at: LatLon?, state: String?) {
         val o = read(c)
-        o.put(code, JSONArray().put(at?.lat ?: 0.0).put(at?.lon ?: 0.0).put(query).put(System.currentTimeMillis()).put(state.orEmpty()))
+        // [5] state tried, [6] DMart store checked.
+        o.put(code, JSONArray().put(at?.lat ?: 0.0).put(at?.lon ?: 0.0).put(query).put(System.currentTimeMillis()).put(state.orEmpty())
+            .put(state != null).put(true))
         p(c).edit().putString(KEY, o.toString()).apply()
     }
 

@@ -202,16 +202,45 @@ object PlanMap {
         map.onResume()
     }
 
-    /** Opens the phone's map app (Google Maps) at a store's pin; falls back to the browser. */
+    /** The name to search in Maps so it lands on the DMart store itself: "DMart Gajuwaka, Visakhapatnam". */
+    fun dmartName(s: PlanStop): String {
+        val name = s.shownName.replace(Regex("(?i)\\bd[- _]?mart\\b"), " ").replace(Regex("\\s+"), " ").trim()
+        val city = s.city.trim().takeIf { it.isNotBlank() && !name.contains(it, ignoreCase = true) }
+        return listOfNotNull("DMart $name", city).joinToString(", ")
+    }
+
+    /**
+     * Opens Google Maps searching for the DMart store near its pin, so the store itself (not just the area) is shown;
+     * falls back to the browser.
+     */
     fun openInMaps(c: Context, at: LatLon, label: String) {
         val ll = String.format(Locale.US, "%.6f,%.6f", at.lat, at.lon)
-        val geo = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$ll?q=$ll(${Uri.encode(label)})"))
+        val geo = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$ll?q=${Uri.encode(label)}"))
         try {
             c.startActivity(geo)
         } catch (e: ActivityNotFoundException) {
             try {
-                c.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$ll")))
+                c.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(label)}")))
             } catch (e2: Exception) { }
+        }
+    }
+
+    /**
+     * Opens Google Maps with directions for a clubbed vehicle: from the DC (or the phone's own location when the DC is
+     * not on the map) through each store in order to the last store.
+     */
+    fun openRouteInMaps(c: Context, dc: LatLon?, stops: List<LatLon>) {
+        if (stops.isEmpty()) return
+        fun f(p: LatLon) = String.format(Locale.US, "%.6f,%.6f", p.lat, p.lon)
+        val url = StringBuilder("https://www.google.com/maps/dir/?api=1&travelmode=driving")
+        if (dc != null) url.append("&origin=").append(f(dc))
+        url.append("&destination=").append(f(stops.last()))
+        if (stops.size > 1) url.append("&waypoints=").append(Uri.encode(stops.dropLast(1).joinToString("|") { f(it) }))
+        val uri = Uri.parse(url.toString())
+        try {
+            c.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.apps.maps"))
+        } catch (e: ActivityNotFoundException) {
+            try { c.startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (e2: Exception) { }
         }
     }
 
