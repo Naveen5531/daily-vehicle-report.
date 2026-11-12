@@ -257,6 +257,10 @@ class PlanTab(private val a: MainActivity, root: View) {
         // The main store's whole volume today (all its vehicles), big and bold above the fill %.
         v.findViewById<TextView>(R.id.pvStoreVol).text = main?.let { vol(it.volume) }.orEmpty()
         v.findViewById<View>(R.id.pvStoreVolLabel).visibility = if (main != null) View.VISIBLE else View.GONE
+        v.findViewById<TextView>(R.id.pvClubTotal).apply {
+            visibility = if (l.codes.size > 1) View.VISIBLE else View.GONE
+            text = a.getString(R.string.pv_club_total, vol(l.volume))
+        }
         val dp = a.resources.displayMetrics.density
         fun pill(text: String, fg: Int, bg: Int, bold: Boolean = true) = TextView(a).apply {
             this.text = text; textSize = 11.5f
@@ -284,7 +288,8 @@ class PlanTab(private val a: MainActivity, root: View) {
                 // Each store with the volume it has on this vehicle: "Chirala 400 + Ongole 300".
                 val volOf = { code: String -> l.parts.filter { it.first.code == code }.sumOf { it.second } }
                 addView(pill(a.getString(R.string.pv_club_with,
-                    l.codes.sortedByDescending { volOf(it) }.joinToString(" + ") { "${name(it).ifBlank { it }} ${vol(volOf(it))}" }),
+                    l.codes.sortedByDescending { volOf(it) }.joinToString(" + ") { "${name(it).ifBlank { it }} ${vol(volOf(it))}" } +
+                        " = " + vol(l.volume)),
                     R.color.wait, R.color.wait_bg))
             } else {
                 val code = l.codes.firstOrNull()

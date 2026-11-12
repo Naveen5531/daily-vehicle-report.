@@ -86,6 +86,17 @@
                     android:textColor="@color/muted"
                     android:textSize="10.5sp" />
 
+                <!-- Clubbed vehicles: everything on the vehicle together -->
+                <TextView
+                    android:id="@+id/pvClubTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:fontFamily="@font/jakarta_bold"
+                    android:textColor="@color/wait"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/pvFill"
                     style="@style/StatusPill" />

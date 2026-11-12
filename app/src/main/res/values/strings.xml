@@ -207,6 +207,7 @@
     <string name="pv_tag_main">MAIN</string>
     <string name="pv_tag_club">CLUB</string>
     <string name="pv_store_total">store total</string>
+    <string name="pv_club_total">Club total %1$s</string>
     <string name="pv_direct">%1$d Direct</string>
     <string name="pv_club_with">🔗 Clubbed: %1$s</string>
     <string name="pv_rest_on">🔗 Rest %1$s volume on vehicle %2$d, clubbed with %3$s</string>
