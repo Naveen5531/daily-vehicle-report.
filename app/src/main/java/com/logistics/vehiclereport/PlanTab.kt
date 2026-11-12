@@ -212,7 +212,9 @@ class PlanTab(private val a: MainActivity, root: View) {
             val c = cityOf(s)
             val onPlan = result?.loads.orEmpty().filter { ld -> ld.parts.any { cityOf(it.first) == c } }
             val total = onPlan.sumOf { ld -> ld.parts.filter { cityOf(it.first) == c }.sumOf { it.second } }
-            "\n" + a.getString(R.string.plan_city_total, c, vol(total), onPlan.size)
+            // Direct = the vehicle goes only to this city's store; clubbed = it also carries another store.
+            val clubbed = onPlan.count { it.codes.size > 1 }
+            "\n" + a.getString(R.string.plan_city_total, c, vol(total), onPlan.size, onPlan.size - clubbed, clubbed)
         }
         v.findViewById<TextView>(R.id.pvCap).text = a.getString(R.string.plan_cap_line,
             l.type?.let { vol(it.capacity) } ?: "–", vol(l.volume), l.codes.size) +
