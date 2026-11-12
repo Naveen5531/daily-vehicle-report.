@@ -122,6 +122,16 @@ object StoreLocations {
         Exporter.deliver(a, "Store_Master_Locations.xlsx", rows, listOf(12, 30, 18, 14, 12, 12, 34, 14))
     }
 
+    /** Blank upload template with two example rows (one with lat / long, one with a Google Maps link). */
+    fun template(a: MainActivity) {
+        val rows = listOf(
+            listOf("Store Code", "Store Name", "Actual City", "Region", "Latitude", "Longitude", "Google Maps Link"),
+            listOf("5043", "Gajuwaka", "Visakhapatnam", "Vizag", "17.690000", "83.210000", ""),
+            listOf("5101", "Tuni", "Tuni", "Kakinada", "", "", "https://maps.app.goo.gl/xxxxxxxx")
+        )
+        Exporter.deliver(a, "Store_Master_Template.xlsx", rows, listOf(12, 26, 18, 14, 12, 12, 40))
+    }
+
     private fun mapsName(s: Store) =
         Ui.joinNonBlank("DMart " + s.name.replace(Regex("(?i)\\bd[- _]?mart\\b"), " ").replace(Regex("\\s+"), " ").trim(), s.city, sep = ", ")
 
@@ -249,7 +259,7 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             setOnClickListener {
                 MaterialAlertDialogBuilder(a).setTitle(R.string.sm_bulk).setMessage(R.string.loc_import_help)
                     .setPositiveButton(R.string.loc_pick_file) { _, _ -> a.pickStoreLocationsFile { refresh() } }
-                    .setNeutralButton(R.string.loc_export) { _, _ -> StoreLocations.export(a) }
+                    .setNeutralButton(R.string.sm_template) { _, _ -> StoreLocations.template(a) }
                     .setNegativeButton(android.R.string.cancel, null).show()
             }
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = px(8) })
@@ -258,6 +268,10 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             setOnClickListener { StoreLocations.export(a) }
         }, LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(btns)
+        col.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            setText(R.string.sm_template_dl); setIconResource(R.drawable.ic_download)
+            setOnClickListener { StoreLocations.template(a) }
+        }, LinearLayout.LayoutParams(-1, -2))
         col.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             setText(R.string.sm_fix_all); setIconResource(R.drawable.ic_pin)
             setOnClickListener {

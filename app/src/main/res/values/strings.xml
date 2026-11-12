@@ -328,6 +328,8 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="loc_button">Store master</string>
     <string name="tab_stores">Store Master</string>
     <string name="sm_chip">Stores</string>
+    <string name="sm_template">Template</string>
+    <string name="sm_template_dl">Download upload template</string>
     <string name="sm_open">Store Master (store code, name, exact location) →</string>
     <string name="sm_add">Add store</string>
     <string name="sm_bulk">Bulk import</string>
