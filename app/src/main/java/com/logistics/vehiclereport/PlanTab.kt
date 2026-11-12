@@ -239,7 +239,9 @@ class PlanTab(private val a: MainActivity, root: View) {
     private fun card(inflater: LayoutInflater, index: Int, l: PlanLoad): View {
         val v = inflater.inflate(R.layout.item_plan_vehicle, list, false) as MaterialCardView
         v.findViewById<TextView>(R.id.pvNo).text = (index + 1).toString()
-        v.findViewById<TextView>(R.id.pvType).text = l.type?.name ?: a.getString(R.string.plan_no_type)
+        // Title = the main store (biggest volume on the vehicle); the vehicle size moves to the first pill.
+        val main = l.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
+        v.findViewById<TextView>(R.id.pvType).text = main?.let { "${it.code} · ${it.shownName}" } ?: (l.type?.name ?: a.getString(R.string.plan_no_type))
         val dp = a.resources.displayMetrics.density
         fun pill(text: String, fg: Int, bg: Int, bold: Boolean = true) = TextView(a).apply {
             this.text = text; textSize = 11.5f
@@ -252,6 +254,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         // Capacity, load, stops and trip km as pills.
         v.findViewById<ChipGroup>(R.id.pvInfo).apply {
             removeAllViews()
+            addView(pill("🚚 " + (l.type?.name ?: a.getString(R.string.plan_no_type)), R.color.ink, R.color.brand_light))
             addView(pill(a.getString(R.string.pv_cap, l.type?.let { vol(it.capacity) } ?: "–"), R.color.ink, R.color.soft, false))
             addView(pill(a.getString(R.string.pv_load, vol(l.volume)), R.color.ink, R.color.soft, false))
             addView(pill(a.resources.getQuantityString(R.plurals.pv_stops, l.codes.size, l.codes.size), R.color.ink, R.color.soft, false))
@@ -319,7 +322,18 @@ class PlanTab(private val a: MainActivity, root: View) {
         val stops = v.findViewById<LinearLayout>(R.id.pvStops)
         for ((s, part) in l.parts) {
             val row = inflater.inflate(R.layout.row_plan_stop, stops, false)
-            row.findViewById<TextView>(R.id.psName).text = "${s.code} · ${s.shownName}"
+            // MAIN = the vehicle's own store; CLUB = a store riding along (only on clubbed vehicles).
+            row.findViewById<TextView>(R.id.psName).text = if (l.codes.size < 2) "${s.code} · ${s.shownName}" else {
+                val isMain = s.code == main?.code
+                val tag = if (isMain) a.getString(R.string.pv_tag_main) else a.getString(R.string.pv_tag_club)
+                android.text.SpannableStringBuilder("${s.code} · ${s.shownName}  ").apply {
+                    val st = length
+                    append(tag)
+                    setSpan(android.text.style.ForegroundColorSpan(Ui.color(a, if (isMain) R.color.ok else R.color.wait)), st, length, 0)
+                    setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), st, length, 0)
+                    setSpan(android.text.style.RelativeSizeSpan(0.8f), st, length, 0)
+                }
+            }
             val at = places[s.code]
             val dc = dcPlace
             row.findViewById<TextView>(R.id.psPlace).text = Ui.joinNonBlank(
