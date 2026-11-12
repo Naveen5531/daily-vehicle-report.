@@ -119,6 +119,14 @@ class YardActivity : AppCompatActivity() {
         })
         root.addView(top)
 
+        // Link code for the office Excel (App Link sheet, cell B2): copy or share it from here.
+        root.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.yard_link)
+            isAllCaps = false
+            setOnClickListener { DrishtiActivity.showLaptopLink(this@YardActivity) { refresh() } }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { topMargin = dp(8) })
+
         // Tabs
         toggle = MaterialButtonToggleGroup(this).apply {
             isSingleSelection = true

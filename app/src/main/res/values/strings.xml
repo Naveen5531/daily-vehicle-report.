@@ -782,15 +782,16 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="yard_button">Yard · Standing &amp; In-transit</string>
     <string name="drishti_menu_yard">Yard · Standing &amp; In-transit (from Excel)</string>
     <string name="yard_pull">Pull now</string>
+    <string name="yard_link">Link code for office Excel (copy / share)</string>
     <string name="yard_search">Search vehicle, transporter, driver…</string>
     <string name="yard_dedicated_only">Dedicated</string>
     <string name="yard_dedicated">DEDICATED</string>
     <string name="yard_updated">From office Excel · updated %1$s</string>
     <string name="yard_never">Nothing from the office Excel yet</string>
     <string name="yard_tab_count">%1$s (%2$d)</string>
-    <string name="yard_empty_never">Nothing received yet.\n\nOn the office laptop: open App Data Excel → sheet "App Link" → paste this phone\'s link code (Drishti → ⋮ → Link office laptop → Copy code) in B2. Live sync then sends Standing, In-transit and the gate log here.</string>
+    <string name="yard_empty_never">Nothing received yet.\n\nOn the office laptop: open App Data Excel → sheet "App Link" → paste this phone\'s link code (button above: Link code for office Excel → Share) in B2. Live sync then sends Standing, In-transit and the gate log here.</string>
     <string name="yard_empty_none">No vehicles in this list right now.</string>
     <string name="yard_empty_filter">No vehicle matches the search.</string>
     <string name="yard_copied">%1$s copied</string>
-    <string name="yard_not_linked">Link the office laptop first: Drishti → ⋮ → Link office laptop, then paste the code in the App Data Excel (sheet "App Link", cell B2).</string>
+    <string name="yard_not_linked">Tap "Link code for office Excel" above, share the code to your work mail and paste it in the App Data Excel (sheet "App Link", cell B2).</string>
 </resources>
