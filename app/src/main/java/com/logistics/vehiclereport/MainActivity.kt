@@ -353,8 +353,8 @@ class MainActivity : AppCompatActivity() {
         val u = markShot
         if (ok && u != null) markFromPhoto(u)
     }
-    private val markGallery = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) markFromPhoto(uri)
+    private val markGallery = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)) { uris ->
+        if (uris.isNotEmpty()) markFromPhotos(uris)
     }
     private val markFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) markFromFile(uri)
@@ -424,6 +424,26 @@ class MainActivity : AppCompatActivity() {
         applyMarks(listOf(listOf("", plate, "", "", "", inAt.toString(), if (out) now.toString() else "", "")), emptyList(), out)
     }
 
+    /** Several photos: all read one after another, then marked in one go. */
+    private fun markFromPhotos(uris: List<Uri>) {
+        if (uris.size == 1) { markFromPhoto(uris[0]); return }
+        val cells = ArrayList<List<String>>()
+        val unmatched = LinkedHashSet<String>()
+        val wait = MaterialAlertDialogBuilder(this).setMessage(getString(R.string.plan_reading, 1, uris.size)).setCancelable(false).show()
+        fun next(i: Int) {
+            if (i >= uris.size) { wait.dismiss(); applyMarks(cells, unmatched.toList(), null); return }
+            wait.setMessage(getString(R.string.plan_reading, i + 1, uris.size))
+            PlanData.readPhoto(this, uris[i]) { words, _ ->
+                if (words != null) {
+                    val found = ReportImport.fromLines(ReportImport.lines(words), knownNumbers(), System.currentTimeMillis())
+                    cells += found.cells; unmatched += found.unmatched
+                }
+                next(i + 1)
+            }
+        }
+        next(0)
+    }
+
     private fun markFromPhoto(uri: Uri) {
         Toast.makeText(this, R.string.mark_reading, Toast.LENGTH_SHORT).show()
         PlanData.readPhoto(this, uri) { words, err ->
@@ -481,13 +501,26 @@ class MainActivity : AppCompatActivity() {
 
     // ---------- Plan: photos or Excel of the vehicle request sheet ----------
 
-    private val planGallery = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+    private val planGallery = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)) { uris ->
         if (uris.isNotEmpty()) plan?.readPhotos(uris)
     }
     private var planShot: Uri? = null
+    /** Camera photos taken one after another; read together when the user taps Read. */
+    private val planShots = ArrayList<Uri>()
     private val planCamera = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = planShot
-        if (ok && u != null) plan?.readPhotos(listOf(u))
+        if (ok && u != null) planShots += u
+        if (planShots.isEmpty()) return@registerForActivityResult
+        MaterialAlertDialogBuilder(this)
+            .setTitle(resources.getQuantityString(R.plurals.plan_shots_taken, planShots.size, planShots.size))
+            .setMessage(R.string.plan_shots_more)
+            .setPositiveButton(resources.getQuantityString(R.plurals.plan_shots_read, planShots.size, planShots.size)) { _, _ ->
+                val list = planShots.toList(); planShots.clear(); plan?.readPhotos(list)
+            }
+            .setNeutralButton(R.string.plan_shots_another) { _, _ -> takePlanPhoto() }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> planShots.clear() }
+            .setCancelable(false)
+            .show()
     }
     private val planCameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) takePlanPhoto() else Toast.makeText(this, R.string.plan_camera_needed, Toast.LENGTH_LONG).show()
@@ -502,9 +535,10 @@ class MainActivity : AppCompatActivity() {
             .setItems(arrayOf(getString(R.string.plan_photo_take), getString(R.string.plan_photo_pick))) { _, which ->
                 if (which == 0) {
                     if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
-                        android.content.pm.PackageManager.PERMISSION_GRANTED) takePlanPhoto()
+                        android.content.pm.PackageManager.PERMISSION_GRANTED) { planShots.clear(); takePlanPhoto() }
                     else planCameraPermission.launch(android.Manifest.permission.CAMERA)
                 } else {
+                    planShots.clear()
                     planGallery.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
             }

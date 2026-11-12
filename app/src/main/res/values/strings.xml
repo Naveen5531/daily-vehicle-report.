@@ -185,6 +185,16 @@
     <string name="plan_clubbed_km">Clubbed · +%1$s km</string>
     <string name="plan_clubbed_road">Clubbed · stores %1$s km apart by road</string>
     <string name="plan_clubbed_straight">Clubbed · stores ~%1$s km apart (straight line, road km loading)</string>
+    <plurals name="plan_shots_taken">
+        <item quantity="one">%1$d photo taken</item>
+        <item quantity="other">%1$d photos taken</item>
+    </plurals>
+    <plurals name="plan_shots_read">
+        <item quantity="one">Read %1$d photo</item>
+        <item quantity="other">Read %1$d photos</item>
+    </plurals>
+    <string name="plan_shots_more">Take another photo of the sheet, or read the photos now.</string>
+    <string name="plan_shots_another">Take another</string>
     <string name="plan_city_total">%1$s total: %2$s volume on %3$d vehicle(s)</string>
     <string name="plan_route_line">Trip ≈ %1$s km from the DC (straight line)</string>
     <string name="plan_km_from_dc">%1$s km from DC</string>
@@ -708,7 +718,7 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="mark_cam_in">📷 Camera – Gate IN (Reported)</string>
     <string name="mark_cam_out">📷 Camera – Gate OUT (Departed)</string>
     <string name="mark_photo_take">🖼 Take a photo (register / screen / list)</string>
-    <string name="mark_photo_pick">🖼 Pick a photo or screenshot</string>
+    <string name="mark_photo_pick">🖼 Pick photos or screenshots (many at once)</string>
     <string name="mark_file">📄 Excel or CSV file</string>
     <string name="mark_reading">Reading vehicle numbers…</string>
     <string name="mark_read_failed">Couldn\'t read it: %1$s</string>
