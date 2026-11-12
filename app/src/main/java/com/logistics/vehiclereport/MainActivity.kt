@@ -33,6 +33,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNav: BottomNavigationView
     private var export: ExportTab? = null
     private var plan: PlanTab? = null
+    private var stores: StoresTab? = null
+
+    /** Opens the Store Master tab (from the Vehicles tab, the store list dialog or the Plan tab). */
+    fun showStores() {
+        if (bottomNav.selectedItemId != R.id.nav_vehicles) bottomNav.selectedItemId = R.id.nav_vehicles
+        showTab(R.id.nav_stores)
+    }
     /** Reads DMart Drishti's gate log by itself while the app is open. */
     private var drishti: DrishtiAuto? = null
     /** The tab on screen (Live, Rates and Mail have no bottom-bar button; Back returns to the tab they open from). */
@@ -161,6 +168,7 @@ class MainActivity : AppCompatActivity() {
             R.id.nav_live to findViewById<View>(R.id.tabLive),
             R.id.nav_vehicles to findViewById<View>(R.id.tabVehicles),
             R.id.nav_rates to findViewById<View>(R.id.tabRates),
+            R.id.nav_stores to findViewById<View>(R.id.tabStores),
             R.id.nav_mail to findViewById<View>(R.id.tabMail),
             R.id.nav_export to findViewById<View>(R.id.tabExport),
             R.id.nav_plan to findViewById<View>(R.id.tabPlan)
@@ -170,6 +178,7 @@ class MainActivity : AppCompatActivity() {
         safe("Live setup") { live = LiveTab(this, tabViews.getValue(R.id.nav_live)) }
         safe("Vehicles setup") { vehicles = VehiclesTab(this, tabViews.getValue(R.id.nav_vehicles)) }
         safe("Rates setup") { rates = RatesTab(this, tabViews.getValue(R.id.nav_rates)) }
+        safe("Stores setup") { stores = StoresTab(this, findViewById(R.id.tabStores)) }
         safe("Mail setup") { mail = MailTab(this, tabViews.getValue(R.id.nav_mail)) }
         safe("Export setup") { export = ExportTab(this, tabViews.getValue(R.id.nav_export)) }
         safe("Plan setup") { plan = PlanTab(this, tabViews.getValue(R.id.nav_plan)) }
@@ -179,6 +188,7 @@ class MainActivity : AppCompatActivity() {
                 val parent = when (currentTab) {
                     R.id.nav_mail -> R.id.nav_export
                     R.id.nav_rates -> R.id.nav_vehicles
+                    R.id.nav_stores -> R.id.nav_vehicles
                     R.id.nav_live -> R.id.nav_today
                     else -> null
                 }
@@ -564,6 +574,7 @@ class MainActivity : AppCompatActivity() {
         currentTab = id
         if (id == R.id.nav_today && ::today.isInitialized) today.releaseOrder()
         if (id == R.id.nav_plan) safe("Plan") { plan?.refresh() }
+        if (id == R.id.nav_stores) safe("Stores") { stores?.refresh() }
         tabViews.forEach { (navId, view) -> view.visibility = if (navId == id) View.VISIBLE else View.GONE }
         titleText.setText(
             when (id) {
@@ -571,6 +582,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_vehicles -> R.string.tab_vehicles
                 R.id.nav_live -> R.string.tab_live
                 R.id.nav_rates -> R.string.tab_rates
+                R.id.nav_stores -> R.string.tab_stores
                 R.id.nav_mail -> R.string.tab_mail
                 R.id.nav_export -> R.string.tab_export
                 R.id.nav_plan -> R.string.tab_plan

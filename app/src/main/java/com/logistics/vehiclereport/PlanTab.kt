@@ -582,7 +582,33 @@ class PlanTab(private val a: MainActivity, root: View) {
     }
 
     /** How many stores are on the map, and from where; looks up the ones missing (once a day for a store not found). */
+    /** "N stores need their exact location" – asks them one by one; added to the Store Master as well. */
+    private val pinPrompt: MaterialButton by lazy {
+        MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).also { b ->
+            b.setIconResource(R.drawable.ic_pin)
+            (geoText.parent as? android.view.ViewGroup)?.let { p ->
+                val d = a.resources.displayMetrics.density
+                p.addView(b, p.indexOfChild(geoText) + 1, android.view.ViewGroup.MarginLayoutParams(-1, -2).apply {
+                    marginStart = (16 * d).toInt(); marginEnd = (16 * d).toInt()
+                })
+            }
+        }
+    }
+
+    private fun showPinPrompt(stops: List<PlanStop>) {
+        val todo = stops.distinctBy { it.code }.filter { StoreGeo.kind(a, it.code) != StoreGeo.Kind.EXACT }
+        pinPrompt.visibility = if (todo.isEmpty()) View.GONE else View.VISIBLE
+        if (todo.isEmpty()) return
+        pinPrompt.text = a.resources.getQuantityString(R.plurals.sm_plan_prompt, todo.size, todo.size)
+        pinPrompt.setOnClickListener {
+            val list = todo.map { Store(it.code, it.shownName, it.city, it.region) }
+            StoreLocations.addToMaster(a, list)
+            StoreLocations.askOneByOne(a, list) { refresh() }
+        }
+    }
+
     private fun showGeo(stops: List<PlanStop>) {
+        try { showPinPrompt(stops) } catch (e: Exception) { }
         if (stops.isEmpty()) { geoText.visibility = View.GONE; return }
         geoText.visibility = View.VISIBLE
         val codes = stops.map { it.code }.distinct()

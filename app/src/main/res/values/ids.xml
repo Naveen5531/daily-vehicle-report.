@@ -6,4 +6,6 @@
     <item name="nav_rates" type="id" />
     <!-- Mail opens from the Export tab ("Send report by mail"); the bar's 5th place is Plan. -->
     <item name="nav_mail" type="id" />
+    <!-- Store Master opens from the "Store master" button on the Vehicles tab (and from the Plan tab). -->
+    <item name="nav_stores" type="id" />
 </resources>
