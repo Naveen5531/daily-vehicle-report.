@@ -77,8 +77,45 @@ object SheetReader {
             if (stop != null) stops += stop
             else if (stops.isEmpty() && total == null) total = totalOf(tokens)
         }
+
+        // Second way, for photos taken at an angle where neighbouring lines run into each other (two stores read as one
+        // line and both lost): every store code in the left column starts a line; each word joins the code nearest to
+        // it along its own line's slant. The way that finds more stores is used.
+        val minLeft = ws.minOf { it.left }
+        val width = (ws.maxOf { it.left } - minLeft).coerceAtLeast(1f)
+        val anchors = ws.filter { it.left <= minLeft + width * 0.18f && ANCHOR.matches(it.text) }.sortedBy { it.y }
+        if (anchors.size >= 3) {
+            val gaps = anchors.zipWithNext { a, b -> b.y - a.y }.filter { it > h * 0.3f }.sorted()
+            val gap = if (gaps.isEmpty()) h * 1.5f else gaps[gaps.size / 2]
+            val reach = maxOf(h * 0.6f, gap * 0.55f)
+            val raw = words.filter { it.text.isNotBlank() }
+            // Each word's slant: its own line's when that line has a slant, else that of slanted words near it.
+            val slants = raw.map { (it.top + it.bottom) / 2f to it.angle }.filter { abs(it.second) >= 0.1f }
+            fun slopeAt(y: Float, own: Float): Float {
+                if (abs(own) >= 0.1f) return tan(Math.toRadians(own.toDouble())).toFloat()
+                val near = slants.filter { abs(it.first - y) < h * 4 }.map { it.second }.sorted()
+                return if (near.isEmpty()) slope else tan(Math.toRadians(near[near.size / 2].toDouble())).toFloat()
+            }
+            val anchorX = anchors.map { it.x }.sorted()[anchors.size / 2]
+            val groups = anchors.map { mutableListOf<W>() }
+            for ((i, w) in ws.withIndex()) {
+                val r = raw[i]
+                val cy = (r.top + r.bottom) / 2f
+                val cx = (r.left + r.right) / 2f
+                // Where this word's line meets the code column, straightened the same way as the codes.
+                val yAt = cy - (cx - anchorX) * slopeAt(cy, r.angle) - anchorX * slope
+                var best = -1; var bestD = Float.MAX_VALUE
+                for ((k, a) in anchors.withIndex()) { val d = abs(yAt - a.y); if (d < bestD) { bestD = d; best = k } }
+                if (best >= 0 && bestD <= reach) groups[best] += w
+            }
+            val byAnchor = groups.mapNotNull { g -> if (g.isEmpty()) null else parseRow(tokens(g.sortedBy { it.left }.map { it.text })) }
+            if (byAnchor.size > stops.size) return Result(fixCodes(dedupe(byAnchor), known), total)
+        }
         return Result(fixCodes(dedupe(stops), known), total)
     }
+
+    /** A store code at the start of a line ("5232", "5043Nalla", "521o"). */
+    private val ANCHOR = Regex("^[|!]?\\d{4,6}([oO]|[A-Za-z|].*)?$")
 
     /** Splits words into tokens: grid lines "|", two numbers run together, a vehicle count stuck to the circle. */
     fun tokens(texts: List<String>): List<String> {

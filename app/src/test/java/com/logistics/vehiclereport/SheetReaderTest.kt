@@ -20,6 +20,32 @@ class SheetReaderTest {
         known
     )
 
+    @Test fun linesThatRunIntoEachOtherOnASlantedPhotoAreStillRead() {
+        // A photo taken at an angle: each line slopes more than the one above, so a line's right end sits level with the
+        // next line's code. Every store must still be read (Chirala was lost this way).
+        val rows = listOf(
+            listOf("5231", "Ongole", "1078.767", "3635.345", "413", "2AP"),
+            listOf("5332", "Eluru", "296.502", "998.596", "102", "0AP"),
+            listOf("5232", "Chirala", "162.785", "730.684", "82", "0AP"),
+            listOf("5306", "Anakapalle", "7.68", "77.6", "5", "0AP"),
+            listOf("5108", "Proddatur", "1.2", "18.4", "4", "0AP")
+        )
+        val xs = listOf(10f, 70f, 300f, 400f, 500f, 560f)
+        val words = ArrayList<OcrWord>()
+        rows.forEachIndexed { i, r ->
+            val slope = 0.06f * i
+            val angle = Math.toDegrees(Math.atan(slope.toDouble())).toFloat()
+            r.forEachIndexed { k, t ->
+                val x = xs[k]; val y = 100f + 26f * i + slope * x
+                words += OcrWord(t, x, y - 6f, x + 40f, y + 6f, angle)
+            }
+        }
+        val got = SheetReader.fromWords(words).stops.associate { it.code to it.volume }
+        assertEquals(setOf("5231", "5332", "5232", "5306", "5108"), got.keys)
+        assertEquals(162.785, got.getValue("5232"), 1e-6)
+        assertEquals(296.502, got.getValue("5332"), 1e-6)
+    }
+
     @Test fun everyPhotoMatchesItsSheetTotal() {
         val expected = mapOf(1 to (4 to 2001.192), 2 to (24 to 14730.1), 3 to (7 to 4636.214), 4 to (28 to 14037.95))
         for ((n, e) in expected) {
