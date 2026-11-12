@@ -99,7 +99,7 @@ object StoreLocations {
         Thread {
             var ok = 0; var bad = 0
             for (r in rows) {
-                val at = r.at ?: (if (r.link.isNotBlank()) StoreGeo.resolveLink(r.link) else null)
+                val at = r.at ?: (if (r.link.isNotBlank()) StoreGeo.resolveLink(app, r.link) else null)
                 if (at != null) { StoreGeo.setExact(app, r.code, at); ok++ } else bad++
             }
             main.post { done(ok, bad) }

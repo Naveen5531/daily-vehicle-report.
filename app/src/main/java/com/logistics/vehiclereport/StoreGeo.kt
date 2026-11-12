@@ -140,15 +140,21 @@ object StoreGeo {
         return null
     }
 
-    /** Follows a short link (maps.app.goo.gl) to the full Google Maps link and reads the pin from it. Network: call off the main thread. */
-    fun resolveLink(text: String): LatLon? {
+    /**
+     * The pin of a Google Maps link: coordinates in the link, else its Plus Code ("F2PX+FP8 … Ongole"), else the page,
+     * else the address in the link. Follows short links (maps.app.goo.gl). Network: call off the main thread.
+     */
+    fun resolveLink(c: Context, text: String): LatLon? {
         coords(text)?.let { return it }
+        fromCode(c, text)?.let { return it }
         var url = Regex("https?://\\S+").find(text)?.value ?: return null
+        var body = ""
         try {
-            repeat(6) {
+            for (hop in 0 until 6) {
                 val con = (URL(url).openConnection() as HttpURLConnection).apply {
                     instanceFollowRedirects = false; connectTimeout = 10000; readTimeout = 10000
                     setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+                    setRequestProperty("Accept-Language", "en-IN,en")
                 }
                 val code = con.responseCode
                 val next = con.getHeaderField("Location")
@@ -156,15 +162,57 @@ object StoreGeo {
                     con.disconnect()
                     url = URL(URL(url), next).toString()
                     coords(url)?.let { return it }
+                    fromCode(c, url)?.let { return it }
                 } else {
-                    // No more redirects: the page itself may hold the pin.
-                    val body = try { con.inputStream.bufferedReader().use { r -> r.readText().take(400000) } } catch (e: Exception) { "" }
+                    body = try { con.inputStream.bufferedReader().use { r -> r.readText().take(600000) } } catch (e: Exception) { "" }
                     con.disconnect()
-                    return coords(url) ?: coords(body)
+                    break
                 }
             }
         } catch (e: Exception) { }
-        return coords(url)
+        coords(url)?.let { return it }
+        fromCode(c, url)?.let { return it }
+        if (body.isNotEmpty()) {
+            Regex("!3d(-?\\d{1,2}\\.\\d{4,})!4d(-?\\d{1,3}\\.\\d{4,})").find(body)?.let { m -> inIndia(m.groupValues[1], m.groupValues[2])?.let { return it } }
+            Regex("center=(-?\\d{1,2}\\.\\d{4,})(?:%2C|,)(-?\\d{1,3}\\.\\d{4,})").find(body)?.let { m -> inIndia(m.groupValues[1], m.groupValues[2])?.let { return it } }
+            Regex("\\[null,null,(-?\\d{1,2}\\.\\d{4,}),(-?\\d{1,3}\\.\\d{4,})\\]").find(body)?.let { m -> inIndia(m.groupValues[1], m.groupValues[2])?.let { return it } }
+        }
+        // Last: the address written in the link ("/place/DMart Ongole, Trunk Rd, Ongole, Andhra Pradesh 523001/").
+        address(url)?.let { addr -> lookup(c, addr, null)?.let { return it.at } }
+        return null
+    }
+
+    private fun inIndia(a: String, b: String): LatLon? {
+        val lat = a.toDoubleOrNull() ?: return null; val lon = b.toDoubleOrNull() ?: return null
+        return if (lat in 5.0..38.0 && lon in 66.0..99.0) LatLon(lat, lon) else null
+    }
+
+    /** The place text of a /maps/place/… link, decoded. */
+    private fun address(url: String): String? {
+        val raw = Regex("/maps/place/([^/?]+)").find(url)?.groupValues?.get(1) ?: return null
+        return try { URLDecoder.decode(raw.replace("+", "%20"), "UTF-8") } catch (e: Exception) { null }?.trim()?.takeIf { it.length > 3 }
+    }
+
+    /** A Plus Code in the link: full → its pin; short → made full with the town written after it (map search). */
+    private fun fromCode(c: Context, text: String): LatLon? {
+        val decoded = address(text) ?: try { URLDecoder.decode(text.replace("+", "%2B"), "UTF-8") } catch (e: Exception) { text }
+        // In a /place/ path "+" means a space, so read the code from the decoded place text where "%2B" is the real "+".
+        val code = PlusCode.find(decoded) ?: return null
+        if (PlusCode.isFull(code)) return PlusCode.decode(code)?.takeIf { it.lat in 5.0..38.0 && it.lon in 66.0..99.0 }
+        // The town: the address after the code, tried from the most to the least words.
+        val after = decoded.substringAfter(code, "").replace(Regex("(?i)\\bd[- ]?mart\\b"), " ")
+        val parts = after.split(',').map { it.trim() }.filter { it.isNotBlank() }
+        val tries = ArrayList<String>()
+        if (parts.size >= 2) tries += parts.takeLast(2).joinToString(", ")
+        if (parts.size >= 3) tries += parts.takeLast(3).joinToString(", ")
+        tries += parts.joinToString(", ")
+        parts.firstOrNull()?.let { tries += it }
+        for (q in tries.filter { it.length > 3 }.distinct()) {
+            val near = lookup(c, if (q.contains("india", true)) q else "$q, India", null)?.at ?: continue
+            val at = PlusCode.recover(code, near) ?: continue
+            if (VehiclePlanner.km(near, at) < 60) return at
+        }
+        return null
     }
 
     /** Map search, kept within about 900 km of the DC when the DC is known (a same-named place far away is skipped). */
@@ -266,7 +314,7 @@ object StoreGeo {
         Thread {
             if (isLink(query)) {
                 // Exact pin from a Google Maps link or lat, long: kept as is, never searched again.
-                val at = resolveLink(query)
+                val at = resolveLink(app, query)
                 if (at != null) save(app, code, EXACT, at, if (Geocoder.isPresent()) stateAt(app, at) else null)
                 main.post { done(at != null) }
                 return@Thread
@@ -282,7 +330,7 @@ object StoreGeo {
         val app = c.applicationContext
         Thread {
             if (isLink(query)) {
-                val at = resolveLink(query)
+                val at = resolveLink(app, query)
                 if (at != null) setDc(app, dcQuery(app), at, if (Geocoder.isPresent()) stateAt(app, at) else null)
                 main.post { done(at != null) }
                 return@Thread
