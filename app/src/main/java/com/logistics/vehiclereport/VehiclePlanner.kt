@@ -292,7 +292,7 @@ object VehiclePlanner {
                     return added + 0.15 * abs(before.second - a.maxOf { km(dc, it) })
                 }
                 val best = loads.filter { other ->
-                    other !== c && !other.full && (other.volume >= c.volume - EPS || c.splitRest) &&
+                    other !== c && !other.full && other.volume >= c.volume - EPS &&
                         other.codes.none { it in o.noClub } && other.codes.none { it in inHandClub } &&
                         (other.codes + c.codes).size <= o.maxStops && other.volume + c.volume <= max + EPS &&
                         fitsOnRoute(other.parts.map { it.first }, c.parts.map { it.first }, o)
