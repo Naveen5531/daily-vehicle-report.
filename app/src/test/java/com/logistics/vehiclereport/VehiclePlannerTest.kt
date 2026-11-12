@@ -79,6 +79,15 @@ class VehiclePlannerTest {
         assertEquals(1, VehiclePlanner.plan(listOf(s("CHM", 600.0), s("KCG", 100.0)), o).vehicles)
     }
 
+    @Test fun smallStoreRidesOnAVehicleGoingItsWayElseIsHeld() {
+        // Kachiguda (100, below the minimum) rides with the Champapet vehicle nearby; Warangal (100) has none: held.
+        val o = VehiclePlanner.Options(places = at, dc = dc, rideOnly = setOf("KCG", "WGL"))
+        val r = VehiclePlanner.plan(listOf(s("CHM", 600.0), s("KCG", 100.0), s("WGL", 100.0)), o)
+        assertEquals(1, r.vehicles)
+        assertEquals(setOf("CHM", "KCG"), r.loads.single().codes.toSet())
+        assertEquals(listOf("WGL"), r.held.map { it.code })
+    }
+
     @Test fun nearbyStoresShareAVehicle() {
         val r = VehiclePlanner.plan(listOf(s("CHM", 634.9), s("KCG", 205.5), s("WGL", 175.5)), geo())
         assertEquals(2, r.vehicles)

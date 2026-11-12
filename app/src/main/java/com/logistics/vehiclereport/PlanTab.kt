@@ -151,12 +151,14 @@ class PlanTab(private val a: MainActivity, root: View) {
         val stops = PlanData.withPlaces(a, plan.stops)
         val opts = PlanData.options(a, plan)
         zones = PlanData.zones(a, stops, opts.places, opts.dc)
-        // Small Upcountry / Local stores (below the zone's minimum volume) get no vehicle today.
-        val heldCodes = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
-        val held = stops.filter { it.code in heldCodes }
+        // Small Upcountry / Local stores (below the zone's minimum volume) get no vehicle of their own: they ride on
+        // another vehicle going their way when one fits, else they are held back today.
+        val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
-        val r = VehiclePlanner.plan(stops.filter { it.code !in heldCodes },
-            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryMaxStops = PlanData.upcountryMaxStops(a)))
+        val r = VehiclePlanner.plan(stops,
+            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryMaxStops = PlanData.upcountryMaxStops(a),
+                rideOnly = small))
+        val held = r.held
         result = r
         dcPlace = opts.dc
         places = opts.places
@@ -232,7 +234,17 @@ class PlanTab(private val a: MainActivity, root: View) {
             })
             for ((i, l) in loads) list.addView(card(inflater, i, l))
         }
-        showHeld(held.filter { zoneFilter == null || zones[it.code] == zoneFilter })
+        showHeld(held.filter { (zoneFilter == null || zones[it.code] == zoneFilter) &&
+            (storeQuery.isEmpty() || listOf(it.code, it.shownName, it.name, it.city, it.region).any { f -> f.lowercase().contains(storeQuery) }) })
+        // Searched for a store that is not on today's plan at all (not read from the sheet).
+        if (storeQuery.isNotEmpty() && shown.isEmpty() && held.none { listOf(it.code, it.shownName, it.name, it.city).any { f -> f.lowercase().contains(storeQuery) } }) {
+            val d = a.resources.displayMetrics.density
+            list.addView(TextView(a).apply {
+                text = a.getString(R.string.plan_search_none, storeQuery)
+                setTextColor(Ui.color(a, R.color.muted)); textSize = 13.5f
+                setPadding((20 * d).toInt(), (18 * d).toInt(), (20 * d).toInt(), (18 * d).toInt())
+            })
+        }
         updateSelectBar()
     }
 

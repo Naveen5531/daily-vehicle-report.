@@ -202,6 +202,7 @@
     <string name="pv_load">Load %1$s</string>
     <string name="pv_trip">≈ %1$s km from DC</string>
     <string name="pv_city_vol">Total today: %1$s volume</string>
+    <string name="plan_search_none">"%1$s" is not in today\'s plan. It was not read from the sheet: add the photo or Excel again, or check the store code.</string>
     <string name="plan_search_hint">Search store code, name or city</string>
     <string name="pv_tag_main">MAIN</string>
     <string name="pv_tag_club">CLUB</string>
@@ -672,7 +673,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="zone_field_km">Local within (km), for stores with no city</string>
     <string name="zone_showing">Showing %1$s: %2$d vehicles · %3$s volume</string>
     <string name="held_title">Held back · %1$d stores · %2$s volume</string>
-    <string name="held_hint">Below the minimum volume (Upcountry %1$s, Local %2$s), so no vehicle today. Tap a store to send it anyway.</string>
+    <string name="held_hint">Below the minimum volume (Upcountry %1$s, Local %2$s) and no vehicle is going their way today. Tap a store to send it anyway.</string>
     <string name="held_volume">volume %1$s</string>
     <string name="held_plan_title">Send %1$s today?</string>
     <string name="held_plan_message">%1$s has only %2$s volume, below the minimum for its zone. Plan a vehicle for it anyway?</string>
