@@ -202,6 +202,7 @@
     <string name="pv_load">Load %1$s</string>
     <string name="pv_trip">≈ %1$s km from DC</string>
     <string name="pv_city_vol">Total today: %1$s volume</string>
+    <string name="plan_search_hint">Search store code, name or city</string>
     <string name="pv_direct">%1$d Direct</string>
     <string name="pv_club_with">🔗 Clubbed: %1$s</string>
     <string name="pv_rest_on">🔗 Rest on vehicle %1$d with %2$s</string>

@@ -66,6 +66,38 @@ class PlanTab(private val a: MainActivity, root: View) {
     /** Shown so far: the vehicles in the chosen zone, with their numbers on the whole plan. */
     private var shown: List<IndexedValue<PlanLoad>> = emptyList()
 
+    /** Quick store search above the vehicle list: store code, name or city. */
+    private var storeQuery = ""
+    private val searchBox: View by lazy {
+        val d = a.resources.displayMetrics.density
+        val l = TextInputLayout(a, null, com.google.android.material.R.attr.textInputOutlinedStyle).apply {
+            hint = a.getString(R.string.plan_search_hint)
+            endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+            setStartIconDrawable(R.drawable.ic_search)
+        }
+        val e = TextInputEditText(l.context).apply { setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT }
+        l.addView(e)
+        val search = Runnable { refresh() }
+        e.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                storeQuery = s?.toString()?.trim()?.lowercase().orEmpty()
+                list.removeCallbacks(search); list.postDelayed(search, 250)
+            }
+        })
+        (list.parent as android.view.ViewGroup).let { p ->
+            p.addView(l, p.indexOfChild(list), android.view.ViewGroup.MarginLayoutParams(-1, -2).apply {
+                marginStart = (16 * d).toInt(); marginEnd = (16 * d).toInt(); topMargin = (10 * d).toInt()
+            })
+        }
+        l
+    }
+
+    private fun matches(l: PlanLoad): Boolean = storeQuery.isEmpty() || l.parts.any { (s, _) ->
+        listOf(s.code, s.shownName, s.name, s.city, s.region).any { it.lowercase().contains(storeQuery) }
+    }
+
     init {
         root.findViewById<View>(R.id.planPhoto).setOnClickListener { a.addPlanPhotos() }
         root.findViewById<View>(R.id.planExcel).setOnClickListener { a.pickPlanExcel() }
@@ -540,7 +572,7 @@ class PlanTab(private val a: MainActivity, root: View) {
     /** The vehicles in the chosen zone as a plan of their own (totals by size for those only). */
     private fun shownResult(): PlanResult? {
         val r = result ?: return null
-        if (zoneFilter == null) return r
+        if (zoneFilter == null && storeQuery.isEmpty()) return r
         val loads = shown.map { it.value }
         val byType = r.byType.map { (t, _) -> t to loads.count { it.type == t } }.filter { it.second > 0 }
         return PlanResult(loads, byType, loads.sumOf { it.volume })
@@ -550,7 +582,8 @@ class PlanTab(private val a: MainActivity, root: View) {
     private fun showZones(r: PlanResult) {
         val byZone = r.loads.withIndex().groupBy { loadZone(it.value) }
         val f = zoneFilter
-        shown = if (f == null) r.loads.withIndex().toList() else byZone[f].orEmpty()
+        shown = (if (f == null) r.loads.withIndex().toList() else byZone[f].orEmpty()).filter { matches(it.value) }
+        searchBox.visibility = if (r.loads.isNotEmpty()) View.VISIBLE else View.GONE
         val texts = mapOf(null to R.string.zone_all, Zone.LOCAL to R.string.zone_local, Zone.NON_LOCAL to R.string.zone_non_local,
             Zone.UPCOUNTRY to R.string.zone_upcountry, Zone.UNKNOWN to R.string.zone_unknown)
         for ((z, chip) in zoneChip) chip.text = a.getString(texts.getValue(z), if (z == null) r.loads.size else byZone.getOrElse(z) { emptyList() }.size)
