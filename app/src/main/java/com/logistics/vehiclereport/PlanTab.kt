@@ -417,6 +417,48 @@ class PlanTab(private val a: MainActivity, root: View) {
     }
 
     /** The picked vehicles' stores go on one vehicle (kept from then on, until split). */
+    /** A held store put on a vehicle chosen from the list (nearest first); kept until split. */
+    private fun clubHeld(s: PlanStop) {
+        val r = result ?: return
+        if (r.loads.isEmpty()) { Toast.makeText(a, R.string.held_club_none, Toast.LENGTH_SHORT).show(); return }
+        val at = places[s.code]
+        fun dist(l: PlanLoad): Double? = if (at == null) null else l.codes.mapNotNull { places[it] }.minOfOrNull { VehiclePlanner.km(at, it) }
+        val options = r.loads.withIndex().sortedBy { dist(it.value) ?: Double.MAX_VALUE }
+        val labels = options.map { (i, l) ->
+            val main = l.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
+            a.getString(R.string.held_club_item, i + 1, main?.let { "${it.code} ${it.shownName}" }.orEmpty(), vol(l.volume),
+                l.type?.name ?: "–") + (dist(l)?.let { " · " + a.getString(R.string.held_club_km, km(it)) } ?: "")
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.held_club_title, s.shownName, vol(s.volume)))
+            .setItems(labels) { _, which ->
+                val l = options[which].value
+                val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
+                // The part of the vehicle that can take more (a big store's rest, not its full loads).
+                val st = l.parts.first().first
+                val room = if (l.codes.size == 1 && st.volume > max + 1e-6 && max > 0)
+                    st.volume - Math.floor((st.volume - 1e-6) / max) * max else l.volume
+                if (room + s.volume > max + 1e-6) {
+                    Toast.makeText(a, a.getString(R.string.plan_too_much, vol(room + s.volume), vol(max)), Toast.LENGTH_LONG).show(); return@setItems
+                }
+                val codes = l.codes.toSet() + s.code
+                val most = maxOf(PlanData.maxStops(a), if (zones[s.code] == Zone.UPCOUNTRY) PlanData.upcountryMaxStops(a) else 0)
+                if (codes.size > most) {
+                    Toast.makeText(a, a.getString(R.string.plan_too_many_stores, codes.size, most), Toast.LENGTH_LONG).show(); return@setItems
+                }
+                val plan = PlanData.load(a)
+                PlanData.save(a, plan.copy(
+                    clubs = plan.clubs.filter { it.intersect(codes).isEmpty() } + listOf(codes),
+                    noClub = plan.noClub - codes
+                ))
+                PlanData.setForced(a, PlanData.forced(a) + s.code)
+                refresh()
+                Toast.makeText(a, a.getString(R.string.held_club_done, s.shownName, options[which].index + 1), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun clubSelected() {
         val r = result ?: return
         val loads = selected.mapNotNull { r.loads.getOrNull(it) }
@@ -652,11 +694,13 @@ class PlanTab(private val a: MainActivity, root: View) {
                 setPadding((20 * d).toInt(), (8 * d).toInt(), (20 * d).toInt(), (8 * d).toInt())
                 setOnClickListener {
                     MaterialAlertDialogBuilder(a)
-                        .setTitle(a.getString(R.string.held_plan_title, s.code))
-                        .setMessage(a.getString(R.string.held_plan_message, s.shownName, vol(s.volume)))
-                        .setPositiveButton(R.string.held_plan_yes) { _, _ -> PlanData.setForced(a, PlanData.forced(a) + s.code); refresh() }
-                        .setNeutralButton(R.string.plan_remove_store) { _, _ ->
-                            val p = PlanData.load(a); PlanData.save(a, p.copy(stops = p.stops.filter { it.code != s.code })); refresh()
+                        .setTitle(a.getString(R.string.held_plan_title, s.code) + " · " + s.shownName + " · " + vol(s.volume))
+                        .setItems(arrayOf(a.getString(R.string.held_club), a.getString(R.string.held_plan_yes), a.getString(R.string.plan_remove_store))) { _, which ->
+                            when (which) {
+                                0 -> clubHeld(s)
+                                1 -> { PlanData.setForced(a, PlanData.forced(a) + s.code); refresh() }
+                                else -> { val p = PlanData.load(a); PlanData.save(a, p.copy(stops = p.stops.filter { it.code != s.code })); refresh() }
+                            }
                         }
                         .setNegativeButton(android.R.string.cancel, null)
                         .show()
