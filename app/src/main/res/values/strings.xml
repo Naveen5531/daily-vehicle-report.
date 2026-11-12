@@ -195,6 +195,20 @@
     </plurals>
     <string name="plan_shots_more">Take another photo of the sheet, or read the photos now.</string>
     <string name="plan_shots_another">Take another</string>
+    <string name="pv_cap">Cap %1$s</string>
+    <string name="pv_load">Load %1$s</string>
+    <string name="pv_trip">≈ %1$s km from DC</string>
+    <string name="pv_city_vol">Total today: %1$s volume</string>
+    <string name="pv_direct">%1$d Direct</string>
+    <string name="pv_club">%1$d Club</string>
+    <plurals name="pv_stops">
+        <item quantity="one">%1$d stop</item>
+        <item quantity="other">%1$d stops</item>
+    </plurals>
+    <plurals name="pv_vehicles">
+        <item quantity="one">🚚 %1$d</item>
+        <item quantity="other">🚚 %1$d</item>
+    </plurals>
     <string name="plan_city_total">%1$s total: %2$s volume · %3$d vehicle(s) going: %4$d direct + %5$d clubbed</string>
     <string name="plan_route_line">Trip ≈ %1$s km from the DC (straight line)</string>
     <string name="plan_km_from_dc">%1$s km from DC</string>

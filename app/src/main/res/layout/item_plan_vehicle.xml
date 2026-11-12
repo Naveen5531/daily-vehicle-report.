@@ -52,12 +52,14 @@
                     android:textColor="@color/ink"
                     android:textSize="17sp" />
 
-                <TextView
-                    android:id="@+id/pvCap"
-                    android:layout_width="wrap_content"
+                <!-- Capacity, load, stops, trip km as small pills -->
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/pvInfo"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/muted"
-                    android:textSize="12.5sp" />
+                    android:layout_marginTop="4dp"
+                    app:chipSpacingHorizontal="6dp"
+                    app:chipSpacingVertical="4dp" />
             </LinearLayout>
 
             <TextView
@@ -74,6 +76,14 @@
             app:trackColor="@color/brand_light"
             app:trackCornerRadius="4dp"
             app:trackThickness="6dp" />
+
+        <!-- One box per city on this vehicle: total volume and vehicles going (direct / clubbed) -->
+        <LinearLayout
+            android:id="@+id/pvCities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
 
         <LinearLayout
             android:id="@+id/pvStops"

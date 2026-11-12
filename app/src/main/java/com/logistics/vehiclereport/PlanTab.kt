@@ -207,18 +207,56 @@ class PlanTab(private val a: MainActivity, root: View) {
         val v = inflater.inflate(R.layout.item_plan_vehicle, list, false) as MaterialCardView
         v.findViewById<TextView>(R.id.pvNo).text = (index + 1).toString()
         v.findViewById<TextView>(R.id.pvType).text = l.type?.name ?: a.getString(R.string.plan_no_type)
-        // Each city on this vehicle: its total volume today and on how many vehicles it goes.
-        val cityLines = l.parts.map { it.first }.distinctBy { cityOf(it) }.joinToString("") { s ->
-            val c = cityOf(s)
-            val onPlan = result?.loads.orEmpty().filter { ld -> ld.parts.any { cityOf(it.first) == c } }
-            val total = onPlan.sumOf { ld -> ld.parts.filter { cityOf(it.first) == c }.sumOf { it.second } }
-            // Direct = the vehicle goes only to this city's store; clubbed = it also carries another store.
-            val clubbed = onPlan.count { it.codes.size > 1 }
-            "\n" + a.getString(R.string.plan_city_total, c, vol(total), onPlan.size, onPlan.size - clubbed, clubbed)
+        val dp = a.resources.displayMetrics.density
+        fun pill(text: String, fg: Int, bg: Int, bold: Boolean = true) = TextView(a).apply {
+            this.text = text; textSize = 11.5f
+            setTextColor(Ui.color(a, fg))
+            setBackgroundResource(R.drawable.pill_bg)
+            backgroundTintList = ColorStateList.valueOf(Ui.color(a, bg))
+            setPadding((9 * dp).toInt(), (4 * dp).toInt(), (9 * dp).toInt(), (4 * dp).toInt())
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(a, if (bold) R.font.jakarta_bold else R.font.jakarta_semibold)
         }
-        v.findViewById<TextView>(R.id.pvCap).text = a.getString(R.string.plan_cap_line,
-            l.type?.let { vol(it.capacity) } ?: "–", vol(l.volume), l.codes.size) +
-            (l.routeKm?.let { "\n" + a.getString(R.string.plan_route_line, km(it)) } ?: "") + cityLines
+        // Capacity, load, stops and trip km as pills.
+        v.findViewById<ChipGroup>(R.id.pvInfo).apply {
+            removeAllViews()
+            addView(pill(a.getString(R.string.pv_cap, l.type?.let { vol(it.capacity) } ?: "–"), R.color.ink, R.color.soft, false))
+            addView(pill(a.getString(R.string.pv_load, vol(l.volume)), R.color.ink, R.color.soft, false))
+            addView(pill(a.resources.getQuantityString(R.plurals.pv_stops, l.codes.size, l.codes.size), R.color.ink, R.color.soft, false))
+            l.routeKm?.let { addView(pill(a.getString(R.string.pv_trip, km(it)), R.color.ink, R.color.soft, false)) }
+        }
+        // One box per city: name and today's total volume, then vehicles going there: total, direct, clubbed.
+        v.findViewById<LinearLayout>(R.id.pvCities).apply {
+            removeAllViews()
+            for (s in l.parts.map { it.first }.distinctBy { cityOf(it) }) {
+                val c = cityOf(s)
+                val onPlan = result?.loads.orEmpty().filter { ld -> ld.parts.any { cityOf(it.first) == c } }
+                val total = onPlan.sumOf { ld -> ld.parts.filter { cityOf(it.first) == c }.sumOf { it.second } }
+                val clubbed = onPlan.count { it.codes.size > 1 }
+                val box = LinearLayout(a).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+                    setBackgroundResource(R.drawable.pill_bg)
+                    backgroundTintList = ColorStateList.valueOf(Ui.color(a, R.color.bg_light))
+                    setPadding((10 * dp).toInt(), (7 * dp).toInt(), (8 * dp).toInt(), (7 * dp).toInt())
+                }
+                box.addView(LinearLayout(a).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(TextView(a).apply {
+                        text = c; textSize = 13.5f; setTextColor(Ui.color(a, R.color.ink))
+                        typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.jakarta_bold)
+                        maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                    addView(TextView(a).apply {
+                        text = a.getString(R.string.pv_city_vol, vol(total)); textSize = 11.5f; setTextColor(Ui.color(a, R.color.muted))
+                    })
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                fun badge(t: String, fg: Int, bg: Int) = box.addView(pill(t, fg, bg),
+                    LinearLayout.LayoutParams(-2, -2).apply { marginStart = (5 * dp).toInt() })
+                badge(a.resources.getQuantityString(R.plurals.pv_vehicles, onPlan.size, onPlan.size), R.color.ink, R.color.surface)
+                if (onPlan.size - clubbed > 0) badge(a.getString(R.string.pv_direct, onPlan.size - clubbed), R.color.ok, R.color.ok_bg)
+                if (clubbed > 0) badge(a.getString(R.string.pv_club, clubbed), R.color.wait, R.color.wait_bg)
+                addView(box, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (4 * dp).toInt() })
+            }
+        }
         val fill = v.findViewById<TextView>(R.id.pvFill)
         fill.text = pct(l.fill)
         val (fg, bg) = when {
