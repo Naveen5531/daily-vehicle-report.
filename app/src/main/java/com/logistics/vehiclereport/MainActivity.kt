@@ -37,9 +37,11 @@ class MainActivity : AppCompatActivity() {
 
     /** Opens the Store Master tab (from the Vehicles tab, the store list dialog or the Plan tab). */
     fun showStores() {
-        if (bottomNav.selectedItemId != R.id.nav_vehicles) bottomNav.selectedItemId = R.id.nav_vehicles
+        // Back returns to the tab it was opened from.
+        if (currentTab != R.id.nav_stores) storesFrom = bottomNav.selectedItemId
         showTab(R.id.nav_stores)
     }
+    private var storesFrom = R.id.nav_vehicles
     /** Reads DMart Drishti's gate log by itself while the app is open. */
     private var drishti: DrishtiAuto? = null
     /** The tab on screen (Live, Rates and Mail have no bottom-bar button; Back returns to the tab they open from). */
@@ -188,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 val parent = when (currentTab) {
                     R.id.nav_mail -> R.id.nav_export
                     R.id.nav_rates -> R.id.nav_vehicles
-                    R.id.nav_stores -> R.id.nav_vehicles
+                    R.id.nav_stores -> storesFrom
                     R.id.nav_live -> R.id.nav_today
                     else -> null
                 }
@@ -204,6 +206,7 @@ class MainActivity : AppCompatActivity() {
         }
         // Live reading has no bottom-bar button; the "Live" chip at the top opens it.
         findViewById<View>(R.id.liveChip).setOnClickListener { showTab(R.id.nav_live) }
+        findViewById<View>(R.id.storesChip).setOnClickListener { showStores() }
         val startTab = savedInstanceState?.getInt("tab") ?: R.id.nav_today
         if (bottomNav.menu.findItem(startTab) != null) bottomNav.selectedItemId = startTab
         showTab(startTab)
