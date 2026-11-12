@@ -254,6 +254,9 @@ class PlanTab(private val a: MainActivity, root: View) {
         // Title = the main store (biggest volume on the vehicle); the vehicle size moves to the first pill.
         val main = l.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
         v.findViewById<TextView>(R.id.pvType).text = main?.let { "${it.code} · ${it.shownName}" } ?: (l.type?.name ?: a.getString(R.string.plan_no_type))
+        // The main store's whole volume today (all its vehicles), big and bold above the fill %.
+        v.findViewById<TextView>(R.id.pvStoreVol).text = main?.let { vol(it.volume) }.orEmpty()
+        v.findViewById<View>(R.id.pvStoreVolLabel).visibility = if (main != null) View.VISIBLE else View.GONE
         val dp = a.resources.displayMetrics.density
         fun pill(text: String, fg: Int, bg: Int, bold: Boolean = true) = TextView(a).apply {
             this.text = text; textSize = 11.5f
