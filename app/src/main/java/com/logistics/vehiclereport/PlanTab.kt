@@ -224,6 +224,18 @@ class PlanTab(private val a: MainActivity, root: View) {
             addView(pill(a.getString(R.string.pv_load, vol(l.volume)), R.color.ink, R.color.soft, false))
             addView(pill(a.resources.getQuantityString(R.plurals.pv_stops, l.codes.size, l.codes.size), R.color.ink, R.color.soft, false))
             l.routeKm?.let { addView(pill(a.getString(R.string.pv_trip, km(it)), R.color.ink, R.color.soft, false)) }
+            // Which store it is clubbed with, and for a store split over vehicles, where its other part goes.
+            val all = result?.loads.orEmpty()
+            val name = { code: String -> l.parts.firstOrNull { it.first.code == code }?.first?.shownName.orEmpty() }
+            if (l.codes.size > 1) {
+                addView(pill(a.getString(R.string.pv_club_with, l.codes.joinToString(" + ") { "$it ${name(it)}".trim() }), R.color.wait, R.color.wait_bg))
+            } else {
+                val code = l.codes.firstOrNull()
+                all.withIndex().filter { (j, ld) -> j != index && ld.codes.size > 1 && code in ld.codes }.forEach { (j, ld) ->
+                    val others = ld.parts.map { it.first }.filter { it.code != code }.distinctBy { it.code }.joinToString(", ") { it.shownName }
+                    addView(pill(a.getString(R.string.pv_rest_on, j + 1, others), R.color.wait, R.color.wait_bg))
+                }
+            }
         }
         // One box per city: name and today's total volume, then vehicles going there: total, direct, clubbed.
         v.findViewById<LinearLayout>(R.id.pvCities).apply {

@@ -203,6 +203,30 @@ object VehiclePlanner {
         return rows
     }
 
+    /**
+     * Keeps a store's vehicles together: after a vehicle come the other vehicles carrying any of its stores (a big store's
+     * full loads, then the vehicle its rest is clubbed on, then the other store's vehicles), so they read as one group.
+     */
+    fun chain(loads: List<PlanLoad>): List<PlanLoad> {
+        val out = ArrayList<PlanLoad>(loads.size)
+        val done = BooleanArray(loads.size)
+        for (i in loads.indices) {
+            if (done[i]) continue
+            val queue = ArrayDeque<Int>().apply { add(i) }
+            done[i] = true
+            while (queue.isNotEmpty()) {
+                val k = queue.removeFirst()
+                out += loads[k]
+                val codes = loads[k].codes.toSet()
+                // Same-store vehicles first (direct), then clubbed ones.
+                loads.indices.filter { j -> !done[j] && loads[j].codes.any { it in codes } }
+                    .sortedBy { j -> if (loads[j].codes.size > 1) 1 else 0 }
+                    .forEach { j -> done[j] = true; queue.add(j) }
+            }
+        }
+        return out
+    }
+
     /** Smallest vehicle in use that carries [volume]; null when none does. */
     private val NOISE = setOf("dmart", "mart", "road", "centre", "center", "circle", "mall", "west", "east", "north", "south",
         "colony", "nagar", "andhra", "pradesh", "andhrapradesh", "telangana", "district", "limited", "square", "near", "main", "store")
@@ -237,7 +261,7 @@ object VehiclePlanner {
             o.copy(types = listOf(upType), clubBelow = upType.capacity + 1.0, maxStops = o.upcountryMaxStops,
                 upcountry = emptySet(), upcountryType = null))
         val order = stops.filter { it.volume > EPS }.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
-        val loads = (near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume })
+        val loads = chain((near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume }))
         val types = (o.types.filter { it.on && it.capacity > 0 } + upType).distinctBy { it.name }.sortedByDescending { it.capacity }
         val byType = types.map { t -> t to loads.count { it.type?.name == t.name } }.filter { it.second > 0 }
         return PlanResult(loads, byType, near.totalVolume + far.totalVolume)
@@ -322,6 +346,7 @@ object VehiclePlanner {
             PlanLoad(l.cluster, l.parts.toList(), fit(l.volume, types), l.clubbed, route?.first, route?.second)
         }
             .sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume })
+            .let { chain(it) }
         val byType = types.map { t -> t to out.count { it.type == t } }.filter { it.second > 0 }
         return PlanResult(out, byType, valid.sumOf { it.volume })
     }

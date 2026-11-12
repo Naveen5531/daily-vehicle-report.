@@ -62,6 +62,9 @@ class VehiclePlannerTest {
         val shared = r.loads.single { it.codes.toSet() == setOf("CHM", "KCG") }
         assertEquals(700.0, shared.volume, 1e-6)
         assertEquals(3, r.vehicles)
+        // The store's vehicles are listed together: its two direct ones, then the clubbed one.
+        assertEquals(listOf(listOf("CHM"), listOf("CHM")), r.loads.take(2).map { it.codes })
+        assertEquals(setOf("CHM", "KCG"), r.loads[2].codes.toSet())
         // Far away: the rest keeps its own vehicle.
         val far = VehiclePlanner.plan(listOf(s("CHM", 2000.0), s("WGL", 400.0)), geo())
         assertEquals(4, far.vehicles)
