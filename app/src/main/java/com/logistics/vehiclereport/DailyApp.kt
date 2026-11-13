@@ -23,6 +23,7 @@ class DailyApp : Application() {
             Account.loadSettings(this)
             CloudSync.start(this)
             FirebaseLink.start(this)
+            DaySync.start(this)
             Thread {
                 try { VehicleStore.upgradeOldRecords(this) } catch (t: Throwable) { CrashLog.save(this, "Upgrading old entries", t) }
             }.start()

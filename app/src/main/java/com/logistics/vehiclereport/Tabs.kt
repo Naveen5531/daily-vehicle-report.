@@ -60,7 +60,10 @@ class TodayTab(private val a: MainActivity, root: View) {
     private val adapter = StatusAdapter(
         onOpen = { VehicleDetailSheet.show(a, it.vehicle.number) },
         // Marks are saved in the account's storage; the change refreshes every tab.
-        onGate = { d, gate -> hold = true; GateMarks.set(a, ReportBuilder.startOfDay(), d.vehicle.number, gate) },
+        onGate = { d, gate ->
+            // A back day read from the cloud copy is read only; on this phone's back days a mark can still be corrected.
+            if (!cloudView) { hold = true; GateMarks.set(a, viewDay(), d.vehicle.number, gate) }
+        },
         onScan = { d -> a.scanPlate(d.vehicle.number) }
     )
     /**
@@ -87,8 +90,86 @@ class TodayTab(private val a: MainActivity, root: View) {
     private val search: TextInputEditText = root.findViewById(R.id.todaySearch)
     private var query = ""
 
+    // ---------- Day shown: today (follows the clock – a new day starts at 12 am) or a back day ----------
+    private var backDay: Long? = null
+    private val dayLabel: MaterialButton = root.findViewById(R.id.dayLabel)
+    private val dayToday: MaterialButton = root.findViewById(R.id.dayToday)
+    private val dayNext: MaterialButton = root.findViewById(R.id.dayNext)
+    private val dayNote: TextView = root.findViewById(R.id.dayNote)
+    private val heroTitle: TextView = root.findViewById(R.id.heroTitle)
+    private val dayFmt = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+    /** Back days read from the cloud copy (when this phone has nothing for them); null = looked, none there. */
+    private val cloudDays = HashMap<Long, List<VehicleDay>?>()
+    private var cloudView = false
+    private val ticker = android.os.Handler(android.os.Looper.getMainLooper())
+    private val atMidnight = object : Runnable {
+        override fun run() {
+            // 12 am: Today starts the new day (empty until the first post / gate entry).
+            hold = false; shown = emptyList()
+            last?.let { refresh(it) }
+            scheduleMidnight()
+        }
+    }
+
+    private fun viewDay(): Long = backDay ?: ReportBuilder.startOfDay()
+
+    private fun scheduleMidnight() {
+        ticker.removeCallbacks(atMidnight)
+        val next = ReportBuilder.startOfDay(ReportBuilder.startOfDay() + ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2)
+        ticker.postDelayed(atMidnight, (next - System.currentTimeMillis() + 1_500).coerceAtLeast(1_000))
+    }
+
+    private fun showDay(day: Long?) {
+        val today = ReportBuilder.startOfDay()
+        backDay = day?.takeIf { it < today }
+        hold = false; shown = emptyList(); filter = null; last4Filter = false
+        last?.let { refresh(it) }
+    }
+
+    private fun stepDay(days: Int) {
+        val d = ReportBuilder.startOfDay(viewDay() + days * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2)
+        showDay(if (d >= ReportBuilder.startOfDay()) null else d)
+    }
+
+    /** A back day's rows from the cloud copy, as Today rows (read only). */
+    private fun fromCloud(rows: List<Map<String, Any?>>): List<VehicleDay> = rows.mapNotNull { r ->
+        fun str(k: String) = (r[k] as? String).orEmpty()
+        fun num(k: String) = (r[k] as? Number)?.toLong() ?: 0L
+        val number = str("vehicle").ifBlank { return@mapNotNull null }
+        val state = try { TodayState.valueOf(str("state")) } catch (e: Exception) { TodayState.NOT_POSTED }
+        val v = DedicatedVehicle(number, type = str("type"), driver = str("driver"), mobile = str("mobile"),
+            transporter = str("transporter"), route = str("city"), dedicated = r["dedicated"] as? Boolean ?: true)
+        val posts = num("posts").toInt()
+        val hits = if (posts > 0 || num("firstPost") > 0) listOf(VehicleRecord(
+            id = "cloud-$number", vehicle = number, chat = "", sender = "", message = "", time = num("firstPost"),
+            match = MatchType.FULL, typed = str("typed").ifBlank { number }, candidates = listOf(number), city = str("city"),
+            replacement = str("replacement"), mobile = str("mobile"), vendor = str("vendor"), size = str("size"),
+            count = posts.coerceAtLeast(1), driver = str("driver"), lastTime = num("lastPost").takeIf { it > 0 } ?: num("firstPost")
+        )) else emptyList()
+        val mark = when (state) {
+            TodayState.REPORTED -> GateMark(Gate.REPORTED, num("reportedAt"), 0)
+            TodayState.DEPARTED -> GateMark(Gate.DEPARTED, num("reportedAt"), num("departedAt"))
+            TodayState.YET -> GateMark(Gate.YET)
+            else -> null
+        }
+        val status = when (state) { TodayState.NOT_POSTED -> DayStatus.PENDING; TodayState.CHECK -> DayStatus.CHECK; else -> DayStatus.REPORTED }
+        VehicleDay(v, status, hits, inList = r["inList"] as? Boolean ?: true, mark = mark)
+    }
+
     init {
         updateSortLabel()
+        root.findViewById<MaterialButton>(R.id.dayPrev).setOnClickListener { stepDay(-1) }
+        dayNext.setOnClickListener { stepDay(1) }
+        dayToday.setOnClickListener { showDay(null) }
+        dayLabel.setOnClickListener {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = viewDay() }
+            android.app.DatePickerDialog(a, { _, y, m, d ->
+                val picked = java.util.Calendar.getInstance().apply { set(y, m, d, 12, 0, 0) }.timeInMillis
+                showDay(ReportBuilder.startOfDay(picked))
+            }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH), cal.get(java.util.Calendar.DAY_OF_MONTH))
+                .apply { datePicker.maxDate = System.currentTimeMillis() }.show()
+        }
+        scheduleMidnight()
         search.addTextChangedListener(afterTextChanged {
             hold = false
             query = it.trim()
@@ -179,13 +260,39 @@ class TodayTab(private val a: MainActivity, root: View) {
         banner.visibility = if (s.hasAccess) View.GONE else View.VISIBLE
         drishtiStatus.text = DrishtiActivity.statusText(a)
         // Your vehicle list, plus vehicles posted with their full number that are not in it yet.
-        val today = ReportBuilder.startOfDay()
+        val today = viewDay()
+        val isBack = backDay != null
         val gates = GateMarks.gates(a)
         val marks = gates.forDay(today)
         val gateMap = gates.gateLog(today)
         val gateOnly = gates.gateOnly && !gates.legacy(today)
         val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
-        val days = ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras
+        val local = ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras
+        // A back day with nothing on this phone: its cloud copy (date-wise backup) is shown instead, read only.
+        val localHasData = local.any { it.hits.isNotEmpty() || it.mark != null || it.gate != null }
+        val day = dayFmt.format(Date(today))
+        cloudView = false
+        dayNote.visibility = if (isBack) View.VISIBLE else View.GONE
+        val days = if (!isBack || localHasData) {
+            if (isBack) dayNote.text = a.getString(R.string.day_note_local, day)
+            local
+        } else if (cloudDays.containsKey(today)) {
+            val c = cloudDays[today]
+            if (c != null) { cloudView = true; dayNote.text = a.getString(R.string.day_note_cloud, day); c }
+            else { dayNote.text = a.getString(R.string.day_note_none, day); local }
+        } else {
+            dayNote.text = a.getString(R.string.day_note_loading, day)
+            DaySync.fetch(a, today) { rows ->
+                cloudDays[today] = rows?.let { fromCloud(it) }?.takeIf { it.isNotEmpty() }
+                if (viewDay() == today) last?.let { refresh(it) }
+            }
+            local
+        }
+        dayLabel.text = if (isBack) day else a.getString(R.string.day_label_today, SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(today)))
+        dayToday.visibility = if (isBack) View.VISIBLE else View.GONE
+        dayNext.isEnabled = isBack
+        heroTitle.text = if (isBack) a.getString(R.string.day_title_back, SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(today)))
+            else a.getString(R.string.todays_reporting)
         // Gate mode: nothing is "Not posted" (WhatsApp is not needed), so that tile and chip are hidden.
         tiles.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
         chipFor.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
@@ -222,8 +329,9 @@ class TodayTab(private val a: MainActivity, root: View) {
             pending == 0 -> R.string.hero_all_done
             else -> R.string.hero_sub_reported
         }) + if (toCheck > 0) " · " + a.getString(R.string.hero_to_check, toCheck) else ""
-        val lastPost = s.records.filter { it.time >= ReportBuilder.startOfDay() }.maxOfOrNull { it.time }
-        val lastGate = maxOf(DrishtiStore.lastPull(a), DrishtiStore.lastImport(a)).takeIf { it >= today }
+        val lastPost = (if (cloudView) days.flatMap { it.hits }.map { it.lastTime } else
+            s.records.filter { it.time >= today && it.time < today + ReportBuilder.DAY_MS }.map { it.time }).maxOrNull()?.takeIf { it > 0 }
+        val lastGate = maxOf(DrishtiStore.lastPull(a), DrishtiStore.lastImport(a)).takeIf { it >= today && it < today + ReportBuilder.DAY_MS }
         heroUpdated.text = when {
             gateOnly && lastGate != null -> a.getString(R.string.gate_updated_at, clock.format(Date(lastGate)))
             gateOnly -> a.getString(R.string.gate_not_read_today)

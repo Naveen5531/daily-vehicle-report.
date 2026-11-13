@@ -210,6 +210,14 @@
     <string name="pd_open_maps">Open in Maps</string>
     <string name="pd_change_size">22 / 24 ft</string>
     <string name="pd_edit_store">Edit store</string>
+    <string name="day_today">Today</string>
+    <string name="day_label_today">Today · %1$s</string>
+    <string name="day_title_back">Reporting on %1$s</string>
+    <string name="day_note_local">Back data for %1$s (saved on this phone; also copied date-wise to the cloud).</string>
+    <string name="day_note_cloud">Back data for %1$s from the cloud copy (read only).</string>
+    <string name="day_note_loading">Looking for %1$s in the cloud copy…</string>
+    <string name="day_note_none">No data saved for %1$s.</string>
+    <string name="day_back_marked">Mark saved for %1$s</string>
     <string name="plan_no_limit">No limit</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>
