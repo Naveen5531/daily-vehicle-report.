@@ -250,6 +250,15 @@ class YardActivity : AppCompatActivity() {
         return raw.map { siteDigits(it) }.filter { it.isNotEmpty() }.distinct().sorted()
     }
 
+    /** Row count for a sheet, honouring the current Site Id filter. */
+    private fun siteCount(sheet: String): Int {
+        val t = YardStore.table(this, sheet)
+        if (siteFilter.isEmpty()) return t.rows.size
+        val c = t.col("site")
+        if (c < 0) return 0
+        return t.rows.count { siteDigits(it.getOrNull(c).orEmpty()) == siteFilter }
+    }
+
     private fun siteDialog() {
         val sites = siteValues()
         val items = (listOf(getString(R.string.yard_site_all)) + sites).toTypedArray()
@@ -268,10 +277,10 @@ class YardActivity : AppCompatActivity() {
         updatedPill.text = if (at > 0) ReportBuilder.timeFmt().format(Date(at)) else getString(R.string.yard_waiting_pill)
 
         val dedicated = try { VehicleStore.getVehicles(this).filter { it.dedicated }.map { it.number }.toSet() } catch (e: Exception) { emptySet() }
-        tileCount[0]?.text = YardStore.table(this, tabs[0].sheet).rows.size.toString()
-        tileCount[1]?.text = YardStore.table(this, tabs[1].sheet).rows.size.toString()
+        tileCount[0]?.text = siteCount(tabs[0].sheet).toString()
+        tileCount[1]?.text = siteCount(tabs[1].sheet).toString()
         val overdue = computeOverdue(dedicated)
-        tileCount[2]?.text = overdue.size.toString()
+        tileCount[2]?.text = (if (siteFilter.isEmpty()) overdue.size else overdue.count { siteDigits(it.store) == siteFilter }).toString()
 
         styleSiteChip()
         val isOverdue = current == 2
