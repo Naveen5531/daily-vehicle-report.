@@ -56,4 +56,14 @@ class WhatsAppChatParserTest {
         assertEquals("Transport Dedicated", WhatsAppChatParser.chatNameFrom("WhatsApp Chat with Transport Dedicated.txt"))
         assertEquals("Transport Dedicated", WhatsAppChatParser.chatNameFrom("WhatsApp Chat - Transport Dedicated.zip"))
     }
+
+    @Test fun copiedMessagesWithoutYear() {
+        val txt = "[13/11, 17:11] Ravi: 0522-Bandlaguda. 909\n5717-SD road. . 709\n\nHappy\n[13/11, 5:12 pm] Ravi: 9275 Kushaiguda"
+        val m = WhatsAppChatParser.parse(txt, "G")
+        assertEquals(2, m.size)
+        assertEquals("Ravi", m[0].sender)
+        assertEquals("0522-Bandlaguda. 909\n5717-SD road. . 709\n\nHappy", m[0].text)
+        assertEquals(13, cal(m[0].time).get(Calendar.DAY_OF_MONTH))
+        assertEquals(17, cal(m[1].time).get(Calendar.HOUR_OF_DAY))
+    }
 }

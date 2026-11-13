@@ -45,6 +45,20 @@ class LiveTab(private val a: MainActivity, root: View) {
         val export = card(root.findViewById(R.id.liveExport), R.drawable.ic_upload, R.color.blue, R.color.blue_bg,
             R.string.chat_import_title, R.string.chat_import_desc)
         button(export, R.string.chat_import_choose, R.drawable.ic_upload) { a.pickChatExport() }
+        // Messages copied in WhatsApp (long-press, select, Copy): "[13/11, 17:11] Name: 1234 Hyd".
+        button(export, R.string.chat_paste, R.drawable.ic_chat) { pasteCopied() }
+    }
+
+    private fun pasteCopied() {
+        val cm = a.getSystemService(android.content.ClipboardManager::class.java)
+        val text = try { cm?.primaryClip?.takeIf { it.itemCount > 0 }?.let { c ->
+            (0 until c.itemCount).joinToString("\n") { c.getItemAt(it).coerceToText(a)?.toString().orEmpty() }
+        } } catch (e: Exception) { null }
+        if (text.isNullOrBlank()) {
+            android.widget.Toast.makeText(a, R.string.chat_paste_empty, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        ChatImporter.startText(a, text)
     }
 
     fun refresh(s: Snapshot) {

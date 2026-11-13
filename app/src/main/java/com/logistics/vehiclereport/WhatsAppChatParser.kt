@@ -8,11 +8,12 @@ import java.util.Calendar
  * Android:  14/10/2026, 6:31 am - Ravi: 1234 Hyderabad
  *           14/10/26, 18:31 - +91 98765 43210: TS09UB1234 Vijayawada
  * iPhone:   [14/10/26, 6:31:05 AM] Ravi: 1234 Hyderabad
+ * Copied:   [13/11, 17:11] Ravi: 1234 Hyderabad   (messages copied in WhatsApp: no year, this year is used)
  * Lines without a date belong to the previous message.
  */
 object WhatsAppChatParser {
 
-    private const val DATE = "(\\d{1,2})[/.\\-](\\d{1,2})[/.\\-](\\d{2,4})"
+    private const val DATE = "(\\d{1,2})[/.\\-](\\d{1,2})(?:[/.\\-](\\d{2,4}))?"
     private const val TIME = "(\\d{1,2})[:.](\\d{2})(?:[:.](\\d{2}))?\\s*([aApP]\\.?\\s?[mM]\\.?)?"
     private val ANDROID = Regex("^$DATE,?\\s+$TIME\\s+[-–]\\s+(.*)$")
     private val IOS = Regex("^\\[$DATE,?\\s+$TIME\\]\\s+(.*)$")
@@ -70,7 +71,10 @@ object WhatsAppChatParser {
 
     private fun toMillis(g: List<String>, monthFirst: Boolean): Long? {
         val a = g[1].toInt(); val b = g[2].toInt()
-        var year = g[3].toInt(); if (year < 100) year += 2000
+        // Copied messages have no year: this year (last year if that date is still ahead).
+        val noYear = g[3].isEmpty()
+        var year = if (noYear) Calendar.getInstance().get(Calendar.YEAR) else g[3].toInt()
+        if (year < 100) year += 2000
         val day = if (monthFirst) b else a
         val month = if (monthFirst) a else b
         if (month !in 1..12 || day !in 1..31) return null
@@ -81,9 +85,11 @@ object WhatsAppChatParser {
         if (ampm == "p" && hour < 12) hour += 12
         if (ampm == "a" && hour == 12) hour = 0
         if (hour !in 0..23 || minute !in 0..59) return null
-        return Calendar.getInstance().apply {
+        fun at(y: Int) = Calendar.getInstance().apply {
             clear()
-            set(year, month - 1, day, hour, minute, second)
+            set(y, month - 1, day, hour, minute, second)
         }.timeInMillis
+        val t = at(year)
+        return if (noYear && t > System.currentTimeMillis() + 86_400_000L) at(year - 1) else t
     }
 }

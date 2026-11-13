@@ -72,6 +72,9 @@
     <string name="chat_import_title">Import exported chat</string>
     <string name="chat_import_desc">Catch up on missed messages. In WhatsApp: open the group → ⋮ → More → Export chat → Without media → choose Daily Vehicle Report. Or save the file and tap Choose file.</string>
     <string name="chat_import_choose">Choose file</string>
+    <string name="chat_paste">Paste copied messages</string>
+    <string name="chat_paste_empty">Nothing copied. In WhatsApp long-press a message, select the posts, tap Copy, then come back and tap Paste.</string>
+    <string name="chat_paste_none">No WhatsApp messages found in what you copied. Copy the posts in WhatsApp (long-press, select, Copy) so each starts with [date, time] Name:</string>
     <string name="import_reading">Reading chat…</string>
     <string name="chat_import_found">%1$d messages in “%2$s” (%3$s – %4$s). Import:</string>
     <string name="chat_range_today">Today only</string>

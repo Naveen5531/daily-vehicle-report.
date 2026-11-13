@@ -321,7 +321,14 @@ class MainActivity : AppCompatActivity() {
         if (act != Intent.ACTION_SEND) return
         @Suppress("DEPRECATION")
         val uri = i.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: run {
-            Toast.makeText(this, R.string.chat_import_need_file, Toast.LENGTH_LONG).show()
+            // Copied WhatsApp messages shared as text.
+            val shared = i.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+            if (!shared.isNullOrBlank()) {
+                i.action = null
+                bottomNav.selectedItemId = R.id.nav_live
+                showTab(R.id.nav_live)
+                ChatImporter.startText(this, shared)
+            } else Toast.makeText(this, R.string.chat_import_need_file, Toast.LENGTH_LONG).show()
             return
         }
         i.action = null // handle once

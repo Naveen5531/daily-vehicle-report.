@@ -39,6 +39,18 @@ object ChatImporter {
         }.start()
     }
 
+    /** Messages copied in WhatsApp and pasted / shared as text. */
+    fun startText(a: MainActivity, text: String) {
+        val chat = VehicleStore.getSelectedGroup(a).ifBlank { "WhatsApp chat" }
+        val msgs = WhatsAppChatParser.parse(text, chat)
+        if (msgs.isEmpty()) {
+            MaterialAlertDialogBuilder(a).setTitle(R.string.chat_paste).setMessage(R.string.chat_paste_none)
+                .setPositiveButton(android.R.string.ok, null).show()
+            return
+        }
+        chooseRange(a, chat, msgs)
+    }
+
     private fun chooseRange(a: MainActivity, chat: String, msgs: List<IncomingMessage>) {
         if (msgs.isEmpty()) {
             MaterialAlertDialogBuilder(a).setTitle(R.string.chat_import_title).setMessage(R.string.chat_import_empty)
