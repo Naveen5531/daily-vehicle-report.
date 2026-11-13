@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "35035676173",
+    "project_id": "punch-attendence",
+    "storage_bucket": "punch-attendence.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:35035676173:android:e079b56d843613c0d79f44",
+        "android_client_info": {
+          "package_name": "com.logistics.vehiclereport"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVG0-owJRi586PMUhV0YjUQ8sxVxV-hx0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
