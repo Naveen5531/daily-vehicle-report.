@@ -463,16 +463,46 @@ object VehicleStore {
      * is now, so a vehicle added or imported later shows as reported (not Pending) for those days.
      */
     private fun resolveCodes(records: List<VehicleRecord>, vehicles: List<DedicatedVehicle>): List<VehicleRecord> {
-        val byLast4 = last4Map(vehicles.map { it.number })
+        // last4 -> the full vehicle objects ending with those digits (so the vendor/transporter is available to break ties)
+        val byLast4 = vehicles.groupBy { VehicleParser.last4(it.number) }
         return records.map { r ->
             if (r.match != MatchType.CODE) return@map r
             val cands = byLast4[r.typed].orEmpty()
             when {
                 cands.isEmpty() -> r
-                cands.size == 1 -> r.copy(match = MatchType.LAST4, candidates = cands, vehicle = cands[0])
-                else -> r.copy(match = MatchType.MULTI, candidates = cands, vehicle = cands.joinToString(" / "))
+                cands.size == 1 -> r.copy(match = MatchType.LAST4, candidates = listOf(cands[0].number), vehicle = cands[0].number)
+                else -> {
+                    // Same last 4 on two vehicles: use the vendor from the post vs. the vehicle's transporter
+                    // (the transporter comes from the DC inward / vehicle master) to pick the one.
+                    val byVendor = if (r.vendor.isNotBlank()) cands.filter { vendorMatches(r.vendor, it.transporter) } else emptyList()
+                    if (byVendor.size == 1)
+                        r.copy(match = MatchType.LAST4, candidates = listOf(byVendor[0].number), vehicle = byVendor[0].number)
+                    else
+                        r.copy(match = MatchType.MULTI, candidates = cands.map { it.number }, vehicle = cands.joinToString(" / ") { it.number })
+                }
             }
         }
+    }
+
+    /** True when the vendor written in the group post and a vehicle's transporter are the same firm (loose match). */
+    private fun vendorMatches(a: String, b: String): Boolean {
+        if (a.isBlank() || b.isBlank()) return false
+        val na = vendorKey(a); val nb = vendorKey(b)
+        if (na.isEmpty() || nb.isEmpty()) return false
+        if (na == nb || na.contains(nb) || nb.contains(na)) return true
+        val ta = na.split(" ").filter { it.length >= 3 }.toSet()
+        val tb = nb.split(" ").filter { it.length >= 3 }.toSet()
+        return ta.intersect(tb).isNotEmpty()
+    }
+
+    /** Normalises a transporter / vendor name: upper-case, drop the generic words, keep the distinctive part. */
+    private fun vendorKey(s: String): String {
+        val drop = setOf("TRANSPORT", "TRANSPORTS", "TRANSPORTER", "TRANSPORTERS", "TPT", "CARGO", "CORGO",
+            "LOGISTICS", "LOGISTIC", "LOGOSTIC", "MOVERS", "PACKERS", "ROADLINES", "ROADWAYS", "ROAD", "LINES",
+            "CARRIERS", "CARRIER", "PVT", "LTD", "PRIVATE", "LIMITED", "SOLUTIONS", "SERVICES", "SERVICE",
+            "AND", "THE", "CO", "COMPANY", "ENTERPRISES", "AGENCY", "AGENCIES")
+        return s.uppercase().replace(Regex("[^A-Z0-9 ]"), " ")
+            .split(Regex("\\s+")).filter { it.isNotBlank() && it !in drop }.joinToString(" ").trim()
     }
 
     /** Names / numbers of everyone who posted a captured vehicle (for the "Posted by" picker). */
