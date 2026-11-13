@@ -492,6 +492,28 @@ class PlanTab(private val a: MainActivity, root: View) {
             selected += i
         }
         refresh()
+        // 2 picked: ask right away (the bar may be scrolled off the screen).
+        if (selected.size == 2) askClubTwo()
+    }
+
+    /** Two vehicles picked: their stores, total volume and km apart, with a Club button. */
+    private fun askClubTwo() {
+        val r = result ?: return
+        val loads = selected.mapNotNull { r.loads.getOrNull(it) }
+        if (loads.size != 2) return
+        val names = loads.flatMap { l -> l.parts.map { it.first } }.distinctBy { it.code }.joinToString("\n") { "• ${it.code} ${it.shownName}" }
+        val pts = loads.map { l -> l.codes.mapNotNull { places[it] } }
+        val apart = pts[0].flatMap { p -> pts[1].map { VehiclePlanner.km(p, it) } }.minOrNull()
+        val total = loads.sumOf { it.volume }
+        val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
+        val msg = names + "\n\n" + a.getString(R.string.plan_club_two_total, vol(total), vol(max)) +
+            (apart?.let { "\n" + a.getString(R.string.plan_club_two_km, km(it)) } ?: "")
+        MaterialAlertDialogBuilder(a)
+            .setTitle(R.string.plan_club_two_title)
+            .setMessage(msg)
+            .setPositiveButton(R.string.plan_club_selected) { _, _ -> clubSelected() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun setSelectMode(on: Boolean) {

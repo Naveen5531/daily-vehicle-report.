@@ -176,6 +176,9 @@
     <string name="plan_club_to_title">Club %1$s (%2$s) to which vehicle?</string>
     <string name="plan_two_at_a_time">2 stores at a time – the first one was dropped</string>
     <string name="plan_club_done">Clubbed: %1$s volume on one vehicle</string>
+    <string name="plan_club_two_title">Club these 2 stores?</string>
+    <string name="plan_club_two_total">Total %1$s of %2$s (biggest vehicle)</string>
+    <string name="plan_club_two_km">%1$s km apart (straight line)</string>
     <string name="plan_no_limit">No limit</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>
