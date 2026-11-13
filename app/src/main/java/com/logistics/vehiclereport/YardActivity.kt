@@ -46,7 +46,9 @@ class YardActivity : AppCompatActivity() {
     private lateinit var list: LinearLayout
     private lateinit var empty: TextView
     private lateinit var dedChip: TextView
+    private lateinit var siteChip: TextView
     private lateinit var shiftBtn: TextView
+    private var siteFilter = ""   // digits of the chosen Site Id; "" = all
     private val tileCount = arrayOfNulls<TextView>(3)
     private val tileWrap = arrayOfNulls<View>(3)
 
@@ -123,7 +125,19 @@ class YardActivity : AppCompatActivity() {
                 override fun afterTextChanged(s: Editable?) { query = s?.toString().orEmpty().trim(); refresh() }
             })
         }
-        row.addView(search, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(search, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        body.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+
+        // Chips row: Site filter + Dedicated
+        val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        siteChip = tv("", 13f, R.color.emerald, R.font.jakarta_bold).apply {
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.pill_bg)
+            backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.brand_light)
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            setOnClickListener { siteDialog() }
+        }
+        chips.addView(siteChip)
         dedChip = tv(getString(R.string.yard_dedicated_only), 13f, R.color.muted, R.font.jakarta_bold).apply {
             gravity = Gravity.CENTER
             setBackgroundResource(R.drawable.pill_bg)
@@ -131,8 +145,8 @@ class YardActivity : AppCompatActivity() {
             setPadding(dp(14), dp(11), dp(14), dp(11))
             setOnClickListener { dedicatedOnly = !dedicatedOnly; styleDedChip(); refresh() }
         }
-        row.addView(dedChip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) })
-        body.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+        chips.addView(dedChip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) })
+        body.addView(chips, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
 
         shiftBtn = tv(getString(R.string.yard_shift_btn), 12.5f, R.color.emerald, R.font.jakarta_bold).apply {
             gravity = Gravity.CENTER
@@ -216,6 +230,37 @@ class YardActivity : AppCompatActivity() {
         dedChip.backgroundTintList = ContextCompat.getColorStateList(this, if (dedicatedOnly) R.color.brand_light else R.color.soft)
         dedChip.setTextColor(color(if (dedicatedOnly) R.color.emerald else R.color.muted))
     }
+    private fun styleSiteChip() {
+        siteChip.text = if (siteFilter.isEmpty()) getString(R.string.yard_site_all) else getString(R.string.yard_site_one, siteFilter)
+        siteChip.backgroundTintList = ContextCompat.getColorStateList(this, if (siteFilter.isEmpty()) R.color.soft else R.color.mint)
+        siteChip.setTextColor(color(if (siteFilter.isEmpty()) R.color.muted else R.color.emerald))
+    }
+
+    private fun siteDigits(s: String): String = s.filter { it.isDigit() }
+
+    /** The Site Id values present in the current tab (Standing/Transit use the Site column; Overdue uses the store). */
+    private fun siteValues(): List<String> {
+        val raw = if (current == 2) {
+            val from = YardStore.table(this, "From 1041"); val c = from.col("destination", "dest")
+            from.rows.mapNotNull { it.getOrNull(c)?.trim() }
+        } else {
+            val t = YardStore.table(this, tabs[current].sheet); val c = t.col("site")
+            if (c < 0) emptyList() else t.rows.mapNotNull { it.getOrNull(c)?.trim() }
+        }
+        return raw.map { siteDigits(it) }.filter { it.isNotEmpty() }.distinct().sorted()
+    }
+
+    private fun siteDialog() {
+        val sites = siteValues()
+        val items = (listOf(getString(R.string.yard_site_all)) + sites).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.yard_site_title)
+            .setItems(items) { d, which ->
+                siteFilter = if (which == 0) "" else sites[which - 1]
+                styleSiteChip(); refresh(); d.dismiss()
+            }
+            .show()
+    }
 
     // ---------- data ----------
     private fun refresh() {
@@ -228,6 +273,7 @@ class YardActivity : AppCompatActivity() {
         val overdue = computeOverdue(dedicated)
         tileCount[2]?.text = overdue.size.toString()
 
+        styleSiteChip()
         val isOverdue = current == 2
         shiftBtn.visibility = if (isOverdue) View.VISIBLE else View.GONE
         dedChip.visibility = if (isOverdue) View.GONE else View.VISIBLE
@@ -235,7 +281,10 @@ class YardActivity : AppCompatActivity() {
 
         if (isOverdue) {
             val q = query.uppercase().filter { it.isLetterOrDigit() }
-            val shown = overdue.filter { q.isEmpty() || (it.vehicle + it.store + it.detail).uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q) }
+            val shown = overdue.filter {
+                (siteFilter.isEmpty() || siteDigits(it.store) == siteFilter) &&
+                (q.isEmpty() || (it.vehicle + it.store + it.detail).uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q))
+            }
             empty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
             empty.text = if (at == 0L) getString(R.string.yard_empty_never) else getString(R.string.yard_overdue_none)
             for (o in shown) list.addView(overdueCard(o))
@@ -244,10 +293,12 @@ class YardActivity : AppCompatActivity() {
 
         val table = YardStore.table(this, tabs[current].sheet)
         val vCol = table.col("vehicle number", "vehicle no", "vehicle")
+        val siteCol = table.col("site")
         val q = query.uppercase().filter { it.isLetterOrDigit() }
         val shown = table.rows.filter { r ->
             val plate = plateOf(r.getOrNull(vCol).orEmpty())
             (!dedicatedOnly || plate in dedicated) &&
+                (siteFilter.isEmpty() || (siteCol >= 0 && siteDigits(r.getOrNull(siteCol).orEmpty()) == siteFilter)) &&
                 (q.isEmpty() || r.any { it.uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q) })
         }
         empty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
