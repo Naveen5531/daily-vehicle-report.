@@ -17,7 +17,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Switch
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -34,7 +36,7 @@ class YardActivity : AppCompatActivity() {
     private val tabs = listOf(
         Tab("Standing", "Standing"),
         Tab("Transit", "In-transit"),
-        Tab("Drishti Standing", "At DC now")
+        Tab("overdue", "Overdue")
     )
     private var current = 0
     private var query = ""
@@ -44,6 +46,7 @@ class YardActivity : AppCompatActivity() {
     private lateinit var list: LinearLayout
     private lateinit var empty: TextView
     private lateinit var dedChip: TextView
+    private lateinit var shiftBtn: TextView
     private val tileCount = arrayOfNulls<TextView>(3)
     private val tileWrap = arrayOfNulls<View>(3)
 
@@ -131,6 +134,16 @@ class YardActivity : AppCompatActivity() {
         row.addView(dedChip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) })
         body.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
 
+        shiftBtn = tv(getString(R.string.yard_shift_btn), 12.5f, R.color.emerald, R.font.jakarta_bold).apply {
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.pill_bg)
+            backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.brand_light)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            visibility = View.GONE
+            setOnClickListener { shiftDialog() }
+        }
+        body.addView(shiftBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+
         empty = tv("", 14f, R.color.muted, R.font.jakarta_medium).apply { setPadding(dp(4), dp(28), dp(4), dp(28)); gravity = Gravity.CENTER }
         body.addView(empty)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -210,7 +223,24 @@ class YardActivity : AppCompatActivity() {
         updatedPill.text = if (at > 0) ReportBuilder.timeFmt().format(Date(at)) else getString(R.string.yard_waiting_pill)
 
         val dedicated = try { VehicleStore.getVehicles(this).filter { it.dedicated }.map { it.number }.toSet() } catch (e: Exception) { emptySet() }
-        for (i in tabs.indices) tileCount[i]?.text = YardStore.table(this, tabs[i].sheet).rows.size.toString()
+        tileCount[0]?.text = YardStore.table(this, tabs[0].sheet).rows.size.toString()
+        tileCount[1]?.text = YardStore.table(this, tabs[1].sheet).rows.size.toString()
+        val overdue = computeOverdue(dedicated)
+        tileCount[2]?.text = overdue.size.toString()
+
+        val isOverdue = current == 2
+        shiftBtn.visibility = if (isOverdue) View.VISIBLE else View.GONE
+        dedChip.visibility = if (isOverdue) View.GONE else View.VISIBLE
+        list.removeAllViews()
+
+        if (isOverdue) {
+            val q = query.uppercase().filter { it.isLetterOrDigit() }
+            val shown = overdue.filter { q.isEmpty() || (it.vehicle + it.store + it.detail).uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q) }
+            empty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+            empty.text = if (at == 0L) getString(R.string.yard_empty_never) else getString(R.string.yard_overdue_none)
+            for (o in shown) list.addView(overdueCard(o))
+            return
+        }
 
         val table = YardStore.table(this, tabs[current].sheet)
         val vCol = table.col("vehicle number", "vehicle no", "vehicle")
@@ -220,8 +250,6 @@ class YardActivity : AppCompatActivity() {
             (!dedicatedOnly || plate in dedicated) &&
                 (q.isEmpty() || r.any { it.uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q) })
         }
-
-        list.removeAllViews()
         empty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
         empty.text = when {
             at == 0L -> getString(R.string.yard_empty_never)
@@ -231,7 +259,123 @@ class YardActivity : AppCompatActivity() {
         for (r in shown) list.addView(card(table, r, vCol, dedicated))
     }
 
-    private fun plateOf(cell: String): String {
+    // ---------- overdue logic ----------
+    private data class OverdueRow(val vehicle: String, val store: String, val reason: String, val detail: String, val severity: Int)
+
+    private fun computeOverdue(dedicated: Set<String>): List<OverdueRow> {
+        val from = YardStore.table(this, "From 1041")
+        if (from.rows.isEmpty()) return emptyList()
+        val standing = YardStore.table(this, "Standing")
+        val coming = YardStore.table(this, "Coming to 1041")
+        val now = System.currentTimeMillis()
+
+        val sVeh = standing.col("vehicle number", "vehicle no", "vehicle")
+        val sIn = standing.col("checked in", "checkedin")
+        val sWait = standing.col("waiting")
+        val standingMap = HashMap<String, Pair<Long, String>>()
+        for (r in standing.rows) {
+            val pl = plateOf(r.getOrNull(sVeh).orEmpty()); if (pl.isEmpty()) continue
+            standingMap[pl] = DrishtiData.parseTime(r.getOrNull(sIn).orEmpty(), 0L) to r.getOrNull(sWait).orEmpty()
+        }
+        val cVeh = coming.col("vehicle number", "vehicle no", "vehicle")
+        val returned = coming.rows.mapNotNull { plateOf(it.getOrNull(cVeh).orEmpty()).takeIf { it.isNotEmpty() } }.toHashSet()
+
+        val fVeh = from.col("vehicle number", "vehicle no", "vehicle")
+        val fDest = from.col("destination", "dest")
+        val fOut = from.col("checked out", "checkedout")
+        val fDrv = from.col("driver name", "driver")
+        val out = ArrayList<OverdueRow>()
+        for (r in from.rows) {
+            val pl = plateOf(r.getOrNull(fVeh).orEmpty()); if (pl.isEmpty()) continue
+            val raw = r.getOrNull(fVeh).orEmpty()
+            val store = r.getOrNull(fDest).orEmpty().trim().ifEmpty { "?" }
+            val dispatch = DrishtiData.parseTime(r.getOrNull(fOut).orEmpty(), 0L)
+            if (dispatch <= 0) continue
+            if (dispatch < StoreShift.windowStart(this, store, now)) continue
+            if (dedicatedOnly && pl !in dedicated) continue
+            val driver = r.getOrNull(fDrv).orEmpty().trim()
+            val mob = mobileOf(from, r)
+            val who = (if (driver.isNotEmpty()) driver else "") + (if (mob != null) " ($mob)" else "")
+            val st = standingMap[pl]
+            if (st != null) {
+                val h = waitHours(st.second, st.first, now)
+                if (h >= 3.0) out.add(OverdueRow(raw, store, getString(R.string.yard_no_checkout, fmtH(h)),
+                    "Store " + store + (if (who.isNotBlank()) "\nDriver: " + who.trim() else "") +
+                        (if (st.first > 0) "\nChecked in " + ReportBuilder.timeFmt().format(Date(st.first)) else ""), 1))
+            } else if (pl !in returned) {
+                val h = (now - dispatch) / 3600000.0
+                if (h >= 5.0) out.add(OverdueRow(raw, store, getString(R.string.yard_no_checkin, fmtH(h)),
+                    "Store " + store + (if (who.isNotBlank()) "\nDriver: " + who.trim() else "") +
+                        "\nDispatched " + ReportBuilder.timeFmt().format(Date(dispatch)), 2))
+            }
+        }
+        out.sortByDescending { it.severity }
+        return out
+    }
+
+    /** Waiting time at store: parse "HH : MM" if present, else now - check-in. */
+    private fun waitHours(waitText: String, checkIn: Long, now: Long): Double {
+        val m = Regex("(\\d+)\\s*:\\s*(\\d+)").find(waitText)
+        if (m != null) return m.groupValues[1].toInt() + m.groupValues[2].toInt() / 60.0
+        if (checkIn > 0) return (now - checkIn) / 3600000.0
+        return 0.0
+    }
+
+    private fun fmtH(h: Double): String {
+        val total = (h * 60).toInt()
+        return (total / 60).toString() + "h " + String.format("%02dm", total % 60)
+    }
+
+    private fun overdueCard(o: OverdueRow): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.gate_row_bg)
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+        }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        head.addView(tv(o.vehicle.ifBlank { "\u2013" }, 17f, R.color.ink, R.font.jakarta_bold),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val fg = if (o.severity >= 2) R.color.no else R.color.chk
+        val bg = if (o.severity >= 2) R.color.no_bg else R.color.chk_bg
+        head.addView(pillText(o.reason, fg, bg))
+        card.addView(head)
+        card.addView(tv(o.detail, 13f, R.color.muted, R.font.jakarta_medium).apply { setPadding(0, dp(5), 0, 0); setLineSpacing(dp(3).toFloat(), 1f) })
+        val mob = Regex("\\((\\d{10})\\)").find(o.detail)?.groupValues?.get(1)
+        card.setOnClickListener { if (mob != null) try { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$mob"))) } catch (e: Exception) {} }
+        return card.also { it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) } }
+    }
+
+    /** Dialog: mark each destination store Day or Night (Night start 10 PM, Day start 6 AM). */
+    private fun shiftDialog() {
+        val from = YardStore.table(this, "From 1041")
+        val fDest = from.col("destination", "dest")
+        val stores = from.rows.mapNotNull { it.getOrNull(fDest)?.trim()?.takeIf { s -> s.isNotEmpty() && s != "-" } }.distinct().sorted()
+        val scroll = ScrollView(this)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), dp(8)) }
+        if (stores.isEmpty()) box.addView(tv(getString(R.string.yard_shift_empty), 14f, R.color.muted, R.font.jakarta_medium))
+        for (code in stores) {
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+            r.addView(tv(code, 15f, R.color.ink, R.font.jakarta_bold), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            val lbl = tv(if (StoreShift.isNight(this, code)) getString(R.string.yard_night) else getString(R.string.yard_day), 13f, R.color.muted, R.font.jakarta_bold)
+            val sw = Switch(this).apply {
+                isChecked = StoreShift.isNight(this@YardActivity, code)
+                setOnCheckedChangeListener { _, night ->
+                    StoreShift.setNight(this@YardActivity, code, night)
+                    lbl.text = if (night) getString(R.string.yard_night) else getString(R.string.yard_day)
+                }
+            }
+            r.addView(lbl); r.addView(sw)
+            box.addView(r)
+        }
+        scroll.addView(box)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.yard_shift_title)
+            .setView(scroll)
+            .setPositiveButton(R.string.yard_done) { d, _ -> d.dismiss(); refresh() }
+            .show()
+    }
+
+    private fun plateOf(    private fun plateOf(cell: String): String {
         val first = cell.substringBefore("(").trim()
         return DrishtiData.plate(first) ?: first.uppercase().filter { it.isLetterOrDigit() }
     }

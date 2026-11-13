@@ -844,6 +844,15 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="yard_waiting_pill">waiting…</string>
     <string name="yard_checking_pill">checking…</string>
     <string name="yard_departed">Departed</string>
+    <string name="yard_shift_btn">Store Day / Night</string>
+    <string name="yard_shift_title">Store unloading shift</string>
+    <string name="yard_shift_empty">No destination stores in the latest data yet.</string>
+    <string name="yard_day">Day · from 6 AM</string>
+    <string name="yard_night">Night · from 10 PM</string>
+    <string name="yard_done">Done</string>
+    <string name="yard_overdue_none">No overdue vehicles. All within 5 hrs to check-in and 3 hrs to check-out.</string>
+    <string name="yard_no_checkin">No check-in · %1$s since dispatch</string>
+    <string name="yard_no_checkout">No check-out · %1$s at store</string>
     <string name="yard_link">Link code for office Excel (copy / share)</string>
     <string name="yard_search">Search vehicle, transporter, driver…</string>
     <string name="yard_dedicated_only">Dedicated</string>
