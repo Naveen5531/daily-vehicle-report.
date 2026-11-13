@@ -209,4 +209,15 @@ class VehiclePlannerTest {
         assertEquals(2, r.vehicles)
         assertTrue(r.loads.all { it.clubbed && it.codes.size == 2 })
     }
+
+    @Test fun twentyTwoFeetChosenByHandRefillsAndClubsMore() {
+        val t22 = VehiclePlanner.DEFAULT_TYPES.first { it.name == "22 ft" }
+        val stops = listOf(s("KCG", 600.0), s("CHM", 380.0), s("VJA", 2000.0, region = "R2"))
+        val normal = VehiclePlanner.plan(stops, VehiclePlanner.Options(places = at, dc = dc))
+        assertEquals(5, normal.vehicles)          // 850 + 850 + 300, 600, 380 (600 + 380 > 850)
+        val big = VehiclePlanner.plan(stops, VehiclePlanner.Options(places = at, dc = dc, sizeFor = mapOf("KCG" to t22, "VJA" to t22)))
+        assertEquals(3, big.vehicles)             // 1010 + 990, 600 + 380 = 980 on 22 ft
+        assertTrue(big.loads.all { it.type?.name == "22 ft" })
+        assertTrue(big.loads.any { it.clubbed && it.codes.toSet() == setOf("KCG", "CHM") })
+    }
 }

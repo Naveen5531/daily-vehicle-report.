@@ -108,14 +108,18 @@ object VehiclePlanner {
         /** Stores too small for a vehicle of their own: they only ride on another vehicle going their way, else held. */
         val rideOnly: Set<String> = emptySet(),
         /** 0 = the best clubbing; 1, 2, … = another mix of pairs on the same routes (Reshuffle). */
-        val shuffle: Int = 0
+        val shuffle: Int = 0,
+        /** Vehicle size chosen by hand for a store (long-press a vehicle: 22 ft / 24 ft): its loads fill that size, and
+         *  more stores may be clubbed onto it up to that size. */
+        val sizeFor: Map<String, VehicleCap> = emptyMap()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
-            upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle
+            upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
+            sizeFor: Map<String, VehicleCap> = this.sizeFor
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor)
     }
 
     /** Straight-line km between two places. */
@@ -268,7 +272,7 @@ object VehiclePlanner {
                 upcountry = emptySet(), upcountryType = null))
         val order = stops.filter { it.volume > EPS }.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
         val loads = chain((near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume }))
-        val types = (o.types.filter { it.on && it.capacity > 0 } + upType).distinctBy { it.name }.sortedByDescending { it.capacity }
+        val types = (o.types.filter { it.on && it.capacity > 0 } + upType + o.sizeFor.values).distinctBy { it.name }.sortedByDescending { it.capacity }
         val byType = types.map { t -> t to loads.count { it.type?.name == t.name } }.filter { it.second > 0 }
         return PlanResult(loads, byType, near.totalVolume + far.totalVolume, near.held + far.held)
     }
@@ -280,16 +284,20 @@ object VehiclePlanner {
             return PlanResult(valid.map { PlanLoad(it.cluster, listOf(it to it.volume), null, false) }, emptyList(), valid.sumOf { it.volume })
         }
         val max = types.first().capacity
+        // A vehicle size chosen by hand (22 ft / 24 ft) for a store: that store's loads may fill it.
+        fun capCodes(codes: Collection<String>) = maxOf(max, codes.maxOfOrNull { o.sizeFor[it]?.capacity ?: 0.0 } ?: 0.0)
+        fun chosen(codes: Collection<String>) = codes.mapNotNull { o.sizeFor[it] }.maxByOrNull { it.capacity }
         val loads = mutableListOf<Load>()
         // The rest of each store (after full loads): the part that can share a vehicle.
         val rest = LinkedHashMap<String, Load>()
         for (s in valid) {
+            val cap = capCodes(listOf(s.code))
             var left = s.volume
-            while (left > max + EPS) {
-                loads += Load(s.cluster, mutableListOf(s to max), full = true)
-                left -= max
+            while (left > cap + EPS) {
+                loads += Load(s.cluster, mutableListOf(s to cap), full = true)
+                left -= cap
             }
-            val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > max + EPS, rideOnly = s.code in o.rideOnly && s.volume <= max + EPS)
+            val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > cap + EPS, rideOnly = s.code in o.rideOnly && s.volume <= cap + EPS)
             loads += l
             rest[s.code] = l
         }
@@ -301,7 +309,7 @@ object VehiclePlanner {
             if (members.size < 2) continue
             val host = members.first()
             for (m in members.drop(1)) {
-                if (host.volume + m.volume > max + EPS || (host.codes + m.codes).size > o.maxStops) continue
+                if (host.volume + m.volume > capCodes(host.codes + m.codes) + EPS || (host.codes + m.codes).size > o.maxStops) continue
                 host.parts += m.parts
                 loads.remove(m)
                 host.clubbed = true
@@ -310,7 +318,7 @@ object VehiclePlanner {
         }
 
         if (o.autoClub) {
-            fun capOf(v: Double) = fit(v, types)?.capacity ?: Double.MAX_VALUE
+            fun capOf(v: Double, codes: Collection<String> = emptyList()) = chosen(codes)?.capacity ?: fit(v, types)?.capacity ?: Double.MAX_VALUE
             // A load that may take part in auto clubbing: not a big store's full load, not split or clubbed by hand.
             fun free(l: Load) = !l.full && l.codes.none { it in o.noClub } && l.codes.none { it in inHandClub }
             // Below "Club below" (0 = any size), the rest of a big store, or a ride-only store.
@@ -336,13 +344,15 @@ object VehiclePlanner {
                     if (host.volume < add.volume - EPS || (host.volume - add.volume).let { abs(it) <= EPS } && i > j) continue
                     if (host.rideOnly && add.rideOnly && host.parts.size == 1 && add.parts.size == 1) continue
                     if (!small(add) && !small(host) && o.clubBelow > 0) continue
-                    if ((host.codes + add.codes).size > o.maxStops || host.volume + add.volume > max + EPS) continue
+                    if ((host.codes + add.codes).size > o.maxStops || host.volume + add.volume > capCodes(host.codes + add.codes) + EPS) continue
                     if (!fitsOnRoute(host.parts.map { it.first }, add.parts.map { it.first }, o)) continue
                     val v = host.volume + add.volume
                     // Reshuffle: each pair gets a fixed random 0–15 km head start, so other pairs (still on one route) win.
                     val jitter = if (o.shuffle <= 0) 0.0 else
                         kotlin.random.Random(o.shuffle * 7919 + (host.codes + add.codes).sorted().hashCode()).nextInt(0, 4).toDouble()
-                    val key = doubleArrayOf(Math.floor(cost(host, add) / 5.0) + jitter, capOf(v) - capOf(host.volume), -v / capOf(v))
+                    val both = host.codes + add.codes
+                    val key = doubleArrayOf(Math.floor(cost(host, add) / 5.0) + jitter, capOf(v, both) - capOf(host.volume, host.codes),
+                        -v / capOf(v, both))
                     val b = best?.third
                     if (b == null || key[0] < b[0] || key[0] == b[0] && (key[1] < b[1] || key[1] == b[1] && key[2] < b[2])) best = Triple(host, add, key)
                 }
@@ -361,11 +371,12 @@ object VehiclePlanner {
         val order = valid.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
         val out = loads.map { l ->
             val route = routeKm(l.parts, o)
-            PlanLoad(l.cluster, l.parts.toList(), fit(l.volume, types), l.clubbed, route?.first, route?.second)
+            PlanLoad(l.cluster, l.parts.toList(), chosen(l.codes)?.copy(on = true) ?: fit(l.volume, types), l.clubbed, route?.first, route?.second)
         }
             .sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume })
             .let { chain(it) }
-        val byType = types.map { t -> t to out.count { it.type == t } }.filter { it.second > 0 }
+        val allTypes = (types + o.sizeFor.values.map { it.copy(on = true) }).distinctBy { it.name }.sortedByDescending { it.capacity }
+        val byType = allTypes.map { t -> t to out.count { it.type?.name == t.name } }.filter { it.second > 0 }
         return PlanResult(out, byType, out.sumOf { it.volume }, held)
     }
 }

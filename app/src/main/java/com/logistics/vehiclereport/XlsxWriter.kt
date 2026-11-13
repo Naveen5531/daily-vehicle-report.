@@ -4,25 +4,32 @@ import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-/** Writes a simple one-sheet .xlsx (opens in Excel, Google Sheets, WPS). No external library needed. */
+/** Writes a simple .xlsx, one sheet or several (opens in Excel, Google Sheets, WPS). No external library needed. */
 object XlsxWriter {
+
+    /** One sheet of a workbook. */
+    class Sheet(val name: String, val rows: List<List<String>>, val widths: List<Int>)
 
     /** Plain numbers (no leading zero, up to 9 digits before the point) written as numbers when [numbers] is on. */
     private val PLAIN_NUMBER = Regex("^-?(0|[1-9]\\d{0,8})(\\.\\d+)?$")
 
-    fun write(out: OutputStream, sheetName: String, rows: List<List<String>>, columnWidths: List<Int>, numbers: Boolean = false) {
+    fun write(out: OutputStream, sheetName: String, rows: List<List<String>>, columnWidths: List<Int>, numbers: Boolean = false) =
+        writeSheets(out, listOf(Sheet(sheetName, rows, columnWidths)), numbers)
+
+    /** A workbook with every sheet in [sheets], in that order. */
+    fun writeSheets(out: OutputStream, sheets: List<Sheet>, numbers: Boolean = false) {
         ZipOutputStream(out).use { zip ->
             fun put(path: String, content: String) {
                 zip.putNextEntry(ZipEntry(path))
                 zip.write(content.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
             }
-            put("[Content_Types].xml", CONTENT_TYPES)
+            put("[Content_Types].xml", contentTypes(sheets.size))
             put("_rels/.rels", ROOT_RELS)
-            put("xl/workbook.xml", workbook(sheetName))
-            put("xl/_rels/workbook.xml.rels", WORKBOOK_RELS)
+            put("xl/workbook.xml", workbook(sheets.map { it.name }))
+            put("xl/_rels/workbook.xml.rels", workbookRels(sheets.size))
             put("xl/styles.xml", STYLES)
-            put("xl/worksheets/sheet1.xml", sheet(rows, columnWidths, numbers))
+            sheets.forEachIndexed { i, sh -> put("xl/worksheets/sheet${i + 1}.xml", sheet(sh.rows, sh.widths, numbers)) }
         }
     }
 
@@ -85,34 +92,39 @@ object XlsxWriter {
         return sb.toString()
     }
 
-    private fun workbook(sheetName: String): String {
-        val safe = escape(sheetName.replace(Regex("[\\\\/?*\\[\\]:]"), " ").take(31))
+    private fun workbook(names: List<String>): String {
+        val used = HashSet<String>()
+        val sheets = names.mapIndexed { i, n ->
+            var safe = n.replace(Regex("[\\\\/?*\\[\\]:]"), " ").take(31).ifBlank { "Sheet${i + 1}" }
+            while (!used.add(safe.lowercase())) safe = safe.take(28) + " ${i + 1}"
+            """<sheet name="${escape(safe)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>"""
+        }.joinToString("")
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" +
             """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""" +
-            """<sheets><sheet name="$safe" sheetId="1" r:id="rId1"/></sheets></workbook>"""
+            """<sheets>$sheets</sheets></workbook>"""
     }
 
-    private const val CONTENT_TYPES =
+    private fun contentTypes(n: Int) =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" +
             """<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">""" +
             """<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>""" +
             """<Default Extension="xml" ContentType="application/xml"/>""" +
             """<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>""" +
-            """<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>""" +
+            (1..n).joinToString("") { """<Override PartName="/xl/worksheets/sheet$it.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>""" } +
             """<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>""" +
             """</Types>"""
+
+    private fun workbookRels(n: Int) =
+        """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" +
+            """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">""" +
+            (1..n).joinToString("") { """<Relationship Id="rId$it" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet$it.xml"/>""" } +
+            """<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>""" +
+            """</Relationships>"""
 
     private const val ROOT_RELS =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" +
             """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">""" +
             """<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>""" +
-            """</Relationships>"""
-
-    private const val WORKBOOK_RELS =
-        """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" +
-            """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">""" +
-            """<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>""" +
-            """<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>""" +
             """</Relationships>"""
 
     private const val STYLES =

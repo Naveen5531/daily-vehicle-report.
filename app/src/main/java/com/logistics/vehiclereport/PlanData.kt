@@ -34,7 +34,9 @@ object PlanData {
         val stops: List<PlanStop>,
         val noClub: Set<String>,
         val clubs: List<Set<String>>,
-        val sources: List<Source>
+        val sources: List<Source>,
+        /** Vehicle size chosen by hand for a store (store code → size name, e.g. "22 ft"); long-press a vehicle. */
+        val sizes: Map<String, String> = emptyMap()
     )
 
     private fun p(c: Context) = VehicleStore.prefs(c)
@@ -56,7 +58,8 @@ object PlanData {
                 Source(s.optString("label"), s.optInt("rows"), if (s.has("sheet")) s.optDouble("sheet") else null, s.optDouble("read"))
             }
         }.orEmpty()
-        return Plan(o.optLong("created", 0L), stops, strings(o.optJSONArray("noClub")).toSet(), clubs, sources)
+        val sizes = o.optJSONObject("sizes")?.let { m -> m.keys().asSequence().associateWith { m.optString(it) } }.orEmpty()
+        return Plan(o.optLong("created", 0L), stops, strings(o.optJSONArray("noClub")).toSet(), clubs, sources, sizes)
     }
 
     fun save(c: Context, plan: Plan) {
@@ -70,6 +73,7 @@ object PlanData {
         })
         o.put("noClub", JSONArray(plan.noClub.toList()))
         o.put("clubs", JSONArray().apply { plan.clubs.forEach { put(JSONArray(it.toList())) } })
+        o.put("sizes", JSONObject().apply { plan.sizes.forEach { (k, v) -> put(k, v) } })
         o.put("sources", JSONArray().apply {
             plan.sources.forEach { s ->
                 put(JSONObject().put("label", s.label).put("rows", s.rows).put("read", s.readTotal).apply { s.sheetTotal?.let { put("sheet", it) } })
@@ -195,8 +199,22 @@ object PlanData {
     fun options(c: Context, plan: Plan) = VehiclePlanner.Options(
         types = types(c), clubBelow = clubBelow(c), autoClub = autoClub(c), maxStops = maxStops(c), noClub = plan.noClub, clubs = plan.clubs,
         places = StoreGeo.places(c), dc = StoreGeo.dc(c), nearKm = nearKm(c), maxClubKm = maxClubKm(c),
-        shuffle = shuffle(c)
+        shuffle = shuffle(c), sizeFor = sizeFor(c, plan)
     )
+
+    /** The big sizes that can be chosen for one vehicle (22 ft, 24 ft), with the capacities set in Sizes. */
+    fun bigSizes(c: Context): List<VehicleCap> {
+        val saved = types(c)
+        return listOf("22 ft", "24 ft").mapNotNull { n ->
+            (saved.firstOrNull { it.name == n } ?: VehiclePlanner.DEFAULT_TYPES.firstOrNull { it.name == n })?.copy(on = true)
+        }
+    }
+
+    /** Store code → the size chosen for its vehicle. */
+    fun sizeFor(c: Context, plan: Plan): Map<String, VehicleCap> {
+        val big = bigSizes(c).associateBy { it.name }
+        return plan.sizes.mapNotNull { (code, n) -> big[n]?.let { code to it } }.toMap()
+    }
 
     /** City and region of each store from the store list (by store code). */
     fun withPlaces(c: Context, stops: List<PlanStop>): List<PlanStop> {

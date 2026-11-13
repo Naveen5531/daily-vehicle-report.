@@ -447,8 +447,8 @@ class PlanTab(private val a: MainActivity, root: View) {
                 visibility = if (at != null) View.VISIBLE else View.GONE
                 if (at != null) setOnClickListener { PlanMap.openInMaps(a, at, PlanMap.dmartName(s)) }
             }
-            row.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) else editStop(s.code) }
-            row.setOnLongClickListener { toggle(index); true }
+            row.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) else details(index) }
+            row.setOnLongClickListener { vehicleMenu(index); true }
             stops.addView(row)
         }
         v.findViewById<View>(R.id.pvFoot).visibility = if (l.clubbed) View.VISIBLE else View.GONE
@@ -477,8 +477,8 @@ class PlanTab(private val a: MainActivity, root: View) {
         val on = index in selected
         v.strokeWidth = if (on) (2.5f * a.resources.displayMetrics.density).toInt() else 0
         v.strokeColor = Ui.color(a, R.color.emerald)
-        v.setOnLongClickListener { toggle(index); true }
-        v.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) }
+        v.setOnLongClickListener { vehicleMenu(index); true }
+        v.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) else details(index) }
         return v
     }
 
@@ -628,6 +628,122 @@ class PlanTab(private val a: MainActivity, root: View) {
         selected.clear()
         refresh()
         Toast.makeText(a, a.getString(R.string.plan_club_done, vol(total)), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Long-press a vehicle: run it as 22 ft / 24 ft (its stores fill that size and more are clubbed on), back to auto, or pick it to club. */
+    private fun vehicleMenu(index: Int) {
+        val r = result ?: return
+        val l = r.loads.getOrNull(index) ?: return
+        val plan = PlanData.load(a)
+        val big = PlanData.bigSizes(a)
+        val now = l.codes.mapNotNull { plan.sizes[it] }.firstOrNull()
+        val items = ArrayList<Pair<String, () -> Unit>>()
+        for (t in big) items += (a.getString(R.string.pv_size_item, t.name, vol(t.capacity)) + if (now == t.name) "  ✓" else "") to { setSize(l, t.name) }
+        if (now != null) items += a.getString(R.string.pv_size_auto) to { setSize(l, null) }
+        items += a.getString(R.string.pv_details) to { details(index) }
+        items += a.getString(R.string.pv_pick_club) to {
+            if (!selectMode) { selectMode = true }
+            if (index !in selected) toggle(index) else refresh()
+        }
+        val main = mainStore(l)
+        MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.pv_menu_title, index + 1, main?.let { "${it.code} ${it.shownName}" }.orEmpty(), vol(l.volume)))
+            .setItems(items.map { it.first }.toTypedArray()) { _, w -> items[w].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun mainStore(l: PlanLoad) = l.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
+
+    /** The vehicle's stores run on [size] ("22 ft" / "24 ft"; null = auto): volume re-filled and clubbing worked out again. */
+    private fun setSize(l: PlanLoad, size: String?) {
+        val before = result?.vehicles ?: 0
+        val plan = PlanData.load(a)
+        val sizes = plan.sizes.toMutableMap()
+        for (c in l.codes) if (size == null) sizes.remove(c) else sizes[c] = size
+        PlanData.save(a, plan.copy(sizes = sizes))
+        selected.clear(); refresh()
+        val after = result?.vehicles ?: 0
+        Toast.makeText(a, if (size == null) a.getString(R.string.pv_size_auto_done, before, after)
+            else a.getString(R.string.pv_size_done, size, before, after), Toast.LENGTH_LONG).show()
+    }
+
+    /** Tap a vehicle: everything about it – size, load, fill, zone, km, each store's details – with Maps route, size, edit and split. */
+    private fun details(index: Int) {
+        val r = result ?: return
+        val l = r.loads.getOrNull(index) ?: return
+        val plan = PlanData.load(a)
+        val dc = dcPlace
+        val sb = StringBuilder()
+        fun line(t: String) { if (t.isNotBlank()) sb.append(t).append('\n') }
+        val chosen = l.codes.mapNotNull { plan.sizes[it] }.firstOrNull()
+        line(a.getString(R.string.pd_size, l.type?.name ?: a.getString(R.string.plan_no_type),
+            if (chosen != null) a.getString(R.string.pd_size_hand) else a.getString(R.string.pd_size_autotag)))
+        line(a.getString(R.string.pd_load, vol(l.volume), l.type?.let { vol(it.capacity) } ?: "–", pct(l.fill),
+            l.type?.let { vol(maxOf(0.0, it.capacity - l.volume)) } ?: "–"))
+        line(a.getString(R.string.pd_zone, zoneName(loadZone(l)), l.codes.size,
+            if (l.clubbed) a.getString(R.string.pd_clubbed) else a.getString(R.string.pd_direct)))
+        l.routeKm?.let { line(a.getString(R.string.pd_trip, km(it)) + (if (l.clubbed) l.extraKm?.let { e -> " · " + a.getString(R.string.pd_extra, km(e)) }.orEmpty() else "")) }
+        if (l.codes.size > 1) {
+            val pts = l.codes.map { places[it] }
+            if (pts.all { it != null }) {
+                val p = pts.filterNotNull()
+                line(RoadKm.cached(a, p)?.let { a.getString(R.string.pd_between_road, km(it)) } ?: a.getString(R.string.pd_between_straight, km(RoadKm.straight(p))))
+            }
+        }
+        l.parts.groupBy { it.first.code }.entries.forEachIndexed { n, (code, ps) ->
+            val s = ps.first().first
+            val on = ps.sumOf { it.second }
+            sb.append('\n')
+            line("${n + 1}. $code · ${s.shownName}")
+            line("   " + Ui.joinNonBlank(s.city, s.region.ifBlank { s.circle }, if (s.circle.isNotBlank() && s.region.isNotBlank()) s.circle else ""))
+            line("   " + a.getString(R.string.pd_store_vol, vol(on), vol(s.volume)) +
+                (if (s.boxes > 0) " · " + a.getString(R.string.pd_boxes, s.boxes) else "") +
+                (if (s.weight > 0) " · " + a.getString(R.string.pd_weight, vol(s.weight)) else ""))
+            val at = places[code]
+            line("   " + Ui.joinNonBlank(
+                if (at != null && dc != null) a.getString(R.string.plan_km_from_dc, km(VehiclePlanner.km(dc, at))) else "",
+                a.getString(when (StoreGeo.kind(a, code)) {
+                    StoreGeo.Kind.EXACT -> R.string.pd_loc_exact; StoreGeo.Kind.AUTO -> R.string.pd_loc_auto; StoreGeo.Kind.NONE -> R.string.pd_loc_none
+                }),
+                zones[code]?.let { zoneName(it) }.orEmpty()))
+            s.sheetVehicles?.let { line("   " + a.resources.getQuantityString(R.plurals.plan_on_sheet, it, it)) }
+            if (s.remark.isNotBlank()) line("   " + a.getString(R.string.pd_remark, s.remark))
+            val others = r.loads.withIndex().filter { (j, ld) -> j != index && code in ld.codes }
+            if (others.isNotEmpty()) line("   " + a.getString(R.string.pd_other_vehicles,
+                others.joinToString(", ") { (j, ld) -> "#${j + 1} (${vol(ld.parts.filter { it.first.code == code }.sumOf { it.second })})" }))
+        }
+        val d = a.resources.displayMetrics.density
+        val box = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; setPadding((22 * d).toInt(), (6 * d).toInt(), (22 * d).toInt(), 0) }
+        box.addView(TextView(a).apply {
+            text = sb.toString().trimEnd(); textSize = 13.5f; setTextColor(Ui.color(a, R.color.ink)); setLineSpacing(3 * d, 1f)
+            setTextIsSelectable(true)
+        })
+        val buttons = com.google.android.material.chip.ChipGroup(a).apply { setPadding(0, (10 * d).toInt(), 0, 0) }
+        box.addView(buttons)
+        val scroll = android.widget.ScrollView(a).apply { addView(box) }
+        val main = mainStore(l)
+        val dialog = MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.pd_title, index + 1, main?.let { "${it.code} ${it.shownName}" }.orEmpty()))
+            .setView(scroll)
+            .setPositiveButton(R.string.pd_close, null)
+            .create()
+        fun btn(text: Int, go: () -> Unit) = buttons.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            setText(text); textSize = 12.5f; minHeight = (40 * d).toInt()
+            setOnClickListener { dialog.dismiss(); go() }
+        })
+        val pts = l.codes.mapNotNull { places[it] }
+        if (pts.size >= 2) btn(R.string.plan_route_maps) { PlanMap.openRouteInMaps(a, pts) }
+        else if (pts.size == 1 && main != null) btn(R.string.pd_open_maps) { PlanMap.openInMaps(a, pts[0], PlanMap.dmartName(main)) }
+        btn(R.string.pd_change_size) { vehicleMenu(index) }
+        if (main != null) btn(R.string.pd_edit_store) {
+            val codes = l.codes
+            if (codes.size == 1) editStop(codes[0]) else MaterialAlertDialogBuilder(a)
+                .setItems(codes.map { c -> "$c ${l.parts.first { it.first.code == c }.first.shownName}" }.toTypedArray()) { _, w -> editStop(codes[w]) }
+                .show()
+        }
+        if (l.codes.size > 1) btn(R.string.plan_split) { split(l) }
+        dialog.show()
     }
 
     /** A clubbed vehicle split back: each of its stores keeps its own vehicle. */
@@ -796,7 +912,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         val r = result ?: return null
         if (zoneFilter == null && storeQuery.isEmpty()) return r
         val loads = shown.map { it.value }
-        val byType = r.byType.map { (t, _) -> t to loads.count { it.type == t } }.filter { it.second > 0 }
+        val byType = r.byType.map { (t, _) -> t to loads.count { it.type?.name == t.name } }.filter { it.second > 0 }
         return PlanResult(loads, byType, loads.sumOf { it.volume })
     }
 
@@ -1000,8 +1116,70 @@ class PlanTab(private val a: MainActivity, root: View) {
         if (r.loads.isEmpty()) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return }
         val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
         val tag = zoneFilter?.let { "_" + zoneName(it).replace(Regex("[^A-Za-z]"), "") }.orEmpty()
-        Exporter.deliver(a, "Vehicle_Plan_$day$tag.xlsx", VehiclePlanner.exportRows(r) { zoneName(loadZone(it)) },
-            VehiclePlanner.EXPORT_WIDTHS, numbers = true)
+        Exporter.deliverSheets(a, "Vehicle_Planning_Report_$day$tag.xlsx", planReport(r), numbers = true)
+    }
+
+    /**
+     * The vehicle planning report: Summary (one line per vehicle), Store Lines (one line per store on each vehicle),
+     * By Size, By City, and Held stores.
+     */
+    private fun planReport(r: PlanResult): List<XlsxWriter.Sheet> {
+        fun n(v: Double) = "%.3f".format(Locale.US, v).trimEnd('0').trimEnd('.')
+        val plan = PlanData.load(a)
+        val all = result?.loads.orEmpty()
+        val summary = mutableListOf(listOf("Vehicle", "Zone", "Region", "Vehicle Type", "Size", "Capacity", "Load Volume", "Fill %", "Free Volume",
+            "Stops", "Stores", "Cities", "Clubbed", "Trip km (DC)", "Extra km", "Store to Store km", "Boxes", "Total Wght"))
+        r.loads.forEach { l ->
+            val no = all.indexOf(l).let { if (it >= 0) it + 1 else r.loads.indexOf(l) + 1 }
+            val pts = l.codes.map { places[it] }
+            val between = if (l.codes.size > 1 && pts.all { it != null }) pts.filterNotNull().let { p -> RoadKm.cached(a, p) ?: RoadKm.straight(p) } else null
+            val stores = l.parts.groupBy { it.first.code }.entries.joinToString(" + ") { (c, ps) -> "$c ${ps.first().first.shownName} (${n(ps.sumOf { it.second })})" }
+            summary += listOf(no.toString(), zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
+                if (l.codes.any { plan.sizes.containsKey(it) }) "By hand" else "Auto",
+                l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume), "${Math.round(l.fill * 100)}",
+                l.type?.let { n(maxOf(0.0, it.capacity - l.volume)) }.orEmpty(), l.codes.size.toString(), stores,
+                l.parts.map { cityOf(it.first) }.distinct().joinToString(", "), if (l.clubbed) "Yes" else "",
+                l.routeKm?.let { Math.round(it).toString() }.orEmpty(), if (l.clubbed) l.extraKm?.let { Math.round(it).toString() }.orEmpty() else "",
+                between?.let { Math.round(it).toString() }.orEmpty(),
+                l.parts.distinctBy { it.first.code }.sumOf { it.first.boxes }.toString(), n(l.parts.distinctBy { it.first.code }.sumOf { it.first.weight }))
+        }
+        val cap = r.loads.sumOf { it.type?.capacity ?: 0.0 }
+        summary += List(18) { "" }
+        summary += listOf("TOTAL", "", "", "", "", n(cap), n(r.totalVolume), "${Math.round(r.fill * 100)}", n(maxOf(0.0, cap - r.totalVolume)),
+            "", "${r.vehicles} vehicles", "", "${r.loads.count { it.clubbed }} clubbed") + List(5) { "" }
+
+        val bySize = mutableListOf(listOf("Vehicle Type", "Vehicles", "Capacity", "Total Capacity", "Load Volume", "Fill %", "Clubbed"))
+        for ((t, c) in r.byType) {
+            val ls = r.loads.filter { it.type?.name == t.name }
+            val tc = t.capacity * c
+            bySize += listOf(t.name, c.toString(), n(t.capacity), n(tc), n(ls.sumOf { it.volume }),
+                if (tc > 0) "${Math.round(ls.sumOf { it.volume } / tc * 100)}" else "", ls.count { it.clubbed }.toString())
+        }
+        bySize += listOf("TOTAL", r.vehicles.toString(), "", n(cap), n(r.totalVolume), "${Math.round(r.fill * 100)}", r.loads.count { it.clubbed }.toString())
+
+        val byCity = mutableListOf(listOf("City", "Region", "Zone", "Stores", "Volume", "Vehicles", "Direct", "Clubbed"))
+        r.loads.flatMap { l -> l.parts.map { it.first } }.distinctBy { it.code }.groupBy { cityOf(it) }.forEach { (c, ss) ->
+            val ls = r.loads.filter { l -> l.parts.any { cityOf(it.first) == c } }
+            val clubbed = ls.count { it.codes.size > 1 }
+            byCity += listOf(c, ss.map { it.region.ifBlank { it.circle } }.distinct().joinToString(", "),
+                ss.mapNotNull { zones[it.code] }.distinct().joinToString(", ") { zoneName(it) }, ss.size.toString(),
+                n(r.loads.sumOf { l -> l.parts.filter { cityOf(it.first) == c }.sumOf { it.second } }),
+                ls.size.toString(), (ls.size - clubbed).toString(), clubbed.toString())
+        }
+
+        val held = mutableListOf(listOf("Ship-To", "Name", "City", "Region", "Zone", "Volume", "Reason"))
+        result?.held.orEmpty().forEach { s ->
+            held += listOf(s.code, s.shownName, s.city, s.region.ifBlank { s.circle }, zones[s.code]?.let { zoneName(it) }.orEmpty(), n(s.volume),
+                "Below zone minimum, no vehicle going its way")
+        }
+
+        return listOf(
+            XlsxWriter.Sheet("Summary", summary, listOf(8, 11, 12, 13, 9, 9, 11, 7, 10, 6, 48, 22, 8, 11, 9, 14, 8, 11)),
+            XlsxWriter.Sheet("Store Lines", VehiclePlanner.exportRows(r) { zoneName(loadZone(it)) }, VehiclePlanner.EXPORT_WIDTHS),
+            XlsxWriter.Sheet("By Size", bySize, listOf(16, 10, 10, 14, 13, 8, 9)),
+            XlsxWriter.Sheet("By City", byCity, listOf(20, 14, 14, 8, 11, 10, 8, 9)),
+            XlsxWriter.Sheet("Held", held, listOf(10, 30, 16, 14, 12, 10, 40))
+        )
     }
 
     // ---------- Reading the sheet ----------

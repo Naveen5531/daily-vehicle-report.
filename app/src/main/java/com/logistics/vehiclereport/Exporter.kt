@@ -43,12 +43,32 @@ object Exporter {
         File(activity.cacheDir, "reports/mail").listFiles()?.forEach { it.delete() }
     }
 
-    private fun share(activity: AppCompatActivity, fileName: String, rows: List<List<String>>, widths: List<Int>, numbers: Boolean = false) {
+    /** A workbook of several sheets (first sheet opens first); share it or save it to Downloads. */
+    fun deliverSheets(activity: AppCompatActivity, fileName: String, sheets: List<XlsxWriter.Sheet>, numbers: Boolean = false) {
+        if (sheets.none { it.rows.size >= 2 }) {
+            Toast.makeText(activity, R.string.nothing_to_export, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val options = arrayOf(activity.getString(R.string.export_share), activity.getString(R.string.export_save))
+        val write: (java.io.OutputStream) -> Unit = { XlsxWriter.writeSheets(it, sheets, numbers) }
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(fileName)
+            .setItems(options) { _, which -> if (which == 0) shareWith(activity, fileName, write) else saveWith(activity, fileName, write) }
+            .show()
+    }
+
+    private fun share(activity: AppCompatActivity, fileName: String, rows: List<List<String>>, widths: List<Int>, numbers: Boolean = false) =
+        shareWith(activity, fileName) { XlsxWriter.write(it, "Report", rows, widths, numbers) }
+
+    private fun save(activity: AppCompatActivity, fileName: String, rows: List<List<String>>, widths: List<Int>, numbers: Boolean = false) =
+        saveWith(activity, fileName) { XlsxWriter.write(it, "Report", rows, widths, numbers) }
+
+    private fun shareWith(activity: AppCompatActivity, fileName: String, write: (java.io.OutputStream) -> Unit) {
         try {
             val dir = File(activity.cacheDir, "reports").apply { mkdirs() }
             dir.listFiles()?.filter { it.isFile }?.forEach { it.delete() }
             val file = File(dir, fileName)
-            file.outputStream().use { XlsxWriter.write(it, "Report", rows, widths, numbers) }
+            file.outputStream().use { write(it) }
             val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = XLSX_MIME
@@ -62,11 +82,11 @@ object Exporter {
         }
     }
 
-    private fun save(activity: AppCompatActivity, fileName: String, rows: List<List<String>>, widths: List<Int>, numbers: Boolean = false) {
+    private fun saveWith(activity: AppCompatActivity, fileName: String, write: (java.io.OutputStream) -> Unit) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             // Android 8–9 would need a storage permission; the share menu lets the user save it anywhere.
             Toast.makeText(activity, R.string.save_old_android, Toast.LENGTH_LONG).show()
-            share(activity, fileName, rows, widths)
+            shareWith(activity, fileName, write)
             return
         }
         try {
@@ -78,7 +98,7 @@ object Exporter {
             val resolver = activity.contentResolver
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: throw IllegalStateException("Could not create file")
-            resolver.openOutputStream(uri)?.use { XlsxWriter.write(it, "Report", rows, widths, numbers) }
+            resolver.openOutputStream(uri)?.use { write(it) }
                 ?: throw IllegalStateException("Could not open file")
             Toast.makeText(activity, activity.getString(R.string.saved_to_downloads, fileName), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
