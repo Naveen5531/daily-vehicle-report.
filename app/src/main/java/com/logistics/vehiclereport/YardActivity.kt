@@ -360,8 +360,10 @@ class YardActivity : AppCompatActivity() {
                         "\nDispatched " + ReportBuilder.timeFmt().format(Date(dispatch)), 2))
             }
         }
-        out.sortByDescending { it.severity }
-        return out
+        // One row per vehicle (keep the most severe), so the same vehicle never shows twice.
+        return out.groupBy { it.vehicle.uppercase().filter { c -> c.isLetterOrDigit() } }
+            .map { (_, rows) -> rows.maxByOrNull { it.severity }!! }
+            .sortedByDescending { it.severity }
     }
 
     /** Waiting time at store: parse "HH : MM" if present, else now - check-in. */
