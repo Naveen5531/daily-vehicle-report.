@@ -375,7 +375,7 @@ class YardActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun plateOf(    private fun plateOf(cell: String): String {
+    private fun plateOf(cell: String): String {
         val first = cell.substringBefore("(").trim()
         return DrishtiData.plate(first) ?: first.uppercase().filter { it.isLetterOrDigit() }
     }
