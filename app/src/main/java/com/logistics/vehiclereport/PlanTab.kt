@@ -49,6 +49,11 @@ class PlanTab(private val a: MainActivity, root: View) {
     private var map: org.osmdroid.views.MapView? = null
     /** Vehicles picked (long-press) to club by hand: positions in the plan. */
     private val selected = LinkedHashSet<Int>()
+    /** "Club by hand" is on: a tap picks a vehicle (2 at a time). */
+    private var selectMode = false
+    private val selectModeBtn: MaterialButton = root.findViewById(R.id.planSelectMode)
+    private val clubToBtn: MaterialButton = root.findViewById(R.id.planSelectClubTo)
+    private val clubBtn: MaterialButton = root.findViewById(R.id.planSelectClub)
     private var result: PlanResult? = null
     private var dcPlace: LatLon? = null
     private var places: Map<String, LatLon> = emptyMap()
@@ -115,7 +120,9 @@ class PlanTab(private val a: MainActivity, root: View) {
         clubSwitch.setOnCheckedChangeListener { _, on -> PlanData.setAutoClub(a, on); selected.clear(); refresh() }
         root.findViewById<View>(R.id.planReshuffle).setOnClickListener { reshuffle() }
         root.findViewById<View>(R.id.planReclub).setOnClickListener { reclub() }
-        root.findViewById<View>(R.id.planSelectCancel).setOnClickListener { selected.clear(); refresh() }
+        root.findViewById<View>(R.id.planSelectCancel).setOnClickListener { selected.clear(); setSelectMode(false) }
+        selectModeBtn.setOnClickListener { setSelectMode(!selectMode) }
+        clubToBtn.setOnClickListener { clubTo() }
         root.findViewById<View>(R.id.planSelectClub).setOnClickListener { clubSelected() }
         val d = a.resources.displayMetrics.density
         androidx.core.content.ContextCompat.getDrawable(a, R.drawable.ic_route)?.mutate()?.let {
@@ -440,7 +447,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 visibility = if (at != null) View.VISIBLE else View.GONE
                 if (at != null) setOnClickListener { PlanMap.openInMaps(a, at, PlanMap.dmartName(s)) }
             }
-            row.setOnClickListener { if (selected.isNotEmpty()) toggle(index) else editStop(s.code) }
+            row.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) else editStop(s.code) }
             row.setOnLongClickListener { toggle(index); true }
             stops.addView(row)
         }
@@ -471,21 +478,67 @@ class PlanTab(private val a: MainActivity, root: View) {
         v.strokeWidth = if (on) (2.5f * a.resources.displayMetrics.density).toInt() else 0
         v.strokeColor = Ui.color(a, R.color.emerald)
         v.setOnLongClickListener { toggle(index); true }
-        v.setOnClickListener { if (selected.isNotEmpty()) toggle(index) }
+        v.setOnClickListener { if (selectMode || selected.isNotEmpty()) toggle(index) }
         return v
     }
 
     private fun toggle(i: Int) {
-        if (!selected.remove(i)) selected += i
+        if (!selected.remove(i)) {
+            // Club by hand: 2 stores (vehicles) at a time – a third tap drops the first one picked.
+            if (selectMode && selected.size >= 2) {
+                selected.remove(selected.first())
+                Toast.makeText(a, R.string.plan_two_at_a_time, Toast.LENGTH_SHORT).show()
+            }
+            selected += i
+        }
+        refresh()
+    }
+
+    private fun setSelectMode(on: Boolean) {
+        selectMode = on
+        selectModeBtn.isChecked = on
+        if (!on) selected.clear()
         refresh()
     }
 
     private fun updateSelectBar() {
         val r = result
-        selectBar.visibility = if (selected.isEmpty() || r == null) View.GONE else View.VISIBLE
-        if (r == null || selected.isEmpty()) return
+        selectBar.visibility = if ((selected.isEmpty() && !selectMode) || r == null) View.GONE else View.VISIBLE
+        selectModeBtn.isChecked = selectMode
+        if (r == null) return
         val v = selected.mapNotNull { r.loads.getOrNull(it) }.sumOf { it.volume }
-        selectText.text = a.getString(R.string.plan_selected, selected.size, vol(v))
+        selectText.text = when (selected.size) {
+            0 -> a.getString(R.string.plan_select_hint)
+            1 -> a.getString(R.string.plan_select_one, vol(v))
+            else -> a.getString(R.string.plan_selected, selected.size, vol(v))
+        }
+        clubToBtn.visibility = if (selected.size == 1) View.VISIBLE else View.GONE
+        clubBtn.visibility = if (selected.size >= 2) View.VISIBLE else View.GONE
+    }
+
+    /** One vehicle picked: choose the vehicle to club it to from a list (nearest first, with load and km). */
+    private fun clubTo() {
+        val r = result ?: return
+        val i = selected.firstOrNull() ?: return
+        val l = r.loads.getOrNull(i) ?: return
+        val pts = l.codes.mapNotNull { places[it] }
+        fun dist(o: PlanLoad): Double? = o.codes.mapNotNull { places[it] }.flatMap { p -> pts.map { VehiclePlanner.km(p, it) } }.minOrNull()
+        val options = r.loads.withIndex().filter { it.index != i }.sortedBy { dist(it.value) ?: Double.MAX_VALUE }
+        if (options.isEmpty()) { Toast.makeText(a, R.string.held_club_none, Toast.LENGTH_SHORT).show(); return }
+        fun mainOf(x: PlanLoad) = x.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
+        val labels = options.map { (k, o) ->
+            a.getString(R.string.held_club_item, k + 1, mainOf(o)?.let { "${it.code} ${it.shownName}" }.orEmpty(), vol(o.volume),
+                o.type?.name ?: "–") + (dist(o)?.let { " · " + a.getString(R.string.held_club_km, km(it)) } ?: "")
+        }.toTypedArray()
+        val me = mainOf(l)
+        MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.plan_club_to_title, me?.let { "${it.code} ${it.shownName}" }.orEmpty(), vol(l.volume)))
+            .setItems(labels) { _, which ->
+                selected.clear(); selected += i; selected += options[which].index
+                clubSelected()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /** The picked vehicles' stores go on one vehicle (kept from then on, until split). */
@@ -552,6 +605,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         ))
         selected.clear()
         refresh()
+        Toast.makeText(a, a.getString(R.string.plan_club_done, vol(total)), Toast.LENGTH_SHORT).show()
     }
 
     /** A clubbed vehicle split back: each of its stores keeps its own vehicle. */

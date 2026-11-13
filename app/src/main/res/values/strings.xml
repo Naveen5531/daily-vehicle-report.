@@ -169,6 +169,13 @@
     <string name="plan_reclub_title">Refresh clubbing?</string>
     <string name="plan_reclub_message">Your hand-made clubs and splits are cleared and the best auto clubbing is worked out again.</string>
     <string name="plan_reclub_done">Clubbing refreshed: %1$d vehicles, %2$d clubbed</string>
+    <string name="plan_select_mode">Club by hand</string>
+    <string name="plan_select_hint">Tap 2 stores (vehicles) to club them, or tap 1 and choose Club to…</string>
+    <string name="plan_select_one">1 picked · %1$s volume · pick 1 more, or Club to…</string>
+    <string name="plan_club_to">Club to…</string>
+    <string name="plan_club_to_title">Club %1$s (%2$s) to which vehicle?</string>
+    <string name="plan_two_at_a_time">2 stores at a time – the first one was dropped</string>
+    <string name="plan_club_done">Clubbed: %1$s volume on one vehicle</string>
     <string name="plan_no_limit">No limit</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>

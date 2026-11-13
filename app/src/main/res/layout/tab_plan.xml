@@ -234,6 +234,20 @@
                             app:icon="@drawable/ic_refresh_club"
                             app:iconSize="18dp" />
                     </LinearLayout>
+
+                    <!-- Club by hand: tap 2 stores (vehicles) to club, or 1 and "Club to…" a vehicle from a list. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/planSelectMode"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:checkable="true"
+                        android:minHeight="40dp"
+                        android:text="@string/plan_select_mode"
+                        android:textSize="13sp"
+                        app:icon="@drawable/ic_route"
+                        app:iconSize="18dp" />
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -423,6 +437,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@android:string/cancel" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/planSelectClubTo"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:text="@string/plan_club_to"
+                    android:visibility="gone" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/planSelectClub"
