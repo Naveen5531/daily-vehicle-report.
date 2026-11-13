@@ -88,6 +88,16 @@ object MessageParser {
 
     object NoHints : Hints
 
+    /** Remembers each answer: the same words are looked up in the store / vendor lists only once. */
+    private class CachedHints(val inner: Hints) : Hints {
+        private val places = HashMap<String, Int>()
+        private val vendors = HashMap<String, Boolean>()
+        override fun place(text: String): Int = synchronized(places) { places[text] } ?: inner.place(text).also { synchronized(places) { places[text] = it } }
+        override fun vendor(text: String): Boolean = synchronized(vendors) { vendors[text] } ?: inner.vendor(text).also { synchronized(vendors) { vendors[text] = it } }
+    }
+
+    fun cached(h: Hints): Hints = if (h is CachedHints || h === NoHints) h else CachedHints(h)
+
     private val VENDOR_WORDS = Regex(
         "\\b(transport|transports|transporters|tpt|logistics|logistic|logostic|cargo|corgo|movers|packers|roadlines|roadways|road\\s*lines|" +
             "carriers|carrier|travels|trans|transways|express|enterprises|freight|freights|fleet|trucking|shipping|parcel|parcels|" +
@@ -131,11 +141,12 @@ object MessageParser {
             if (cityOf(words.subList(0, start).joinToString(" "), emptyList()).isNotEmpty())
                 return words.subList(0, start).joinToString(" ") to words.subList(start, words.size).joinToString(" ")
         }
-        // 4. A vendor from your vendor list written after the place ("Warangal VRL").
-        for (i in 1 until words.size) {
-            val tail = words.subList(i, words.size).joinToString(" ")
-            if (hints.vendor(tail) && hints.place(tail) == 0 && cityOf(words.subList(0, i).joinToString(" "), emptyList()).isNotEmpty())
-                return words.subList(0, i).joinToString(" ") to tail
+        // 4. A short vendor code from your vendor list written in capitals after the place ("Warangal VRL").
+        if (words.size >= 2) {
+            val last = words.last().trim('.', ',')
+            if (last.length in 2..5 && last.all { it.isUpperCase() } && hints.vendor(last) && hints.place(last) == 0 &&
+                cityOf(words.dropLast(1).joinToString(" "), emptyList()).isNotEmpty()
+            ) return words.dropLast(1).joinToString(" ") to last
         }
         return null
     }
@@ -163,6 +174,7 @@ object MessageParser {
     fun parse(
         text: String, byLast4: Map<String, List<String>>, dedicated: Set<String>, hints: Hints = NoHints
     ): ParseResult {
+        val hints = cached(hints)
         if (isSensitive(text)) return ParseResult(emptyList(), emptyList())
         if (NOT_REPORTED.containsMatchIn(text)) return ParseResult(emptyList(), emptyList())
         if (text.lines().count { STAT_LINE.containsMatchIn(it) } >= 3) return ParseResult(emptyList(), emptyList())

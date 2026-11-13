@@ -594,39 +594,57 @@ object VehicleStore {
      * Entries saved by older versions have no driver mobile or vendor, and block posts had no location.
      * Their message is kept, so read it again once and fill those in.
      */
-    fun upgradeOldRecords(context: Context) = synchronized(lock) {
+    fun upgradeOldRecords(context: Context) {
         val p = prefs(context)
-        if (p.getInt(KEY_RECORDS_VERSION, 1) >= RECORDS_VERSION) return@synchronized
-        val numbers = loadVehicles(p).map { it.number }
+        if (p.getInt(KEY_RECORDS_VERSION, 1) >= RECORDS_VERSION) return
+        // Read what is needed, then re-read the messages WITHOUT holding the lock (it takes a while with big
+        // store / vendor lists, and Today must not wait for it), then apply the result in one short step.
+        val (numbers, before, unmatched) = synchronized(lock) {
+            Triple(loadVehicles(p).map { it.number }, loadRecords(p), loadUnmatched(p, System.currentTimeMillis()))
+        }
         val byLast4 = last4Map(numbers)
         val dedicatedSet = numbers.toSet()
-        val arr = loadRecords(p)
+        val hints = MessageParser.cached(MasterData.get(context).asHints())
         val parsed = HashMap<String, List<Capture>>()
-        val hints = MasterData.get(context).asHints()
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
+        val updates = HashMap<String, Capture>()   // record id -> new reading
+        for (i in 0 until before.length()) {
+            val o = before.optJSONObject(i) ?: continue
             val msg = o.optString("message")
-            val c = parsed.getOrPut(msg) { MessageParser.parse(msg, byLast4, dedicatedSet, hints).captures }
+            val c = try {
+                parsed.getOrPut(msg) { MessageParser.parse(msg, byLast4, dedicatedSet, hints).captures }
+            } catch (t: Throwable) { emptyList() }
                 .firstOrNull { it.typed == o.optString("typed") && it.replacement == o.optString("replacement") } ?: continue
-            // The reader has improved: its reading of the saved message replaces the old one.
-            for ((k, v) in listOf("city" to c.city, "mobile" to c.mobile, "vendor" to c.vendor, "size" to c.size, "driver" to c.driver)) {
-                if (v.isNotBlank()) o.put(k, v)
+            updates[o.optString("id")] = c
+        }
+        val added = ArrayList<JSONObject>()
+        for (u in unmatched) {
+            try {
+                MessageParser.parse(u.text, byLast4, dedicatedSet, hints).captures
+                    .filter { !it.inList && it.typed in u.codes }
+                    .forEach { added += recordJson(u.chat, u.sender, u.text, u.time, it) }
+            } catch (t: Throwable) { }
+        }
+        synchronized(lock) {
+            if (p.getInt(KEY_RECORDS_VERSION, 1) >= RECORDS_VERSION) return
+            val arr = loadRecords(p)   // as it is now (posts that came in meanwhile are kept)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val c = updates[o.optString("id")] ?: continue
+                // The reader has improved: its reading of the saved message replaces the old one.
+                for ((k, v) in listOf("city" to c.city, "mobile" to c.mobile, "vendor" to c.vendor, "size" to c.size, "driver" to c.driver)) {
+                    if (v.isNotBlank()) o.put(k, v)
+                }
             }
+            rememberSeenVehiclesLater = true
+            added.forEach { arr.put(it) }
+            // Collapse repeats of the same vehicle on the same day into one entry.
+            val sorted = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.sortedBy { it.optLong("time") }
+            val unique = JSONArray()
+            val idx = HashMap<String, Int>()
+            for (o in sorted) addOrMerge(unique, idx, o)
+            p.edit().putString(KEY_RECORDS, unique.toString()).putInt(KEY_RECORDS_VERSION, RECORDS_VERSION).apply()
+            if (rememberSeenVehiclesLater) rememberSeenVehicles(context, p)
         }
-        rememberSeenVehiclesLater = true
-        // Codes that matched no vehicle in the list: add them as reported vehicles.
-        for (u in loadUnmatched(p, System.currentTimeMillis())) {
-            MessageParser.parse(u.text, byLast4, dedicatedSet, hints).captures
-                .filter { !it.inList && it.typed in u.codes }
-                .forEach { arr.put(recordJson(u.chat, u.sender, u.text, u.time, it)) }
-        }
-        // Collapse repeats of the same vehicle on the same day into one entry.
-        val sorted = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.sortedBy { it.optLong("time") }
-        val unique = JSONArray()
-        val idx = HashMap<String, Int>()
-        for (o in sorted) addOrMerge(unique, idx, o)
-        p.edit().putString(KEY_RECORDS, unique.toString()).putInt(KEY_RECORDS_VERSION, RECORDS_VERSION).apply()
-        if (rememberSeenVehiclesLater) rememberSeenVehicles(context, p)
     }
 
     fun delete(context: Context, id: String) = synchronized(lock) {

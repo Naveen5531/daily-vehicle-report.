@@ -35,8 +35,13 @@ object DaySync {
         if (key == null || key !in WATCH) return@OnSharedPreferenceChangeListener
         main.removeCallbacks(push); main.postDelayed(push, DELAY_MS)
     }
-    private val push = Runnable { app?.let { c -> Thread { pushToday(c) }.start() } }
-    private val midnight = Runnable { app?.let { c -> Thread { rollOver(c) }.start(); scheduleMidnight() } }
+    private val push = Runnable { app?.let { c -> Thread { safe(c) { pushToday(c) } }.start() } }
+    private val midnight = Runnable { app?.let { c -> Thread { safe(c) { rollOver(c) } }.start(); scheduleMidnight() } }
+
+    private fun safe(c: Context, go: () -> Unit) {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+        try { go() } catch (t: Throwable) { try { CrashLog.save(c, "Cloud day copy", t) } catch (e: Throwable) { } }
+    }
 
     fun dayKey(dayStart: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(dayStart))
 
@@ -49,17 +54,31 @@ object DaySync {
         app = c.applicationContext
         watched = VehicleStore.prefs(c).also { it.registerOnSharedPreferenceChangeListener(listener) }
         scheduleMidnight()
-        Thread {
-            try {
-                rollOver(c.applicationContext)
-                val p = VehicleStore.prefs(c)
-                if (!p.getBoolean(K_BACKFILLED, false)) {
-                    val today = ReportBuilder.startOfDay()
-                    for (i in BACKFILL_DAYS downTo 1) pushDay(c.applicationContext, ReportBuilder.startOfDay(today - i * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2), final = true)
-                    p.edit().putBoolean(K_BACKFILLED, true).apply()
-                }
-            } catch (t: Throwable) { }
-        }.start()
+        // A minute after start (the app opens first), at low priority: missed days, then the one-time copy of older days.
+        main.postDelayed({
+            Thread {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+                try {
+                    val ctx = c.applicationContext
+                    rollOver(ctx)
+                    val p = VehicleStore.prefs(ctx)
+                    if (!p.getBoolean(K_BACKFILLED, false)) {
+                        val data = Data.load(ctx)
+                        val today = ReportBuilder.startOfDay()
+                        for (i in BACKFILL_DAYS downTo 1) {
+                            pushDay(ctx, ReportBuilder.startOfDay(today - i * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2), final = true, data = data)
+                            Thread.sleep(150)
+                        }
+                        p.edit().putBoolean(K_BACKFILLED, true).apply()
+                    }
+                } catch (t: Throwable) { try { CrashLog.save(c, "Cloud day copy", t) } catch (e: Throwable) { } }
+            }.start()
+        }, 60_000)
+    }
+
+    /** Everything a day's report is made from, read once. */
+    private class Data(val vehicles: List<DedicatedVehicle>, val records: List<VehicleRecord>, val gates: ReportBuilder.Gates) {
+        companion object { fun load(c: Context) = Data(VehicleStore.getVehicles(c), VehicleStore.getAll(c), GateMarks.gates(c)) }
     }
 
     fun stop() {
@@ -81,10 +100,11 @@ object DaySync {
         val today = ReportBuilder.startOfDay()
         val last = p.getLong(K_LAST_DAY, 0L)
         if (last in 1 until today) {
+            val data = Data.load(c)
             var d = last
             var n = 0
             while (d < today && n < BACKFILL_DAYS) {
-                pushDay(c, d, final = true)
+                pushDay(c, d, final = true, data = data)
                 d = ReportBuilder.startOfDay(d + ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2); n++
             }
         }
@@ -98,19 +118,19 @@ object DaySync {
     }
 
     /** The day's report as rows, same as Today shows. */
-    fun rows(c: Context, dayStart: Long): List<VehicleDay> {
-        val vehicles = VehicleStore.getVehicles(c)
-        val records = VehicleStore.getAll(c)
-        val gates = GateMarks.gates(c)
+    private fun rows(dayStart: Long, d: Data): List<VehicleDay> {
+        val vehicles = d.vehicles
+        val records = d.records
+        val gates = d.gates
         val extras = ReportBuilder.notInList(vehicles, records, dayStart, gates.forDay(dayStart), gates.legacy(dayStart),
             gates.gateLog(dayStart), gates.gateOnly)
         return ReportBuilder.dayStatus(vehicles, records, dayStart, gates) + extras
     }
 
-    private fun pushDay(c: Context, dayStart: Long, final: Boolean) {
+    private fun pushDay(c: Context, dayStart: Long, final: Boolean, data: Data? = null) {
         if (!enabled(c)) return
         val uid = Account.uid(c) ?: return
-        val list = try { rows(c, dayStart) } catch (t: Throwable) { return }
+        val list = try { rows(dayStart, data ?: Data.load(c)) } catch (t: Throwable) { return }
         // A back day with nothing posted and nothing marked is not copied (no empty days before the app was used).
         if (final && list.none { it.hits.isNotEmpty() || it.mark != null || it.gate != null }) return
         val rows = list.map { d ->
