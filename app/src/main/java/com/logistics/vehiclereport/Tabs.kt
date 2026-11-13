@@ -786,6 +786,30 @@ class ExportTab(private val a: MainActivity, private val root: View) {
 
         updateAccount()
         root.findViewById<MaterialButton>(R.id.dcNameButton).setOnClickListener { a.editDcName() }
+        root.findViewById<MaterialButton>(R.id.backupButton).setOnClickListener {
+            android.widget.Toast.makeText(a, R.string.backup_doing, android.widget.Toast.LENGTH_SHORT).show()
+            CloudSync.backupNow(a) { ok ->
+                android.widget.Toast.makeText(a, if (ok) R.string.backup_done else R.string.backup_fail, android.widget.Toast.LENGTH_LONG).show()
+                updateBackupStatus(root)
+            }
+        }
+        root.findViewById<MaterialButton>(R.id.restoreButton).setOnClickListener {
+            MaterialAlertDialogBuilder(a)
+                .setTitle(R.string.restore_now)
+                .setMessage(R.string.restore_confirm)
+                .setPositiveButton(R.string.restore_now) { _, _ ->
+                    android.widget.Toast.makeText(a, R.string.restore_doing, android.widget.Toast.LENGTH_SHORT).show()
+                    CloudSync.forceRestore(a) { count, err ->
+                        if (count >= 0) {
+                            android.widget.Toast.makeText(a, a.getString(R.string.restore_done, count), android.widget.Toast.LENGTH_LONG).show()
+                            a.refreshAll()
+                        } else android.widget.Toast.makeText(a, a.getString(R.string.restore_fail, err ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+        updateBackupStatus(root)
         root.findViewById<MaterialButton>(R.id.signOutButton).setOnClickListener { a.signOut() }
         root.findViewById<MaterialButton>(R.id.deleteAccountButton).apply {
             visibility = if (Account.isLocal(a)) View.GONE else View.VISIBLE
@@ -884,5 +908,12 @@ class ExportTab(private val a: MainActivity, private val root: View) {
         }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).apply {
             datePicker.maxDate = System.currentTimeMillis()
         }.show()
+    }
+
+    private fun updateBackupStatus(root: View) {
+        val t = root.findViewById<TextView>(R.id.backupStatus) ?: return
+        val last = VehicleStore.prefs(a).getLong(CloudSync.KEY_LAST_BACKUP, 0L)
+        t.text = if (last <= 0) a.getString(R.string.backup_none)
+                 else a.getString(R.string.backup_last, ReportBuilder.timeFmt().format(java.util.Date(last)))
     }
 }

@@ -68,6 +68,53 @@ object CloudSync {
         for ((k, v) in VehicleStore.prefs(c).all) upload(uid, k, v)
     }
 
+    const val KEY_LAST_BACKUP = "cloud_last_backup"
+
+    /** Manual "Back up now": push everything to the cloud and stamp the time. done(ok). */
+    fun backupNow(c: Context, done: (Boolean) -> Unit) {
+        if (!enabled(c)) { done(false); return }
+        try {
+            uploadAll(c)
+            VehicleStore.prefs(c).edit().putLong(KEY_LAST_BACKUP, System.currentTimeMillis()).apply()
+            done(true)
+        } catch (e: Exception) { done(false) }
+    }
+
+    /** Manual "Restore from cloud": download the account's cloud copy and apply it. done(count, errorOrNull). */
+    fun forceRestore(c: Context, done: (Int, String?) -> Unit) {
+        if (!enabled(c)) { done(-1, "Sign in with your account first."); return }
+        val uid = Account.uid(c) ?: run { done(-1, "Not signed in."); return }
+        data(uid).get().addOnSuccessListener { snap ->
+            val docs = snap.documents.associateBy { it.id }
+            val e = VehicleStore.prefs(c).edit()
+            var n = 0
+            for ((id, d) in docs) {
+                if (id.contains("__p")) continue
+                val parts = (d.getLong("parts") ?: 1L).toInt()
+                val text = buildString {
+                    append(d.getString("v").orEmpty())
+                    for (i in 1 until parts) append(docs["${id}__p$i"]?.getString("v").orEmpty())
+                }
+                try {
+                    when (d.getString("t")) {
+                        "s" -> e.putString(id, text)
+                        "i" -> e.putInt(id, text.toInt())
+                        "l" -> e.putLong(id, text.toLong())
+                        "f" -> e.putFloat(id, text.toFloat())
+                        "b" -> e.putBoolean(id, text.toBoolean())
+                        "set" -> e.putStringSet(id, org.json.JSONArray(text).let { a -> (0 until a.length()).map { a.getString(it) }.toSet() })
+                        else -> continue
+                    }
+                    n++
+                } catch (x: Exception) { }
+            }
+            e.commit()
+            Account.resetCaches()
+            Account.loadSettings(c)
+            done(n, null)
+        }.addOnFailureListener { done(-1, it.message ?: it.toString()) }
+    }
+
     private fun upload(uid: String, key: String, value: Any?) {
         val col = data(uid)
         if (value == null) { col.document(key).delete(); return }

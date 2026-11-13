@@ -868,4 +868,15 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="yard_empty_filter">No vehicle matches the search.</string>
     <string name="yard_copied">%1$s copied</string>
     <string name="yard_not_linked">Tap "Link code for office Excel" above, share the code to your work mail and paste it in the App Data Excel (sheet "App Link", cell B2).</string>
+    <string name="backup_now">Back up now</string>
+    <string name="restore_now">Restore from cloud</string>
+    <string name="backup_doing">Backing up…</string>
+    <string name="backup_done">Backed up to your cloud.</string>
+    <string name="backup_fail">Backup failed. Check you are signed in.</string>
+    <string name="restore_confirm">Download your cloud copy and apply it to this phone?</string>
+    <string name="restore_doing">Restoring…</string>
+    <string name="restore_done">Restored %1$d items from cloud.</string>
+    <string name="restore_fail">Restore failed: %1$s</string>
+    <string name="backup_none">Not backed up yet on this phone.</string>
+    <string name="backup_last">Last backup: %1$s</string>
 </resources>
