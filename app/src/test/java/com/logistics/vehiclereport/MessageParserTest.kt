@@ -237,4 +237,15 @@ class MessageParserTest {
         assertTrue(any4("Dear, Ali \nThis vehicle Not a 22 FT\nTotal volume 1050").captures.isEmpty())
         assertTrue(any4("E-way bill extended date 07.10.2026").captures.isEmpty())
     }
+
+    @Test fun vendorOnTheVehiclesOwnLineIsReadApartFromThePlace() {
+        fun one(t: String) = MessageParser.parse(t, emptyMap(), emptySet()).captures.single()
+        one("1234 Hyderabad Sri Sai Transport").let { assertEquals("Hyderabad", it.city); assertEquals("Sri Sai Transport", it.vendor) }
+        one("AP39TV5566 Vijayawada - Sri Balaji Roadlines").let { assertEquals("Vijayawada", it.city); assertEquals("Sri Balaji Roadlines", it.vendor) }
+        one("TS10AB3344 - Warangal - Vendor Navata").let { assertEquals("Warangal", it.city); assertEquals("Navata", it.vendor) }
+        one("1234 Hyderabad 22ft Balaji Transport").let { assertEquals("Hyderabad", it.city); assertEquals("Balaji Transport", it.vendor) }
+        one("TS10AB3344 Warangal VRL").let { assertEquals("Warangal", it.city); assertEquals("VRL", it.vendor) }
+        one("5566 Vizag\nVendor: Navata").let { assertEquals("Vizag", it.city); assertEquals("Navata", it.vendor) }
+        one("Vehicle reported 5566 Nellore").let { assertEquals("Nellore", it.city); assertEquals("", it.vendor) }
+    }
 }

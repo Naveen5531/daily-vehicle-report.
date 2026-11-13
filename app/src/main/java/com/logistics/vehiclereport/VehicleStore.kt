@@ -110,8 +110,9 @@ object VehicleStore {
     private const val KEY_RECORDS_VERSION = "records_version"
     /** 2 = mobile + vendor, 3 = vehicle size, 4 = one entry per vehicle per day, 5 = re-read with the improved reader,
      *  6 = codes not in the vehicle list are entries too, 7 = full numbers seen become record-only vehicles,
-     *  8 = driver mobile written as "+91…" straight after the place ("VIZAG+919908764329"). */
-    private const val RECORDS_VERSION = 8
+     *  8 = driver mobile written as "+91…" straight after the place ("VIZAG+919908764329"),
+     *  9 = vendor written on the vehicle's own line ("1234 Hyderabad Sri Sai Transport", "… - Vendor: Navata"). */
+    private const val RECORDS_VERSION = 9
     private var rememberSeenVehiclesLater = false
     const val KEY_DEDICATED = "dedicated_json"
     const val KEY_UNMATCHED = "unmatched_json"

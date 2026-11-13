@@ -89,9 +89,56 @@ object MessageParser {
     object NoHints : Hints
 
     private val VENDOR_WORDS = Regex(
-        "\\b(transport|transports|tpt|logistics|logistic|logostic|cargo|corgo|movers|roadlines|roadways|road\\s*lines|carriers|carrier|travels|trans|transways|express|enterprises)\\b",
+        "\\b(transport|transports|transporters|tpt|logistics|logistic|logostic|cargo|corgo|movers|packers|roadlines|roadways|road\\s*lines|" +
+            "carriers|carrier|travels|trans|transways|express|enterprises|freight|freights|fleet|trucking|shipping|parcel|parcels|" +
+            "goods|agency|agencies|services|vrl|navata|gati|safexpress|tci|rivigo)\\b",
         RegexOption.IGNORE_CASE
     )
+
+    /** "Vendor: Navata", "Transporter - KRT", "vendor name Sri Sai": the words after it are the vendor. */
+    private val VENDOR_LABEL = Regex("\\b(?:vendor|vender|vendar|transporter|transporters)\\b\\s*(?:name)?\\s*[:\\-=.]*\\s*", RegexOption.IGNORE_CASE)
+
+    /** First words of many vendor names ("Sri Sai Transport"): where the vendor starts after the place. */
+    private val VENDOR_START = setOf("sri", "shri", "sree", "shree", "srī", "om", "jai", "jay", "maa", "ma", "new", "the", "m/s", "ms")
+
+    /**
+     * Splits "Hyderabad Sri Sai Transport", "Vijayawada - Balaji Roadlines", "Guntur, vendor: Navata" or
+     * "Warangal VRL" into the place and the vendor. Null when the text holds no vendor.
+     */
+    fun splitVendor(text: String, hints: Hints = NoHints): Pair<String, String>? {
+        val t = text.trim()
+        if (!t.any { it.isLetter() }) return null
+        // 1. Written with a label.
+        VENDOR_LABEL.find(t)?.let { m ->
+            val v = t.substring(m.range.last + 1).trim(' ', ',', '-', ':', '|')
+            if (v.any { it.isLetter() }) return t.substring(0, m.range.first).trim(' ', ',', '-', ':', '|') to v
+        }
+        fun isVendor(x: String) = VENDOR_WORDS.containsMatchIn(x) || hints.vendor(x.trim())
+        // 2. Split by "-", ",", "|", "/" or wide spaces: the part with a vendor word (not the first part).
+        val parts = t.split(Regex("\\s+[-–|/]\\s+|[,|]|\\s{3,}")).map { it.trim() }.filter { p -> p.any { it.isLetter() } }
+        if (parts.size >= 2) {
+            val idx = parts.indexOfLast { isVendor(it) }
+            if (idx >= 1) return parts.subList(0, idx).joinToString(" ") to parts.subList(idx, parts.size).joinToString(" ")
+        }
+        // 3. One run of words: the vendor starts at "Sri / Shree / …" or the word before "Transport / Logistics / …".
+        val words = t.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val vi = words.indexOfFirst { VENDOR_WORDS.containsMatchIn(it) }
+        if (vi >= 1) {
+            val known = (1..vi).filter { i -> hints.place(words.subList(0, i).joinToString(" ")) > 0 }.maxOrNull()
+            val start = known
+                ?: (1 until vi).firstOrNull { words[it].lowercase().trim('.') in VENDOR_START }
+                ?: maxOf(1, vi - 1).let { i -> if (cityOf(words.subList(0, i).joinToString(" "), emptyList()).isEmpty()) vi else i }
+            if (cityOf(words.subList(0, start).joinToString(" "), emptyList()).isNotEmpty())
+                return words.subList(0, start).joinToString(" ") to words.subList(start, words.size).joinToString(" ")
+        }
+        // 4. A vendor from your vendor list written after the place ("Warangal VRL").
+        for (i in 1 until words.size) {
+            val tail = words.subList(i, words.size).joinToString(" ")
+            if (hints.vendor(tail) && hints.place(tail) == 0 && cityOf(words.subList(0, i).joinToString(" "), emptyList()).isNotEmpty())
+                return words.subList(0, i).joinToString(" ") to tail
+        }
+        return null
+    }
 
     /** Lines that are remarks, not a place / name / vendor. */
     private val NOTE = Regex(
@@ -150,7 +197,7 @@ object MessageParser {
         lines.forEachIndexed { i, l ->
             if (VehicleParser.refs(l.masked).isEmpty()) return@forEachIndexed
             val before = captures.size
-            parseLine(l.masked, byLast4, dedicated, captures, unmatched)
+            parseLine(l.masked, byLast4, dedicated, captures, unmatched, hints)
             val cap = if (captures.size > before) captures.size - 1 else -1
             // A line naming several vehicles keeps its own words; extra lines go to its last vehicle only.
             if (cap >= 0 && captures.size - before == 1) {
@@ -218,8 +265,21 @@ object MessageParser {
             for ((t0, isPost) in items) {
                 // "Hyderabad to Vizag in dc" -> "Hyderabad to Vizag"; "Re placement" -> nothing
                 val t = NOTE.replace(t0, " ").trim(' ', '.', ',', '-')
+                val labelled = VENDOR_LABEL.find(t)
+                val split = if (labelled == null && VENDOR_WORDS.containsMatchIn(t)) splitVendor(t, hints) else null
                 when {
+                    // "Vendor: Navata" on its own line.
+                    labelled != null && t.substring(labelled.range.last + 1).any { it.isLetter() } -> {
+                        vendor = vendorOf(t.substring(labelled.range.last + 1))
+                        t.substring(0, labelled.range.first).takeIf { b -> locationOf(b).isNotEmpty() }?.let { b ->
+                            val p = hints.place(locationOf(b)); if (p > 0) places += b to p else others += b to isPost
+                        }
+                    }
                     locationOf(t).isEmpty() && !hints.vendor(t) -> Unit
+                    // "Kurnool Veerbhadra cargo": a known place, then the vendor.
+                    split != null && hints.place(locationOf(split.first)) > 0 -> {
+                        vendor = vendorOf(split.second); places += split.first to hints.place(locationOf(split.first))
+                    }
                     VENDOR_WORDS.containsMatchIn(t) || hints.vendor(t) -> vendor = vendorOf(t)
                     else -> {
                         val p = hints.place(locationOf(t))
@@ -294,7 +354,7 @@ object MessageParser {
 
     private fun parseLine(
         line: String, byLast4: Map<String, List<String>>, dedicated: Set<String>,
-        captures: MutableList<Capture>, unmatched: MutableList<String>
+        captures: MutableList<Capture>, unmatched: MutableList<String>, hints: Hints = NoHints
     ) {
         val refs = VehicleParser.refs(line)
         if (refs.isEmpty()) return
@@ -313,14 +373,17 @@ object MessageParser {
             }
             val repl = refs.firstOrNull { it !== actual && it.value != actual.value }
             if (repl != null) {
-                val city = cityOf(line, refs.map { it.start until it.end })
+                val masked = mask(line, refs.map { it.start until it.end })
+                val sv = splitVendor(REPL.replace(masked, " "), hints)
+                val city = if (sv != null) cityOf(sv.first, emptyList()) else cityOf(line, refs.map { it.start until it.end })
+                val vendor = sv?.let { vendorOf(it.second) }.orEmpty()
                 val cands = resolve(actual)
                 when {
-                    cands.isNotEmpty() -> captures.add(Capture(actual.value, cands, actual.full, city, repl.value))
-                    actual.full -> captures.add(Capture(actual.value, listOf(actual.value), true, city, repl.value))
+                    cands.isNotEmpty() -> captures.add(Capture(actual.value, cands, actual.full, city, repl.value, vendor = vendor))
+                    actual.full -> captures.add(Capture(actual.value, listOf(actual.value), true, city, repl.value, vendor = vendor))
                     else -> {
                         unmatched.add(actual.value)
-                        captures.add(Capture(actual.value, listOf(actual.value), false, city, repl.value, inList = false))
+                        captures.add(Capture(actual.value, listOf(actual.value), false, city, repl.value, vendor = vendor, inList = false))
                     }
                 }
                 return
@@ -333,15 +396,19 @@ object MessageParser {
             if (!r.full && r.value in fullLast4) return@forEachIndexed
             val after = line.substring(r.end, refs.getOrNull(i + 1)?.start ?: line.length)
             val before = line.substring(refs.getOrNull(i - 1)?.end ?: 0, r.start)
-            val city = cityOf(after, emptyList()).ifEmpty { cityOf(before, emptyList()) }
+            // "1234 Hyderabad Sri Sai Transport": the place, then the vendor.
+            val sv = splitVendor(after, hints) ?: splitVendor(before, hints)
+            val city = if (sv != null) cityOf(sv.first, emptyList()).ifEmpty { cityOf(before, emptyList()) }
+                else cityOf(after, emptyList()).ifEmpty { cityOf(before, emptyList()) }
+            val vendor = sv?.let { vendorOf(it.second) }.orEmpty()
             val cands = resolve(r)
             when {
-                r.full -> captures.add(Capture(r.value, cands.ifEmpty { listOf(r.value) }, true, city, ""))
-                cands.isNotEmpty() -> captures.add(Capture(r.value, cands, false, city, ""))
+                r.full -> captures.add(Capture(r.value, cands.ifEmpty { listOf(r.value) }, true, city, "", vendor = vendor))
+                cands.isNotEmpty() -> captures.add(Capture(r.value, cands, false, city, "", vendor = vendor))
                 else -> {
                     // Not in the vehicle list yet: still a vehicle reported (counted), matched later if added.
                     unmatched.add(r.value)
-                    captures.add(Capture(r.value, listOf(r.value), false, city, "", inList = false))
+                    captures.add(Capture(r.value, listOf(r.value), false, city, "", vendor = vendor, inList = false))
                 }
             }
         }
@@ -381,10 +448,11 @@ object MessageParser {
 
     /** Vendor from the block's last line: "Veerbhadra cargo" -> "Veerbhadra Cargo". */
     fun vendorOf(line: String): String =
-        SIZE.replace(NOTE.replace(line, " "), " ").split(Regex("[^\\p{L}&.]+"))
+        SIZE.replace(NOTE.replace(VENDOR_LABEL.replace(line, " "), " "), " ").split(Regex("[^\\p{L}&.]+"))
             .map { it.trim('.') }.filter { it.isNotEmpty() }
             .take(6)
-            .joinToString(" ") { titleCase(it) }
+            // Short codes written in capitals stay so: "VRL", "KRT", "TCI".
+            .joinToString(" ") { if (it.length in 2..4 && it.all { ch -> ch.isUpperCase() }) it else titleCase(it) }
 
     private fun titleCase(w: String) = w.lowercase().replaceFirstChar { it.uppercase() }
 
