@@ -113,6 +113,8 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
         clubSwitch.isChecked = PlanData.autoClub(a)
         clubSwitch.setOnCheckedChangeListener { _, on -> PlanData.setAutoClub(a, on); selected.clear(); refresh() }
+        root.findViewById<View>(R.id.planReshuffle).setOnClickListener { reshuffle() }
+        root.findViewById<View>(R.id.planReclub).setOnClickListener { reclub() }
         root.findViewById<View>(R.id.planSelectCancel).setOnClickListener { selected.clear(); refresh() }
         root.findViewById<View>(R.id.planSelectClub).setOnClickListener { clubSelected() }
         val d = a.resources.displayMetrics.density
@@ -146,7 +148,8 @@ class PlanTab(private val a: MainActivity, root: View) {
     /** The store's town for the city totals: the store list's city, else the store's name. */
     private fun cityOf(s: PlanStop) = s.city.trim().ifBlank { s.shownName.trim() }.replaceFirstChar { it.uppercase() }
 
-    fun refresh() {
+    /** The day's plan with clubbing mix [shuffle] (0 = best), and the options it was worked out with. */
+    private fun planWith(shuffle: Int): Triple<PlanResult, VehiclePlanner.Options, List<PlanStop>> {
         val plan = PlanData.load(a)
         val stops = PlanData.withPlaces(a, plan.stops)
         val opts = PlanData.options(a, plan)
@@ -157,7 +160,57 @@ class PlanTab(private val a: MainActivity, root: View) {
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
         val r = VehiclePlanner.plan(stops,
             opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryMaxStops = PlanData.upcountryMaxStops(a),
-                rideOnly = small))
+                rideOnly = small, shuffle = shuffle))
+        return Triple(r, opts, stops)
+    }
+
+    /** Which stores share each vehicle (to tell one clubbing mix from another). */
+    private fun mixOf(r: PlanResult) = r.loads.filter { it.clubbed }.map { it.codes.sorted().joinToString(",") }.sorted()
+
+    /**
+     * Reshuffle: the next clubbing mix that is different from the one shown and needs no more vehicles than the best
+     * one (same rules: nearby / on the way, fits one vehicle, most stores per vehicle). Back to the best when none is left.
+     */
+    private fun reshuffle() {
+        val now = PlanData.shuffle(a)
+        val shown = planWith(now).first
+        val best = if (now == 0) shown else planWith(0).first
+        val seen = mixOf(shown)
+        var pick = 0
+        for (k in now + 1..now + 25) {
+            val r = planWith(k).first
+            if (r.vehicles <= best.vehicles && mixOf(r) != seen) { pick = k; break }
+        }
+        PlanData.setShuffle(a, pick)
+        selected.clear(); refresh()
+        val r = result
+        if (pick == 0) Toast.makeText(a, R.string.plan_reshuffle_none, Toast.LENGTH_LONG).show()
+        else if (r != null) Toast.makeText(a, a.getString(R.string.plan_reshuffle_done, pick, r.vehicles, r.loads.count { it.clubbed }), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Refresh: hand-made clubs and splits cleared, the best auto clubbing worked out again (asks first when there are any). */
+    private fun reclub() {
+        fun go() {
+            val plan = PlanData.load(a)
+            PlanData.save(a, plan.copy(clubs = emptyList(), noClub = emptySet()))
+            PlanData.setShuffle(a, 0)
+            if (!PlanData.autoClub(a)) { PlanData.setAutoClub(a, true); clubSwitch.isChecked = true }
+            selected.clear(); refresh()
+            result?.let { Toast.makeText(a, a.getString(R.string.plan_reclub_done, it.vehicles, it.loads.count { l -> l.clubbed }), Toast.LENGTH_SHORT).show() }
+        }
+        val plan = PlanData.load(a)
+        if (plan.clubs.isEmpty() && plan.noClub.isEmpty()) { go(); return }
+        MaterialAlertDialogBuilder(a)
+            .setTitle(R.string.plan_reclub_title)
+            .setMessage(R.string.plan_reclub_message)
+            .setPositiveButton(R.string.plan_reclub) { _, _ -> go() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    fun refresh() {
+        val plan = PlanData.load(a)
+        val (r, opts, stops) = planWith(PlanData.shuffle(a))
         val held = r.held
         result = r
         dcPlace = opts.dc

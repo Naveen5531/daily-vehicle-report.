@@ -162,6 +162,13 @@
     <string name="plan_max_stops_label">Most stores per vehicle</string>
     <string name="plan_max_club_km_label">Max km between clubbed stores</string>
     <string name="plan_club_text_any">Stores of any size share a vehicle when they fit in one and are nearby, or on its way from the DC: %1$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
+    <string name="plan_reshuffle">Reshuffle</string>
+    <string name="plan_reclub">Refresh</string>
+    <string name="plan_reshuffle_done">Clubbing mix %1$d: %2$d vehicles, %3$d clubbed</string>
+    <string name="plan_reshuffle_none">No other clubbing mix fits today\'s stores – showing the best one.</string>
+    <string name="plan_reclub_title">Refresh clubbing?</string>
+    <string name="plan_reclub_message">Your hand-made clubs and splits are cleared and the best auto clubbing is worked out again.</string>
+    <string name="plan_reclub_done">Clubbing refreshed: %1$d vehicles, %2$d clubbed</string>
     <string name="plan_no_limit">No limit</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>

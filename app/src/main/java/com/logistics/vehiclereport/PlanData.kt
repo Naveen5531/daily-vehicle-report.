@@ -91,7 +91,7 @@ object PlanData {
         return plan
     }
 
-    fun clear(c: Context) = p(c).edit().remove(KEY).remove(KEY_FORCE).apply()
+    fun clear(c: Context) = p(c).edit().remove(KEY).remove(KEY_FORCE).remove(KEY_SHUFFLE).apply()
 
     fun types(c: Context): List<VehicleCap> {
         val a = try { JSONArray(p(c).getString(KEY_TYPES, null) ?: return VehiclePlanner.DEFAULT_TYPES) } catch (e: Exception) { return VehiclePlanner.DEFAULT_TYPES }
@@ -114,6 +114,11 @@ object PlanData {
 
     fun clubBelow(c: Context): Double = p(c).getFloat(KEY_CLUB_BELOW, 0f).toDouble()
     fun setClubBelow(c: Context, v: Double) = p(c).edit().putFloat(KEY_CLUB_BELOW, v.toFloat()).apply()
+    private const val KEY_SHUFFLE = "plan_club_shuffle"
+    /** Which mix of clubbed pairs is shown (0 = best; Reshuffle steps it, Refresh sets it back). */
+    fun shuffle(c: Context): Int = p(c).getInt(KEY_SHUFFLE, 0)
+    fun setShuffle(c: Context, v: Int) = p(c).edit().putInt(KEY_SHUFFLE, v).apply()
+
     fun autoClub(c: Context): Boolean = p(c).getBoolean(KEY_AUTO, true)
     fun setAutoClub(c: Context, on: Boolean) = p(c).edit().putBoolean(KEY_AUTO, on).apply()
 
@@ -189,7 +194,8 @@ object PlanData {
 
     fun options(c: Context, plan: Plan) = VehiclePlanner.Options(
         types = types(c), clubBelow = clubBelow(c), autoClub = autoClub(c), maxStops = maxStops(c), noClub = plan.noClub, clubs = plan.clubs,
-        places = StoreGeo.places(c), dc = StoreGeo.dc(c), nearKm = nearKm(c), maxClubKm = maxClubKm(c)
+        places = StoreGeo.places(c), dc = StoreGeo.dc(c), nearKm = nearKm(c), maxClubKm = maxClubKm(c),
+        shuffle = shuffle(c)
     )
 
     /** City and region of each store from the store list (by store code). */

@@ -106,14 +106,16 @@ object VehiclePlanner {
         /** Most km (straight line) between two stores of one clubbed vehicle; 0 = no limit. */
         val maxClubKm: Double = 0.0,
         /** Stores too small for a vehicle of their own: they only ride on another vehicle going their way, else held. */
-        val rideOnly: Set<String> = emptySet()
+        val rideOnly: Set<String> = emptySet(),
+        /** 0 = the best clubbing; 1, 2, … = another mix of pairs on the same routes (Reshuffle). */
+        val shuffle: Int = 0
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
-            upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly
+            upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle)
     }
 
     /** Straight-line km between two places. */
@@ -337,7 +339,10 @@ object VehiclePlanner {
                     if ((host.codes + add.codes).size > o.maxStops || host.volume + add.volume > max + EPS) continue
                     if (!fitsOnRoute(host.parts.map { it.first }, add.parts.map { it.first }, o)) continue
                     val v = host.volume + add.volume
-                    val key = doubleArrayOf(Math.floor(cost(host, add) / 5.0), capOf(v) - capOf(host.volume), -v / capOf(v))
+                    // Reshuffle: each pair gets a fixed random 0–15 km head start, so other pairs (still on one route) win.
+                    val jitter = if (o.shuffle <= 0) 0.0 else
+                        kotlin.random.Random(o.shuffle * 7919 + (host.codes + add.codes).sorted().hashCode()).nextInt(0, 4).toDouble()
+                    val key = doubleArrayOf(Math.floor(cost(host, add) / 5.0) + jitter, capOf(v) - capOf(host.volume), -v / capOf(v))
                     val b = best?.third
                     if (b == null || key[0] < b[0] || key[0] == b[0] && (key[1] < b[1] || key[1] == b[1] && key[2] < b[2])) best = Triple(host, add, key)
                 }
