@@ -69,6 +69,8 @@ object FirebaseLink {
                 read.sheets?.let { YardStore.save(c, it, read.at) }
                 if (read.status == DrishtiStore.OK && read.cells.isNotEmpty())
                     DrishtiStore.apply(c, read.cells, read.pageDay, fromDrishti = true, readAt = read.at)
+                // In-transit says it left this DC today -> Departed on Today (after the gate log, which wins).
+                if (read.sheets != null) TransitMarks.apply(c)
             } catch (e: Throwable) {
             } finally { busy = false }
         }.start()

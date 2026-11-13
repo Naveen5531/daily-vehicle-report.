@@ -120,7 +120,13 @@ object LaptopLink {
     fun pullAndApply(c: Context): DrishtiResult? {
         val r = fetch(c) ?: return null
         r.sheets?.let { YardStore.save(c, it, r.at) }
-        if (r.status != DrishtiStore.OK) { DrishtiStore.setStatus(c, r.status); return null }
-        return DrishtiStore.apply(c, r.cells, r.pageDay, readAt = r.at)
+        if (r.status != DrishtiStore.OK) {
+            DrishtiStore.setStatus(c, r.status)
+            if (r.sheets != null) TransitMarks.apply(c)
+            return null
+        }
+        val res = DrishtiStore.apply(c, r.cells, r.pageDay, readAt = r.at)
+        if (r.sheets != null) TransitMarks.apply(c)
+        return res
     }
 }
