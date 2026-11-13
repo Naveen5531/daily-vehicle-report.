@@ -248,4 +248,22 @@ class MessageParserTest {
         one("5566 Vizag\nVendor: Navata").let { assertEquals("Vizag", it.city); assertEquals("Navata", it.vendor) }
         one("Vehicle reported 5566 Nellore").let { assertEquals("Nellore", it.city); assertEquals("", it.vendor) }
     }
+
+    @Test fun groupPostsWithVendorAndDriverAboveTheMobile() {
+        fun p(t: String) = MessageParser.parse(t, emptyMap(), emptySet()).captures
+        p("TS08UL 0287\nGhansham\n7985723808\nVizianagaram\n\n TS08UH 8557\nIrfan\n8882294159\nTuni\nColdrush transport").let { r ->
+            assertEquals(listOf("Vizianagaram", "Tuni"), r.map { it.city })
+            assertEquals(listOf("Ghansham", "Irfan"), r.map { it.driver })
+            assertTrue(r.all { it.vendor == "Coldrush Transport" })
+        }
+        p("TG08V5926\nSri Laxmi chenna keshava transport\nGuntur\n9395528462").single().let {
+            assertEquals("Guntur", it.city); assertEquals("Sri Laxmi Chenna Keshava Transport", it.vendor)
+        }
+        p("1. Ts12ud 3030 RC puram\n2. Ts12uc 9610 shaikpet+Kaveri hills\n3. TS12UA 8659 Balanagar\nSSR").let { r ->
+            assertEquals(3, r.size); assertTrue(r.all { it.vendor == "SSR" })
+        }
+        p("Amberpet\n9573\nKushaiguda\n9578\n\nindosai").let { r ->
+            assertEquals(listOf("Amberpet", "Kushaiguda"), r.map { it.city }); assertTrue(r.all { it.vendor == "Indosai" })
+        }
+    }
 }

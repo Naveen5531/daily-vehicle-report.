@@ -242,8 +242,18 @@ object MessageParser {
             var nameLine = ""
             val items = mutableListOf<Pair<String, Boolean>>()   // text, isPost
             val all = a.pre.map { it to false } + a.post.map { it to true }
+            val blockLines = all.map { it.first }.toSet()
             for ((i, isPost) in all) {
                 val l = lines[i]
+                // "Ghansham\n7985723808\nVizianagaram": a short name just above the mobile, with the place after it,
+                // is the driver (not the place).
+                val t1 = l.masked.trim()
+                if (l.mobile.isEmpty() && driver.isEmpty() && (i + 1) in blockLines && lines[i + 1].mobile.isNotEmpty() &&
+                    !lines[i + 1].masked.any { it.isLetter() } && t1.any { it.isLetter() } && t1.split(Regex("\\s+")).size <= 3 &&
+                    hints.place(locationOf(t1)) == 0 && !VENDOR_WORDS.containsMatchIn(t1) && VENDOR_LABEL.find(t1) == null &&
+                    sizeOf(t1).isEmpty() && (i + 2 until (blockLines.maxOrNull() ?: 0) + 1).any { j -> j in blockLines && lines[j].masked.any { it.isLetter() } &&
+                        !VENDOR_WORDS.containsMatchIn(lines[j].masked) && VENDOR_LABEL.find(lines[j].masked) == null }
+                ) { driver = nameOf(t1); continue }
                 if (l.mobile.isNotEmpty()) {
                     if (mobile.isEmpty()) mobile = l.mobile
                     // "Ganapati +91 97053 52405" / "Satish 093461 14652, Hyd to Vizag"
