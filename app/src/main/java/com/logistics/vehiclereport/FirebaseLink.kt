@@ -3,7 +3,6 @@ package com.logistics.vehiclereport
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.MetadataChanges
 import org.json.JSONObject
 
 /**
@@ -17,6 +16,8 @@ object FirebaseLink {
     private var reg: ListenerRegistration? = null
     private var appCtx: Context? = null
     private var lastAt = 0L
+    private var lastJson: String = ""
+    @Volatile private var busy = false
 
     fun available(c: Context) = Account.isSignedIn(c) && !Account.isLocal(c) && Account.cloudReady(c)
 
@@ -25,8 +26,12 @@ object FirebaseLink {
         if (!available(c)) return
         val uid = Account.uid(c) ?: return
         appCtx = c.applicationContext
-        reg = doc(uid).addSnapshotListener(MetadataChanges.INCLUDE) { snap, _ ->
-            val json = snap?.getString("json") ?: return@addSnapshotListener
+        // Default (no MetadataChanges.INCLUDE): fire only on real document changes, not on every cache/metadata event.
+        reg = doc(uid).addSnapshotListener { snap, _ ->
+            if (snap == null || snap.metadata.hasPendingWrites()) return@addSnapshotListener
+            val json = snap.getString("json") ?: return@addSnapshotListener
+            if (json == lastJson) return@addSnapshotListener   // same payload -> skip the heavy apply
+            lastJson = json
             apply(json)
         }
     }
@@ -53,6 +58,8 @@ object FirebaseLink {
 
     private fun apply(json: String) {
         val c = appCtx ?: return
+        if (busy) return
+        busy = true
         Thread {
             try {
                 val o = JSONObject(json)
@@ -62,7 +69,8 @@ object FirebaseLink {
                 read.sheets?.let { YardStore.save(c, it, read.at) }
                 if (read.status == DrishtiStore.OK && read.cells.isNotEmpty())
                     DrishtiStore.apply(c, read.cells, read.pageDay, fromDrishti = true, readAt = read.at)
-            } catch (e: Throwable) { }
+            } catch (e: Throwable) {
+            } finally { busy = false }
         }.start()
     }
 }
