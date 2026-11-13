@@ -188,7 +188,8 @@ class PlanTab(private val a: MainActivity, root: View) {
             })
         }
         typeChips.visibility = if (r.byType.isEmpty()) View.GONE else View.VISIBLE
-        clubText.text = a.getString(R.string.plan_club_text, vol(PlanData.clubBelow(a)), PlanData.maxStops(a)) +
+        clubText.text = (PlanData.clubBelow(a).takeIf { it > 0 }?.let { a.getString(R.string.plan_club_text, vol(it), PlanData.maxStops(a)) }
+            ?: a.getString(R.string.plan_club_text_any, PlanData.maxStops(a))) +
             PlanData.maxClubKm(a).takeIf { it > 0 }?.let { " " + a.getString(R.string.plan_club_km_text, km(it)) }.orEmpty()
         showZones(r)
         showGeo(stops)
@@ -608,7 +609,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         clubRow.addView(TextView(a).apply { setText(R.string.plan_club_below_label); textSize = 14.5f; setTextColor(Ui.color(a, R.color.ink)) },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val clubBelow = TextInputEditText(a).apply {
-            setText(vol(PlanData.clubBelow(a))); inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(PlanData.clubBelow(a).takeIf { it > 0 }?.let { vol(it) }.orEmpty()); hint = a.getString(R.string.plan_no_limit); inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             setSingleLine(); textSize = 14.5f; gravity = android.view.Gravity.END
         }
         clubRow.addView(clubBelow, LinearLayout.LayoutParams((96 * d).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -640,7 +641,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 PlanData.saveTypes(a, rows.map { (t, check, cap) ->
                     t.copy(capacity = SheetReader.number(cap.text?.toString().orEmpty()) ?: t.capacity, on = check.isChecked)
                 })
-                SheetReader.number(clubBelow.text?.toString().orEmpty())?.let { PlanData.setClubBelow(a, it) }
+                PlanData.setClubBelow(a, SheetReader.number(clubBelow.text?.toString().orEmpty()) ?: 0.0)
                 maxStops.text?.toString()?.trim()?.toIntOrNull()?.let { PlanData.setMaxStops(a, it) }
                 PlanData.setMaxClubKm(a, SheetReader.number(maxClubKm.text?.toString().orEmpty()) ?: 0.0)
                 refresh()

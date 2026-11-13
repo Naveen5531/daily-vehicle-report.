@@ -161,6 +161,7 @@
     <string name="plan_club_text">Stores below %1$s ride with a vehicle going nearby, or passing them on its way from the DC: %2$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
     <string name="plan_max_stops_label">Most stores per vehicle</string>
     <string name="plan_max_club_km_label">Max km between clubbed stores</string>
+    <string name="plan_club_text_any">Stores of any size share a vehicle when they fit in one and are nearby, or on its way from the DC: %1$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
     <string name="plan_no_limit">No limit</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>
@@ -253,7 +254,7 @@
     <string name="plan_edit_title">Store %1$s</string>
     <string name="plan_bad_volume">Enter the volume as a number</string>
     <string name="plan_remove_store">Remove</string>
-    <string name="plan_club_below_label">Club stores below (volume)</string>
+    <string name="plan_club_below_label">Club stores below (volume, blank = any)</string>
     <string name="plan_sizes_title">Vehicle sizes</string>
     <string name="plan_sizes_message">Most volume each vehicle carries, and which sizes are used. 20 ft is the biggest unless you tick 22 ft or 24 ft.</string>
     <string name="plan_sizes_reset">Reset</string>

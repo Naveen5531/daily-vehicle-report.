@@ -201,4 +201,12 @@ class VehiclePlannerTest {
         assertTrue(up.none { "CTC" in it.codes && "GJW" in it.codes })      // Cuttack is far past Vizag: never clubbed with it
         assertEquals("Pickup", r.loads.first { "CHM" in it.codes }.type?.name) // local stores keep the smallest vehicle
     }
+
+    @Test fun storesAboveThreeHundredAreClubbedWhenTheyFitOneVehicle() {
+        // Default: any size. Kachiguda + Champapet (5 km apart) and two Vizag stores, all 300+, each pair fits one 20 ft.
+        val r = VehiclePlanner.plan(listOf(s("KCG", 450.0), s("CHM", 330.0), s("GJW", 500.0, region = "R2"), s("SHL", 320.0, region = "R2")),
+            VehiclePlanner.Options(places = at, dc = dc))
+        assertEquals(2, r.vehicles)
+        assertTrue(r.loads.all { it.clubbed && it.codes.size == 2 })
+    }
 }

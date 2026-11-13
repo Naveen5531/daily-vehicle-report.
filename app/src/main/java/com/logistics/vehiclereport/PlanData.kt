@@ -18,7 +18,7 @@ import java.util.Locale
 object PlanData {
     private const val KEY = "plan_json"
     private const val KEY_TYPES = "plan_types_json"
-    private const val KEY_CLUB_BELOW = "plan_club_below"
+    private const val KEY_CLUB_BELOW = "plan_club_below_v2"   // 0 = any size (old key held 300, which stopped all clubbing)
     private const val KEY_AUTO = "plan_auto_club"
     private const val KEY_NEAR = "plan_near_km"
     private const val KEY_MAX_CLUB_KM = "plan_max_club_km"
@@ -112,7 +112,7 @@ object PlanData {
         }.toString()).putBoolean(KEY_MAX20, true).apply()
     }
 
-    fun clubBelow(c: Context): Double = p(c).getFloat(KEY_CLUB_BELOW, 300f).toDouble()
+    fun clubBelow(c: Context): Double = p(c).getFloat(KEY_CLUB_BELOW, 0f).toDouble()
     fun setClubBelow(c: Context, v: Double) = p(c).edit().putFloat(KEY_CLUB_BELOW, v.toFloat()).apply()
     fun autoClub(c: Context): Boolean = p(c).getBoolean(KEY_AUTO, true)
     fun setAutoClub(c: Context, on: Boolean) = p(c).edit().putBoolean(KEY_AUTO, on).apply()

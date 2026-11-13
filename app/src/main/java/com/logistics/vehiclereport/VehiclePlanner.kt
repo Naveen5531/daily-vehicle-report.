@@ -81,8 +81,8 @@ object VehiclePlanner {
 
     class Options(
         val types: List<VehicleCap> = DEFAULT_TYPES,
-        /** Loads below this volume may share a vehicle with others of the same cluster. */
-        val clubBelow: Double = 300.0,
+        /** Loads below this volume may share a vehicle; 0 = any size (two loads that fit one vehicle on one route). */
+        val clubBelow: Double = 0.0,
         val autoClub: Boolean = true,
         /** Most stores one vehicle delivers to (clubbed: 2 by default). */
         val maxStops: Int = 2,
@@ -309,37 +309,42 @@ object VehiclePlanner {
 
         if (o.autoClub) {
             fun capOf(v: Double) = fit(v, types)?.capacity ?: Double.MAX_VALUE
-            val candidates = loads.filter { l ->
-                // Small loads, and the rest of a store split over several vehicles (2000 → 850 + 850 + 300: the 300).
-                !l.full && l.parts.size == 1 && (l.volume < o.clubBelow - EPS || l.splitRest || l.rideOnly) &&
-                    l.parts[0].first.code !in o.noClub && l.parts[0].first.code !in inHandClub
-            }.sortedByDescending { it.volume }
-            for (c in candidates) {
-                if (c !in loads) continue
-                // How far out of its way the vehicle goes, and how different its trip is from the store's own distance
-                // (a city store rides with a city vehicle before a long-distance one that passes by).
-                fun cost(l: Load): Double {
-                    val dc = o.dc ?: return 0.0
-                    val h = l.parts.map { o.places[it.first.code] ?: return 0.0 }
-                    val a = c.parts.map { o.places[it.first.code] ?: return 0.0 }
-                    val before = trip(dc, h)
-                    val added = trip(dc, h + a).first - before.first
-                    return added + 0.15 * abs(before.second - a.maxOf { km(dc, it) })
+            // A load that may take part in auto clubbing: not a big store's full load, not split or clubbed by hand.
+            fun free(l: Load) = !l.full && l.codes.none { it in o.noClub } && l.codes.none { it in inHandClub }
+            // Below "Club below" (0 = any size), the rest of a big store, or a ride-only store.
+            fun small(l: Load) = o.clubBelow <= 0 || l.volume < o.clubBelow - EPS || l.parts.any { p -> rest[p.first.code]?.let { it.splitRest || it.rideOnly } == true }
+            // How far out of its way the bigger load's vehicle goes for the other (0 when a place is not on the map).
+            fun cost(host: Load, add: Load): Double {
+                val dc = o.dc ?: return 0.0
+                val h = host.parts.map { o.places[it.first.code] ?: return 0.0 }
+                val a = add.parts.map { o.places[it.first.code] ?: return 0.0 }
+                val before = trip(dc, h)
+                val added = trip(dc, h + a).first - before.first
+                return added + 0.15 * abs(before.second - a.maxOf { km(dc, it) })
+            }
+            // Again and again: of all pairs of loads that fit one vehicle and are on one route, club the pair least out
+            // of the way (5 km steps), then the smallest step up in vehicle size, then the fuller vehicle.
+            while (true) {
+                var best: Triple<Load, Load, DoubleArray>? = null
+                val open = loads.filter { free(it) }
+                for (i in open.indices) for (j in open.indices) {
+                    if (i == j) continue
+                    val host = open[i]; val add = open[j]
+                    // The bigger load hosts (each pair once); two ride-only stores alone do not make a vehicle.
+                    if (host.volume < add.volume - EPS || (host.volume - add.volume).let { abs(it) <= EPS } && i > j) continue
+                    if (host.rideOnly && add.rideOnly && host.parts.size == 1 && add.parts.size == 1) continue
+                    if (!small(add) && !small(host) && o.clubBelow > 0) continue
+                    if ((host.codes + add.codes).size > o.maxStops || host.volume + add.volume > max + EPS) continue
+                    if (!fitsOnRoute(host.parts.map { it.first }, add.parts.map { it.first }, o)) continue
+                    val v = host.volume + add.volume
+                    val key = doubleArrayOf(Math.floor(cost(host, add) / 5.0), capOf(v) - capOf(host.volume), -v / capOf(v))
+                    val b = best?.third
+                    if (b == null || key[0] < b[0] || key[0] == b[0] && (key[1] < b[1] || key[1] == b[1] && key[2] < b[2])) best = Triple(host, add, key)
                 }
-                val best = loads.filter { other ->
-                    other !== c && !other.full && !other.rideOnly && other.volume >= c.volume - EPS &&
-                        other.codes.none { it in o.noClub } && other.codes.none { it in inHandClub } &&
-                        (other.codes + c.codes).size <= o.maxStops && other.volume + c.volume <= max + EPS &&
-                        fitsOnRoute(other.parts.map { it.first }, c.parts.map { it.first }, o)
-                }.minWithOrNull(
-                    // least out of the way (in 5 km steps), then the smallest step up in vehicle size, then the fuller vehicle
-                    compareBy<Load> { Math.floor(cost(it) / 5.0) }
-                        .thenBy { capOf(it.volume + c.volume) - capOf(it.volume) }
-                        .thenByDescending { (it.volume + c.volume) / capOf(it.volume + c.volume) }
-                ) ?: continue
-                best.parts += c.parts
-                best.clubbed = true
-                loads.remove(c)
+                val (host, add) = best ?: break
+                val merged = Load(host.cluster, (host.parts + add.parts).toMutableList(), clubbed = true)
+                loads[loads.indexOf(host)] = merged
+                loads.remove(add)
             }
         }
 
