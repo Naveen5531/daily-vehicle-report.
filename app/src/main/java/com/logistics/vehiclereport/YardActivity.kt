@@ -12,8 +12,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -21,14 +21,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.button.MaterialButtonToggleGroup
-import com.google.android.material.card.MaterialCardView
 import java.util.Date
 
 /**
- * Yard: Standing, In-transit and At-DC-now vehicles as the office Excel (App Data workbook) pulled them from Drishti.
- * Excel sends them with the gate log through the office laptop link; this screen only shows them.
+ * Yard: Standing / In-transit / At-DC-now vehicles, pulled from Drishti by the office Excel and sent through the
+ * account's own Firebase. Styled to match the app (emerald hero, white stat tiles, status pills).
  */
 class YardActivity : AppCompatActivity() {
 
@@ -43,11 +40,12 @@ class YardActivity : AppCompatActivity() {
     private var query = ""
     private var dedicatedOnly = false
 
-    private lateinit var subtitle: TextView
+    private lateinit var updatedPill: TextView
     private lateinit var list: LinearLayout
     private lateinit var empty: TextView
-    private lateinit var toggle: MaterialButtonToggleGroup
-    private val buttons = mutableListOf<MaterialButton>()
+    private lateinit var dedChip: TextView
+    private val tileCount = arrayOfNulls<TextView>(3)
+    private val tileWrap = arrayOfNulls<View>(3)
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == YardStore.KEY_AT) runOnUiThread { refresh() }
@@ -62,8 +60,7 @@ class YardActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putInt("tab", current)
+        super.onSaveInstanceState(outState); outState.putInt("tab", current)
     }
 
     override fun onStart() {
@@ -76,130 +73,144 @@ class YardActivity : AppCompatActivity() {
         super.onStop()
     }
 
-    // ---------- layout ----------
-
+    // ---------- helpers ----------
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
     private fun color(id: Int) = ContextCompat.getColor(this, id)
     private fun font(id: Int): Typeface? = try { ResourcesCompat.getFont(this, id) } catch (e: Exception) { null }
+    private fun tv(text: String, sizeSp: Float, colorId: Int, fontId: Int? = null) = TextView(this).apply {
+        this.text = text; textSize = sizeSp; setTextColor(color(colorId)); fontId?.let { typeface = font(it) }
+    }
+    private fun pill(bgRes: Int, tintId: Int): View = View(this).apply { setBackgroundResource(bgRes); backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, tintId) }
 
+    // ---------- layout ----------
     private fun build(): View {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(color(R.color.bg_light))
-            setPadding(dp(16), dp(16), dp(16), 0)
-        }
-        // The outer frame takes the status / navigation bar insets, so the side padding above stays.
-        val frame = android.widget.FrameLayout(this).apply {
-            fitsSystemWindows = true
-            setBackgroundColor(color(R.color.bg_light))
-        }
+        val frame = FrameLayout(this).apply { fitsSystemWindows = true; setBackgroundColor(color(R.color.bg_light)) }
+        val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // Top bar: back, title, pull now
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        top.addView(TextView(this).apply {
-            text = "←"
-            textSize = 24f
-            setTextColor(color(R.color.ink))
-            setPadding(0, 0, dp(12), 0)
-            setOnClickListener { finish() }
+        // Top bar
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(6))
+        }
+        top.addView(tv("‹", 30f, R.color.ink).apply {
+            setPadding(0, 0, dp(14), dp(4)); setOnClickListener { finish() }
         })
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        titles.addView(TextView(this).apply {
-            text = getString(R.string.yard_title)
-            textSize = 24f
-            typeface = font(R.font.bricolage_extrabold)
-            setTextColor(color(R.color.ink))
-        })
-        subtitle = TextView(this).apply { textSize = 12.5f; setTextColor(color(R.color.muted)) }
-        titles.addView(subtitle)
+        titles.addView(tv(getString(R.string.yard_title), 26f, R.color.ink, R.font.bricolage_extrabold))
+        titles.addView(tv(getString(R.string.yard_subtitle), 12.5f, R.color.muted, R.font.jakarta_medium))
         top.addView(titles, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(MaterialButton(this).apply {
-            text = getString(R.string.yard_pull)
-            setOnClickListener { pullNow(quiet = false) }
-        })
-        root.addView(top)
+        outer.addView(top)
 
-        // Link code for the office Excel (App Link sheet, cell B2): copy or share it from here.
-        root.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.yard_link)
-            isAllCaps = false
-            setOnClickListener { DrishtiActivity.showLaptopLink(this@YardActivity) { refresh() } }
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { topMargin = dp(8) })
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(6), dp(16), dp(28)) }
 
-        // Tabs
-        toggle = MaterialButtonToggleGroup(this).apply {
-            isSingleSelection = true
-            isSelectionRequired = true
-        }
-        tabs.forEachIndexed { i, t ->
-            val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                id = View.generateViewId()
-                text = t.label
-                isAllCaps = false
-                textSize = 13f
-            }
-            buttons.add(b)
-            toggle.addView(b, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        }
-        toggle.check(buttons[current].id)
-        toggle.addOnButtonCheckedListener { _, id, checked ->
-            if (checked) { current = buttons.indexOfFirst { it.id == id }.coerceAtLeast(0); refresh() }
-        }
-        root.addView(toggle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { topMargin = dp(12) })
+        body.addView(hero())
 
-        // Search + dedicated only
+        // Search + dedicated chip
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        row.addView(EditText(this).apply {
-            hint = getString(R.string.yard_search)
+        val search = EditText(this).apply {
+            hint = getString(R.string.yard_search); setHintTextColor(color(R.color.faint))
+            setTextColor(color(R.color.ink)); textSize = 14f; typeface = font(R.font.jakarta_medium)
             isSingleLine = true
-            textSize = 14f
+            setBackgroundResource(R.drawable.gate_row_bg)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun afterTextChanged(s: Editable?) { query = s?.toString().orEmpty().trim(); refresh() }
             })
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        row.addView(CheckBox(this).apply {
-            text = getString(R.string.yard_dedicated_only)
-            textSize = 13f
-            setOnCheckedChangeListener { _, on -> dedicatedOnly = on; refresh() }
-        })
-        root.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { topMargin = dp(4) })
-
-        // List
-        val scroll = ScrollView(this)
-        val inner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4), 0, dp(24)) }
-        empty = TextView(this).apply {
-            textSize = 14f
-            setTextColor(color(R.color.muted))
-            setPadding(dp(4), dp(24), dp(4), dp(24))
         }
+        row.addView(search, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        dedChip = tv(getString(R.string.yard_dedicated_only), 13f, R.color.muted, R.font.jakarta_bold).apply {
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.pill_bg)
+            backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.soft)
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            setOnClickListener { dedicatedOnly = !dedicatedOnly; styleDedChip(); refresh() }
+        }
+        row.addView(dedChip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) })
+        body.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+
+        empty = tv("", 14f, R.color.muted, R.font.jakarta_medium).apply { setPadding(dp(4), dp(28), dp(4), dp(28)); gravity = Gravity.CENTER }
+        body.addView(empty)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        inner.addView(empty)
-        inner.addView(list)
-        scroll.addView(inner)
-        root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        frame.addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        body.addView(list)
+
+        scroll.addView(body)
+        outer.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        frame.addView(outer, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         return frame
     }
 
-    // ---------- data ----------
+    private fun hero(): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.hero_bg)
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+        }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        head.addView(tv(getString(R.string.yard_hero), 13f, R.color.on_emerald_muted, R.font.jakarta_bold),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        updatedPill = tv("", 11.5f, R.color.emerald, R.font.jakarta_bold).apply {
+            setBackgroundResource(R.drawable.pill_bg); backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.mint)
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+        }
+        head.addView(updatedPill)
+        // tap pill area for pull now
+        head.setOnClickListener { pullNow(false) }
+        card.addView(head)
 
+        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        tiles.setPadding(0, dp(14), 0, 0)
+        for (i in tabs.indices) {
+            val tile = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                setBackgroundResource(R.drawable.hero_stat_bg)
+                setPadding(dp(6), dp(12), dp(6), dp(12))
+                setOnClickListener { current = i; styleTiles(); refresh() }
+            }
+            val cnt = tv("0", 24f, R.color.emerald, R.font.bricolage_extrabold)
+            val lbl = tv(tabs[i].label, 11.5f, R.color.muted, R.font.jakarta_bold).apply { gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) }
+            tile.addView(cnt); tile.addView(lbl)
+            tileCount[i] = cnt; tileWrap[i] = tile
+            val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            if (i > 0) lp.leftMargin = dp(10)
+            tiles.addView(tile, lp)
+        }
+        card.addView(tiles)
+
+        val linkBtn = tv(getString(R.string.yard_link), 12.5f, R.color.emerald, R.font.jakarta_bold).apply {
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.pill_bg)
+            backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.mint)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setOnClickListener { DrishtiActivity.showLaptopLink(this@YardActivity) { refresh() } }
+        }
+        card.addView(linkBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+        styleTiles(); styleDedChip()
+        return card
+    }
+
+    private fun styleTiles() {
+        for (i in tabs.indices) {
+            val sel = i == current
+            tileWrap[i]?.backgroundTintList = ContextCompat.getColorStateList(this, if (sel) R.color.mint else R.color.surface)
+            tileWrap[i]?.alpha = if (sel) 1f else 0.9f
+        }
+    }
+
+    private fun styleDedChip() {
+        dedChip.backgroundTintList = ContextCompat.getColorStateList(this, if (dedicatedOnly) R.color.brand_light else R.color.soft)
+        dedChip.setTextColor(color(if (dedicatedOnly) R.color.emerald else R.color.muted))
+    }
+
+    // ---------- data ----------
     private fun refresh() {
         val at = YardStore.lastAt(this)
-        subtitle.text = if (at > 0) getString(R.string.yard_updated, ReportBuilder.timeFmt().format(Date(at)))
-                        else getString(R.string.yard_never)
+        updatedPill.text = if (at > 0) ReportBuilder.timeFmt().format(Date(at)) else getString(R.string.yard_waiting_pill)
 
-        val dedicated = try {
-            VehicleStore.getVehicles(this).filter { it.dedicated }.map { it.number }.toSet()
-        } catch (e: Exception) { emptySet() }
-
-        tabs.forEachIndexed { i, t ->
-            buttons[i].text = getString(R.string.yard_tab_count, t.label, YardStore.table(this, t.sheet).rows.size)
-        }
+        val dedicated = try { VehicleStore.getVehicles(this).filter { it.dedicated }.map { it.number }.toSet() } catch (e: Exception) { emptySet() }
+        for (i in tabs.indices) tileCount[i]?.text = YardStore.table(this, tabs[i].sheet).rows.size.toString()
 
         val table = YardStore.table(this, tabs[current].sheet)
         val vCol = table.col("vehicle number", "vehicle no", "vehicle")
@@ -207,7 +218,7 @@ class YardActivity : AppCompatActivity() {
         val shown = table.rows.filter { r ->
             val plate = plateOf(r.getOrNull(vCol).orEmpty())
             (!dedicatedOnly || plate in dedicated) &&
-                (q.isEmpty() || r.any { cell -> cell.uppercase().filter { it.isLetterOrDigit() }.contains(q) })
+                (q.isEmpty() || r.any { it.uppercase().filter { ch -> ch.isLetterOrDigit() }.contains(q) })
         }
 
         list.removeAllViews()
@@ -229,105 +240,93 @@ class YardActivity : AppCompatActivity() {
         val raw = r.getOrNull(vCol).orEmpty()
         val plate = plateOf(raw)
         val isDed = plate in dedicated
-        val card = MaterialCardView(this).apply {
-            radius = dp(16).toFloat()
-            cardElevation = dp(1).toFloat()
-            setCardBackgroundColor(color(R.color.surface))
-            useCompatPadding = false
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.gate_row_bg)
+            setPadding(dp(14), dp(13), dp(14), dp(13))
         }
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12)) }
 
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        head.addView(TextView(this).apply {
-            text = if (raw.isNotBlank()) raw else "–"
-            textSize = 17f
-            typeface = font(R.font.jakarta_bold)
-            setTextColor(color(R.color.ink))
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        if (isDed) head.addView(TextView(this).apply {
-            text = getString(R.string.yard_dedicated)
-            textSize = 11.5f
-            typeface = font(R.font.jakarta_bold)
-            setTextColor(color(R.color.emerald))
-            setBackgroundColor(color(R.color.brand_light))
-            setPadding(dp(8), dp(3), dp(8), dp(3))
+        head.addView(tv(if (raw.isNotBlank()) raw else "–", 17f, R.color.ink, R.font.jakarta_bold),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        if (isDed) head.addView(tv(getString(R.string.yard_dedicated), 10.5f, R.color.emerald, R.font.jakarta_bold).apply {
+            setBackgroundResource(R.drawable.pill_bg); backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, R.color.brand_light)
+            setPadding(dp(8), dp(4), dp(8), dp(4))
         })
-        box.addView(head)
+        statusPill(t, r)?.let { head.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(6) }) }
+        card.addView(head)
 
         val lines = StringBuilder()
         t.headers.forEachIndexed { i, h ->
             if (i == vCol) return@forEachIndexed
+            val hl = h.lowercase()
+            if (hl.contains("waiting") || hl.contains("elapsed") || hl.contains("hh")) return@forEachIndexed  // shown as pill
             val v = r.getOrNull(i).orEmpty().trim()
             if (v.isEmpty() || v == "-") return@forEachIndexed
             if (lines.isNotEmpty()) lines.append('\n')
             lines.append(h).append(": ").append(v)
         }
-        box.addView(TextView(this).apply {
-            text = lines.toString()
-            textSize = 13f
-            setTextColor(color(R.color.muted))
-            setPadding(0, dp(4), 0, 0)
-            setLineSpacing(dp(2).toFloat(), 1f)
+        card.addView(tv(lines.toString(), 13f, R.color.muted, R.font.jakarta_medium).apply {
+            setPadding(0, dp(5), 0, 0); setLineSpacing(dp(3).toFloat(), 1f)
         })
-        card.addView(box)
 
         val mobile = mobileOf(t, r)
-        card.setOnClickListener {
-            if (mobile != null) {
-                try { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$mobile"))) } catch (e: Exception) { }
-            }
-        }
+        card.setOnClickListener { if (mobile != null) try { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$mobile"))) } catch (e: Exception) {} }
         card.setOnLongClickListener {
-            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("vehicle", plate))
-            Toast.makeText(this, getString(R.string.yard_copied, plate), Toast.LENGTH_SHORT).show()
-            true
+            (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                .setPrimaryClip(android.content.ClipData.newPlainText("vehicle", plate))
+            Toast.makeText(this, getString(R.string.yard_copied, plate), Toast.LENGTH_SHORT).show(); true
         }
         return card.also {
-            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                .apply { topMargin = dp(10) }
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
         }
     }
 
-    /** Driver mobile from a "Driver Mobile" column or "NAME (9876543210)". */
+    /** A coloured pill for waiting / elapsed time, or Departed when checked out. */
+    private fun statusPill(t: YardStore.Table, r: List<String>): View? {
+        val outCol = t.col("checked out", "checkedout")
+        if (outCol >= 0) {
+            val out = r.getOrNull(outCol).orEmpty().trim()
+            if (out.isNotEmpty() && out != "-") return pillText(getString(R.string.yard_departed), R.color.gone, R.color.gone_bg)
+        }
+        val wCol = t.col("waiting", "elapsed", "hh:mm")
+        if (wCol >= 0) {
+            val w = r.getOrNull(wCol).orEmpty().trim().replace(" ", "")
+            if (w.isNotEmpty() && w != "-") return pillText(w, R.color.wait, R.color.wait_bg)
+        }
+        return null
+    }
+
+    private fun pillText(text: String, fg: Int, bg: Int) = tv(text, 11.5f, fg, R.font.jakarta_bold).apply {
+        setBackgroundResource(R.drawable.pill_bg); backgroundTintList = ContextCompat.getColorStateList(this@YardActivity, bg)
+        setPadding(dp(9), dp(4), dp(9), dp(4))
+    }
+
     private fun mobileOf(t: YardStore.Table, r: List<String>): String? {
-        val m = t.col("mobile")
-        val candidates = listOfNotNull(r.getOrNull(m), r.getOrNull(t.col("driver")))
-        for (c in candidates) {
-            val d = Regex("\\d{10}").find(c.replace(" ", ""))
-            if (d != null) return d.value.takeLast(10)
+        for (c in listOfNotNull(r.getOrNull(t.col("mobile")), r.getOrNull(t.col("driver")))) {
+            Regex("\\d{10}").find(c.replace(" ", ""))?.let { return it.value.takeLast(10) }
         }
         return null
     }
 
     private fun pullNow(quiet: Boolean) {
-        // Firebase (the app's own cloud, written by the office Excel) is the live route; ntfy is the old fallback.
         if (FirebaseLink.available(this)) {
-            if (!quiet) subtitle.text = getString(R.string.laptop_checking)
-            FirebaseLink.pullOnce(this) { ok, err ->
+            if (!quiet) updatedPill.text = getString(R.string.yard_checking_pill)
+            FirebaseLink.pullOnce(this) { _, err ->
                 if (isFinishing) return@pullOnce
                 refresh()
                 if (!quiet && err != null) Toast.makeText(this, getString(R.string.laptop_net_error, err), Toast.LENGTH_LONG).show()
             }
             return
         }
-        if (!LaptopLink.linked(this)) {
-            if (!quiet) Toast.makeText(this, R.string.yard_not_linked, Toast.LENGTH_LONG).show()
-            return
-        }
+        if (!LaptopLink.linked(this)) { if (!quiet) Toast.makeText(this, R.string.yard_not_linked, Toast.LENGTH_LONG).show(); return }
         val app = applicationContext
-        if (!quiet) subtitle.text = getString(R.string.laptop_checking)
         Thread {
             val err = try { LaptopLink.pullAndApply(app); null } catch (e: Throwable) { e.message ?: e.toString() }
-            runOnUiThread {
-                if (isFinishing) return@runOnUiThread
-                refresh()
-                if (!quiet && err != null) Toast.makeText(this, getString(R.string.laptop_net_error, err), Toast.LENGTH_LONG).show()
-            }
+            runOnUiThread { if (!isFinishing) { refresh(); if (!quiet && err != null) Toast.makeText(this, getString(R.string.laptop_net_error, err), Toast.LENGTH_LONG).show() } }
         }.start()
     }
 
-    companion object {
-        fun open(c: Context) = c.startActivity(Intent(c, YardActivity::class.java))
-    }
+    companion object { fun open(c: Context) = c.startActivity(Intent(c, YardActivity::class.java)) }
 }

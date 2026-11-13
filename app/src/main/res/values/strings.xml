@@ -839,6 +839,11 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="yard_button">Yard · Standing &amp; In-transit</string>
     <string name="drishti_menu_yard">Yard · Standing &amp; In-transit (from Excel)</string>
     <string name="yard_pull">Pull now</string>
+    <string name="yard_subtitle">From the office Excel (Drishti)</string>
+    <string name="yard_hero">YARD · live from DC</string>
+    <string name="yard_waiting_pill">waiting…</string>
+    <string name="yard_checking_pill">checking…</string>
+    <string name="yard_departed">Departed</string>
     <string name="yard_link">Link code for office Excel (copy / share)</string>
     <string name="yard_search">Search vehicle, transporter, driver…</string>
     <string name="yard_dedicated_only">Dedicated</string>
