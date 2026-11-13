@@ -200,7 +200,7 @@ class YardActivity : AppCompatActivity() {
             setOnClickListener { DrishtiActivity.showLaptopLink(this@YardActivity) { refresh() } }
         }
         card.addView(linkBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
-        styleTiles(); styleDedChip()
+        styleTiles()   // dedChip is styled where it is created, after hero(); don't touch it here (not built yet)
         return card
     }
 
