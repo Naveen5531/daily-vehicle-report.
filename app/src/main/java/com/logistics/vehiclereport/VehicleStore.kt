@@ -453,7 +453,8 @@ object VehicleStore {
             // "Posted by": only vehicles posted by the chosen people (also hides what came in before the choice).
             val allowed = getAllowedSenders(context)
             if (allowed.isEmpty()) list
-            else list.filter { r -> r.senders.any { s -> allowed.any { senderMatches(s, it) } } }
+            // Your own posts come in as "You" and can't be added to "Posted by" - always let them through.
+            else list.filter { r -> r.senders.any { s -> s.equals("You", true) || allowed.any { senderMatches(s, it) } } }
                 .map { r -> r.senders.firstOrNull { s -> allowed.any { senderMatches(s, it) } }?.let { r.copy(sender = it) } ?: r }
         }.sortedByDescending { it.time }
     }
@@ -521,7 +522,7 @@ object VehicleStore {
     fun getUnmatched(context: Context): List<UnmatchedMessage> = synchronized(lock) {
         val allowed = getAllowedSenders(context)
         loadUnmatched(prefs(context), System.currentTimeMillis())
-            .filter { u -> allowed.isEmpty() || allowed.any { senderMatches(u.sender, it) } }
+            .filter { u -> allowed.isEmpty() || u.sender.equals("You", true) || allowed.any { senderMatches(u.sender, it) } }
             .sortedByDescending { it.time }
     }
 
@@ -559,7 +560,8 @@ object VehicleStore {
 
         for (m in messages) {
             if (!ignoreGroupFilter && selected.isNotBlank() && !sameChat(m.chat, selected)) continue
-            if (allowed.isNotEmpty() && allowed.none { senderMatches(m.sender, it) }) continue
+            // Keep your own posts ("You") even when "Posted by" is limited to specific people.
+            if (allowed.isNotEmpty() && !m.sender.equals("You", true) && allowed.none { senderMatches(m.sender, it) }) continue
             val result = MessageParser.parse(m.text, byLast4, dedicatedSet, hints)
             if (result.captures.isEmpty() && result.unmatchedCodes.isEmpty()) continue
 
