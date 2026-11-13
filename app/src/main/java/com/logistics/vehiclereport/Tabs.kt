@@ -806,7 +806,7 @@ class ExportTab(private val a: MainActivity, private val root: View) {
                         } else android.widget.Toast.makeText(a, a.getString(R.string.restore_fail, err ?: ""), android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
-                .setNegativeButton(R.string.cancel, null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
         updateBackupStatus(root)
