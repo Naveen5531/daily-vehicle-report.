@@ -844,8 +844,8 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="yard_waiting_pill">waiting…</string>
     <string name="yard_checking_pill">checking…</string>
     <string name="yard_departed">Departed</string>
-    <string name="yard_site_all">All sites</string>
-    <string name="yard_site_one">Site %1$s</string>
+    <string name="yard_site_all">Site Id: All ▾</string>
+    <string name="yard_site_one">Site Id: %1$s ▾</string>
     <string name="yard_site_title">Filter by Site Id</string>
     <string name="yard_shift_btn">Store Day / Night</string>
     <string name="yard_shift_title">Store unloading shift</string>
