@@ -347,9 +347,9 @@ object MessageParser {
             val l = lines[cur.line].masked
             if (!REPL.containsMatchIn(l) || VehicleParser.refs(l).size != 1 || cur.capture < 0 || prev.capture < 0) continue
             val p = captures[prev.capture]; val c = captures[cur.capture]
-            if (p.replacement.isNotEmpty() || p.full.not()) continue
+            if (p.replacement.isNotEmpty()) continue
             captures[cur.capture] = c.copy(
-                replacement = p.typed, city = c.city.ifEmpty { p.city }, mobile = c.mobile.ifEmpty { p.mobile },
+                replacement = if (p.full) p.typed else p.candidates.singleOrNull() ?: p.typed, city = c.city.ifEmpty { p.city }, mobile = c.mobile.ifEmpty { p.mobile },
                 vendor = c.vendor.ifEmpty { p.vendor }, size = c.size.ifEmpty { p.size }, driver = c.driver.ifEmpty { p.driver }
             )
             dropped += prev.capture

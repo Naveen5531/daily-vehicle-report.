@@ -220,6 +220,14 @@ class MessageParserTest {
         assertEquals("7654614945", c.mobile)
     }
 
+    @Test fun replacementLineUnderALast4Vehicle() {
+        val r = any4("9275 Hafeezpeth - Amjad\n\n9573 Replacement").captures
+        val c = r.single()
+        assertEquals("9573", c.typed)
+        assertEquals("XX00XX9275", c.replacement)
+        assertEquals("Hafeezpeth", c.city)
+    }
+
     @Test fun remarksAreNotPlacesOrVendors() {
         val c = MessageParser.parse("Replace \n08.10.2026\nTG08X4999 (24ft)\n+917997813622\nHyderabad to Vizag in dc\nSri anjana tpt", emptyMap(), emptySet()).captures.single()
         assertEquals("Hyderabad to Vizag", c.city)
