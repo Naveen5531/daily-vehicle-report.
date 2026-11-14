@@ -33,6 +33,20 @@ object GateMarks {
         JSONObject(VehicleStore.prefs(c).getString(KEY, null) ?: "{}")
     } catch (e: Exception) { JSONObject() }
 
+    // Read-only copy kept until the saved text changes (writers use read(), which parses a fresh one).
+    private var sharedRaw: String? = null
+    private var sharedObj: JSONObject = JSONObject()
+
+    @Synchronized
+    private fun readShared(c: Context): JSONObject {
+        val raw = VehicleStore.prefs(c).getString(KEY, null) ?: "{}"
+        if (sharedRaw == null || (sharedRaw !== raw && sharedRaw != raw)) {
+            sharedObj = try { JSONObject(raw) } catch (e: Exception) { JSONObject() }
+            sharedRaw = raw
+        }
+        return sharedObj
+    }
+
     private fun parse(day: JSONObject?): Map<String, GateMark> {
         if (day == null) return emptyMap()
         val out = HashMap<String, GateMark>()
@@ -44,7 +58,7 @@ object GateMarks {
         return out
     }
 
-    fun forDay(c: Context, dayStart: Long): Map<String, GateMark> = parse(read(c).optJSONObject(dayKey(dayStart)))
+    fun forDay(c: Context, dayStart: Long): Map<String, GateMark> = parse(readShared(c).optJSONObject(dayKey(dayStart)))
 
     /** How many days back an open trip (checked in, never checked out) is still shown at the DC. */
     const val CARRY_DAYS = 3
@@ -65,7 +79,7 @@ object GateMarks {
      * Departed) the trip is closed and only a new check-in counts. Reports and the cloud copy keep each day as it was.
      */
     fun gates(c: Context, carry: Boolean = false): ReportBuilder.Gates {
-        val all = read(c)
+        val all = readShared(c)
         val cache = HashMap<String, Map<String, GateMark>>()
         val logs = HashMap<Long, Map<String, DrishtiRow>>()
         fun ownMarks(day: Long) = dayKey(day).let { k -> cache.getOrPut(k) { parse(all.optJSONObject(k)) } }

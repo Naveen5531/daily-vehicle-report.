@@ -127,14 +127,29 @@ object DrishtiStore {
         p.edit().putString(KEY_LOG, all.toString()).apply()
     }
 
+    // The whole log is one big JSON text; reading it again for every day asked for made each redraw slow.
+    // The parsed log and each day's rows are kept until the saved text changes.
+    private var logRaw: String? = null
+    private var logObj: JSONObject? = null
+    private val logDays = HashMap<Long, List<DrishtiRow>>()
+
     /** The gate log saved for the day starting at [dayStart], in check-in order. */
+    @Synchronized
     fun log(c: Context, dayStart: Long): List<DrishtiRow> {
-        val all = try { JSONObject(VehicleStore.prefs(c).getString(KEY_LOG, "{}") ?: "{}") } catch (e: Exception) { return emptyList() }
-        val d = all.optJSONObject(dayStart.toString()) ?: return emptyList()
-        return d.keys().asSequence().mapNotNull { k ->
-            val a = d.optJSONArray(k) ?: return@mapNotNull null
-            DrishtiRow(a.optString(0), a.optString(1), a.optString(2), a.optString(3), a.optString(4),
-                a.optLong(5), a.optLong(6), a.optString(7))
-        }.sortedBy { it.checkIn }.toList()
+        val raw = VehicleStore.prefs(c).getString(KEY_LOG, "{}") ?: "{}"
+        if (logRaw == null || (logRaw !== raw && logRaw != raw)) {
+            logObj = try { JSONObject(raw) } catch (e: Exception) { null }
+            logRaw = raw
+            logDays.clear()
+        }
+        val all = logObj ?: return emptyList()
+        return logDays.getOrPut(dayStart) {
+            val d = all.optJSONObject(dayStart.toString()) ?: return@getOrPut emptyList()
+            d.keys().asSequence().mapNotNull { k ->
+                val a = d.optJSONArray(k) ?: return@mapNotNull null
+                DrishtiRow(a.optString(0), a.optString(1), a.optString(2), a.optString(3), a.optString(4),
+                    a.optLong(5), a.optLong(6), a.optString(7))
+            }.sortedBy { it.checkIn }.toList()
+        }
     }
 }
