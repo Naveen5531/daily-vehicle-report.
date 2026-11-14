@@ -243,6 +243,16 @@ object ReportBuilder {
             Masters.matchedLabel(st != null, vd != null))
     }
 
+    /** The place to match a store with: what the post says, else (or when that matches no store) the Drishti gate's destination. */
+    private fun storePlace(written: String, gateDest: String, lk: Lookups?): String {
+        val m = lk?.masters
+        return when {
+            written.isBlank() -> gateDest
+            gateDest.isNotBlank() && m != null && m.matchStore(written) == null && m.matchStore(gateDest) != null -> gateDest
+            else -> written
+        }
+    }
+
     private val PLACE_HEADERS = listOf("Dispatch From", "Location", "Store Code", "Store Name", "Region",
         "Driver Mobile (msg)", "Driver Name (msg)", "Vendor (msg)", "Vendor (list)", "Vendor Code", "Vehicle Type", "Rate Card Type", "Rate (₹)", "Matched")
 
@@ -339,7 +349,9 @@ object ReportBuilder {
             }
             out += listOf(
                 (sn++).toString(),
-                wa, actual, remark, veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
+                wa, actual, remark, veh,
+                g(r, iStore).ifBlank { if (lk?.masters?.stores.isNullOrEmpty()) "Store list not imported" else "" },
+                cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }.ifBlank { g(r, iLoc) }, dcIn, dcOut,
                 tr?.storeIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 tr?.storeOut?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),
@@ -407,7 +419,7 @@ object ReportBuilder {
                     else -> ""
                 }
                 base + listOf(status) + times + listOf(
-                    *place(d.hits.lastOrNull { it.city.isNotBlank() }?.city ?: g?.destination.orEmpty(),
+                    *place(storePlace(d.hits.lastOrNull { it.city.isNotBlank() }?.city.orEmpty(), g?.destination.orEmpty(), lk),
                         d.hits.lastOrNull { it.mobile.isNotBlank() }?.mobile ?: g?.mobile.orEmpty(),
                         d.hits.lastOrNull { it.vendor.isNotBlank() }?.vendor.orEmpty(), lk,
                         f.chat, d.hits.last().message, v.transporter,
