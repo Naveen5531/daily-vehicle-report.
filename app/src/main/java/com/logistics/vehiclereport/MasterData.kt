@@ -39,11 +39,21 @@ object MasterData {
                     (0 until st.length()).map { st.getJSONObject(it) }
                         .map { Store(it.optString("code"), it.optString("name"), it.optString("city"), it.optString("region")) },
                     (0 until vd.length()).map { vd.getJSONObject(it) }.map { Vendor(it.optString("name"), it.optString("code")) }
+                        .ifEmpty { DEFAULT_VENDORS }
                 )
             } catch (e: Exception) { }
         }
-        return Masters(emptyList(), emptyList())
+        return Masters(emptyList(), DEFAULT_VENDORS)
     }
+
+    /** The DC's transporter list, used until a vendor list is imported (an imported list replaces it). */
+    val DEFAULT_VENDORS: List<Vendor> = listOf(
+        "HAPPY ROAD LINES", "KOHINOOR CARGO MOVERS", "MOHAMMED AMJAD", "SSR TRANSPORT AND TRAVELS",
+        "SAI KIRAN TRANSPORT", "TEAMPLAY MANAGEMENT SOLUTIONS PRIVATE LIMITED", "VEERABHADRA CORGO MOVERS",
+        "INDOSAI TRANSWAYS CORPN", "HIMAGIRI GOODS CARRIERS", "SRI LAXMI CHENA KESAVA TRANSPORT",
+        "SOUTH ASIAN LOGISTIC SERVICES PVT LTD", "SQUAD LOGISTICS", "VR LOGOSTIC SERVICES", "SRI ANJANA TRANSPORT",
+        "SYNDICATE ROADWAYS CORPORATION", "MISHEETHA LOGISTICS", "COLDRUSH LOGISTICS PRIVATE LIMITED"
+    ).map { Vendor(it) }
 
     /** Reads a workbook: the sheet with a "Store Code" header is the store list; another sheet is the vendor list. */
     fun fromWorkbook(bytes: ByteArray): Masters {
