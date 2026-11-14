@@ -287,10 +287,10 @@ object ReportBuilder {
 
     // ---------- 1b. Driver details report (the DC's paper format) ----------
 
-    val DRIVER_HEADERS = listOf("S.No", "Transport Name (WhatsApp)", "Transport Name (Actual)", "Vehicle No", "Store", "City", "DC In Time", "DC Out Time",
+    val DRIVER_HEADERS = listOf("S.No", "Transport Name (WhatsApp)", "Transport Name (Actual)", "Vendor Remark", "Vehicle No", "Store", "City", "DC In Time", "DC Out Time",
         "Store In Time", "Store Out Time", "Driver Name", "Driver No", "Vehicle Type", "Dispatch From", "Destination",
         "Pulled From", "Posted By", "Dispatched Date")
-    val DRIVER_WIDTHS = listOf(6, 24, 26, 16, 26, 16, 14, 14, 14, 14, 20, 14, 12, 16, 20, 20, 18, 16)
+    val DRIVER_WIDTHS = listOf(6, 24, 30, 26, 16, 26, 16, 14, 14, 14, 14, 20, 14, 12, 16, 20, 20, 18, 16)
 
     /**
      * The daily dedicated data in the DC's paper layout: S.No, Transport Name, Vehicle No, Store, City, DC in/out,
@@ -324,12 +324,22 @@ object ReportBuilder {
             val date = g(r, iDate); val veh = g(r, iVeh)
             val dayStart = try { startOfDay(dayParse.parse(date)!!.time) } catch (e: Exception) { 0L }
             val tr = if (dayStart > 0) trip(veh, dayStart) else null
-            val dcIn = tr?.dcIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) } ?: g(r, iIn)
+            fun stamp(t: String) = if (t.isNotBlank() && !t.contains('-')) "$date $t" else t   // time-only text gets the row's date
+            val dcIn = tr?.dcIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) } ?: stamp(g(r, iIn))
             val dcOutMs = tr?.dcOut ?: 0L
-            val dcOut = if (dcOutMs > 0) timeWithDate(dcOutMs, dayStart) else g(r, iOut)
+            val dcOut = if (dcOutMs > 0) timeWithDate(dcOutMs, dayStart) else stamp(g(r, iOut))
+            val wa = g(r, iVend)
+            val actual = g(r, iVendL)
+            val remark = when {
+                lk?.masters?.vendors.isNullOrEmpty() -> "Vendor list not imported"
+                actual.isNotBlank() && wa.isBlank() -> "From vendor list (not written in post)"
+                actual.isNotBlank() -> "Matched with vendor list"
+                wa.isNotBlank() -> "Not in vendor list - check"
+                else -> "No vendor"
+            }
             out += listOf(
                 (sn++).toString(),
-                g(r, iVend), g(r, iVendL, iTpt, iVend), veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
+                wa, actual, remark, veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
                 tr?.storeIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 tr?.storeOut?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),
@@ -340,10 +350,8 @@ object ReportBuilder {
         return out
     }
 
-    /** "hh:mm a" when [ms] is on [dayStart], else "dd-MM-yyyy hh:mm a" (the time belongs to another day). */
-    private fun timeWithDate(ms: Long, dayStart: Long): String =
-        if (ms >= dayStart && ms < dayStart + DAY_MS) timeFmt().format(Date(ms))
-        else dateFmt().format(Date(ms)) + " " + timeFmt().format(Date(ms))
+    /** Always "dd-MM-yyyy hh:mm a": every in / out time carries its date. */
+    private fun timeWithDate(ms: Long, dayStart: Long): String = dateFmt().format(Date(ms)) + " " + timeFmt().format(Date(ms))
 
     private fun oneDay(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long, lk: Lookups?,
