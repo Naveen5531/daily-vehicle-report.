@@ -262,7 +262,8 @@ class TodayTab(private val a: MainActivity, root: View) {
         // Your vehicle list, plus vehicles posted with their full number that are not in it yet.
         val today = viewDay()
         val isBack = backDay != null
-        val gates = GateMarks.gates(a)
+        // Today also shows vehicles still at the DC from an earlier check-in (no check-out yet).
+        val gates = GateMarks.gates(a, carry = true)
         val marks = gates.forDay(today)
         val gateMap = gates.gateLog(today)
         val gateOnly = gates.gateOnly && !gates.legacy(today)

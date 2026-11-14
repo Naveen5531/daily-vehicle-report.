@@ -20,6 +20,7 @@ class StatusAdapter(
 ) : RecyclerView.Adapter<StatusAdapter.Holder>() {
     private var items: List<VehicleDay> = emptyList()
     private val time = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    private val carriedFmt = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
 
     fun submit(list: List<VehicleDay>) { items = list; notifyDataSetChanged() }
 
@@ -82,9 +83,11 @@ class StatusAdapter(
         h.plateNote.visibility = if (h.plateNote.text.isNullOrBlank()) View.GONE else View.VISIBLE
         h.scan.visibility = if (needScan) View.VISIBLE else View.GONE
         h.scan.setOnClickListener { onScan(d) }
-        val gateIn = d.gate?.checkIn?.takeIf { it > 0 }
+        val gateIn = d.gate?.checkIn?.takeIf { it > 0 } ?: d.mark?.reportedAt?.takeIf { it > 0 && first == null }
+        // Still at the DC from an earlier day (no check-out yet): show that day too.
+        val fmtIn = { t: Long -> if (t < ReportBuilder.startOfDay()) carriedFmt.format(Date(t)) else time.format(Date(t)) }
         h.timeText.text = when {
-            (first == null || d.gateOnly) && gateIn != null -> time.format(Date(gateIn))
+            (first == null || d.gateOnly) && gateIn != null -> fmtIn(gateIn)
             first == null -> "—"
             d.hits.sumOf { it.count } > 1 -> time.format(Date(first.time)) + " · ${d.hits.sumOf { it.count }}×"
             else -> time.format(Date(first.time))

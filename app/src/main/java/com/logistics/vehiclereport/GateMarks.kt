@@ -46,17 +46,67 @@ object GateMarks {
 
     fun forDay(c: Context, dayStart: Long): Map<String, GateMark> = parse(read(c).optJSONObject(dayKey(dayStart)))
 
-    /** All marks at once, for reports over several days. */
-    fun gates(c: Context): ReportBuilder.Gates {
+    /** How many days back an open trip (checked in, never checked out) is still shown at the DC. */
+    const val CARRY_DAYS = 3
+
+    /**
+     * All marks at once, for reports over several days.
+     * [carry] (Today screen): a vehicle that checked in on one of the last [CARRY_DAYS] days and has no check-out yet
+     * is still at the DC, so it shows as Reported (with its first check-in time). Once it checks out (or is marked
+     * Departed) the trip is closed and only a new check-in counts. Reports and the cloud copy keep each day as it was.
+     */
+    fun gates(c: Context, carry: Boolean = false): ReportBuilder.Gates {
         val all = read(c)
         val cache = HashMap<String, Map<String, GateMark>>()
         val logs = HashMap<Long, Map<String, DrishtiRow>>()
+        fun ownMarks(day: Long) = dayKey(day).let { k -> cache.getOrPut(k) { parse(all.optJSONObject(k)) } }
+        fun ownLog(day: Long) = logs.getOrPut(day) { DrishtiData.byVehicle(DrishtiStore.log(c, day)) }
+        val carried = HashMap<Long, Pair<Map<String, GateMark>, Map<String, DrishtiRow>>>()
+        fun carriedFor(day: Long) = carried.getOrPut(day) {
+            openTrips(day, ownMarks(day).keys + ownLog(day).keys, ::ownMarks, ::ownLog)
+        }
         return ReportBuilder.Gates(
             since = since(c),
-            forDay = { day -> dayKey(day).let { k -> cache.getOrPut(k) { parse(all.optJSONObject(k)) } } },
+            forDay = { day -> if (!carry) ownMarks(day) else ownMarks(day) + carriedFor(day).first },
             gateOnly = DrishtiStore.gateOnly(c),
-            gateLog = { day -> logs.getOrPut(day) { DrishtiData.byVehicle(DrishtiStore.log(c, day)) } }
+            gateLog = { day -> if (!carry) ownLog(day) else carriedFor(day).second + ownLog(day) }
         )
+    }
+
+    /**
+     * Trips still open on [day]: per vehicle not seen on [day] itself ([seenToday]), its latest earlier day (up to
+     * [CARRY_DAYS] back) with a check-in or mark. Open = checked in / marked Reported with no check-out, or checked
+     * out on [day] itself (it left today: Departed). Checked out before [day] = closed, not shown.
+     */
+    fun openTrips(
+        day: Long, seenToday: Set<String>,
+        marksOn: (Long) -> Map<String, GateMark>, logOn: (Long) -> Map<String, DrishtiRow>
+    ): Pair<Map<String, GateMark>, Map<String, DrishtiRow>> {
+        val marks = HashMap<String, GateMark>()
+        val rows = HashMap<String, DrishtiRow>()
+        val done = HashSet<String>(seenToday)
+        for (back in 1..CARRY_DAYS) {
+            val prev = ReportBuilder.startOfDay(day - back * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2)
+            val pm = marksOn(prev)
+            val pl = logOn(prev)
+            for (v in pm.keys + pl.keys) {
+                if (v in done) continue
+                val m = pm[v]
+                val r = pl[v]
+                if (m?.gate == Gate.YET && r == null) continue   // only "yet to report" that day: not a trip
+                done += v                                         // the latest earlier trip decides
+                val out = when {
+                    m?.gate == Gate.DEPARTED -> m.departedAt.takeIf { it > 0 } ?: (r?.checkOut ?: 0L).takeIf { it > 0 } ?: prev
+                    r != null && r.checkOut > 0 -> r.checkOut
+                    else -> 0L
+                }
+                if (out in 1 until day) continue                  // checked out before this day: trip closed
+                val inAt = m?.reportedAt?.takeIf { it > 0 } ?: r?.checkIn ?: 0L
+                marks[v] = if (out >= day) GateMark(Gate.DEPARTED, inAt, out) else GateMark(Gate.REPORTED, inAt)
+                if (r != null) rows[v] = r
+            }
+        }
+        return marks to rows
     }
 
     /** Moves a day's mark from [from] to [to] (the camera showed the vehicle is really [to]); [to]'s own mark wins. */
