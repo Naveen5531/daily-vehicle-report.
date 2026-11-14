@@ -307,7 +307,8 @@ object ReportBuilder {
         fun col(vararg names: String): Int { for (n in names) { val i = h.indexOf(n); if (i >= 0) return i }; return -1 }
         val iDate = col("Date"); val iVeh = col("Vehicle Number")
         val iTpt = col("Transporter"); val iVend = col("Vendor (msg)"); val iVendL = col("Vendor (list)")
-        val iStore = col("Store Name"); val iRegion = col("Region"); val iLoc = col("Location")
+        val iStore = col("Store Name"); val iRegion = col("Region"); val iLoc = col("Location"); val iCode = col("Store Code")
+        val cityOf = { code: String -> lk?.masters?.stores?.firstOrNull { it.code.trim() == code.trim() }?.city.orEmpty() }
         val iIn = col("Reported At"); val iOut = col("Departed At")
         val iDrvM = col("Driver Name (msg)"); val iDrv = col("Driver Name")
         val iMobM = col("Driver Mobile (msg)"); val iMob = col("Driver Mobile")
@@ -328,7 +329,7 @@ object ReportBuilder {
             val dcOut = if (dcOutMs > 0) timeWithDate(dcOutMs, dayStart) else g(r, iOut)
             out += listOf(
                 (sn++).toString(),
-                g(r, iTpt, iVend, iVendL), veh, g(r, iStore), g(r, iRegion), dcIn, dcOut,
+                g(r, iTpt, iVend, iVendL), veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
                 tr?.storeIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 tr?.storeOut?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),

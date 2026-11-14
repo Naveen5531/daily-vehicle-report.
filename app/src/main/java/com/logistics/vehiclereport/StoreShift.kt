@@ -25,6 +25,13 @@ object StoreShift {
         p(c).edit().putString(KEY, o.toString()).apply()
     }
 
+    /** Sets many stores at once from an imported store sheet (code -> true = Night); other stores are left as they are. */
+    fun setAll(c: Context, map: Map<String, Boolean>) {
+        val o = read(c)
+        for ((code, night) in map) { val k = norm(code); if (night) o.put(k, "N") else o.remove(k) }
+        p(c).edit().putString(KEY, o.toString()).apply()
+    }
+
     /** Start of the store's current operating window, in millis. */
     fun windowStart(c: Context, code: String, now: Long = System.currentTimeMillis()): Long {
         val hour = if (isNight(c, code)) NIGHT_HOUR else DAY_HOUR

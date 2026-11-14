@@ -830,6 +830,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(getString(R.string.masters_found, found.stores.size, found.vendors.size, found.vendors.count { it.code.isNotBlank() }))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MasterData.save(this, merged)
+                MasterData.takeShifts()?.let { StoreShift.setAll(this, it) }
                 Toast.makeText(this, R.string.masters_saved, Toast.LENGTH_SHORT).show()
                 // Latitude / Longitude or map link columns in the store sheet: stores pinned exactly too.
                 if (locRows.isNotEmpty()) StoreLocations.applyRows(this, locRows) { ok, _ ->

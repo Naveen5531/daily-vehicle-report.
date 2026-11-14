@@ -8,6 +8,9 @@ import org.json.JSONObject
 object MasterData {
     private const val PREF_KEY = "masters_json"
     @Volatile private var cached: Masters? = null
+    /** Day/Night per store code read from an "Unloading Type" column of the last workbook read (true = Night). */
+    @Volatile private var shifts: Map<String, Boolean>? = null
+    fun takeShifts(): Map<String, Boolean>? = shifts.also { shifts = null }
 
     fun get(context: Context): Masters = cached ?: synchronized(this) {
         cached ?: load(context).also { cached = it }
@@ -53,12 +56,20 @@ object MasterData {
             if (hi >= 0 && stores.isEmpty()) {
                 val h = rows[hi].map { it.lowercase() }
                 fun col(vararg names: String) = h.indexOfFirst { c -> names.any { c.contains(it) } }
-                val cCode = col("code"); val cName = col("name"); val cCity = col("city", "location"); val cRegion = col("region", "zone")
+                val cCode = col("code"); val cName = col("name"); val cCity = col("city", "location"); val cRegion = col("region", "zone", "circle")
+                val cUnload = col("unloading")
+                val sh = LinkedHashMap<String, Boolean>()
                 stores = rows.drop(hi + 1).mapNotNull { r ->
                     val code = r.getOrNull(cCode).orEmpty().removeSuffix(".0")
                     if (code.isBlank()) null
-                    else Store(code, r.getOrNull(cName).orEmpty(), r.getOrNull(cCity).orEmpty(), r.getOrNull(cRegion).orEmpty())
+                    else {
+                        if (cUnload >= 0) r.getOrNull(cUnload).orEmpty().trim().uppercase().let { u ->
+                            if (u.startsWith("NIGHT")) sh[code] = true else if (u.startsWith("DAY")) sh[code] = false
+                        }
+                        Store(code, r.getOrNull(cName).orEmpty(), r.getOrNull(cCity).orEmpty(), r.getOrNull(cRegion).orEmpty())
+                    }
                 }
+                if (sh.isNotEmpty()) shifts = sh
             } else if (vendors.isEmpty() && rows.isNotEmpty()) {
                 // Vendor name = the column with the most text; code = a column headed "code" (optional).
                 val h = rows.first().map { it.lowercase() }
