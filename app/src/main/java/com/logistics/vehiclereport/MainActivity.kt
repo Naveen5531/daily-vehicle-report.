@@ -626,6 +626,7 @@ class MainActivity : AppCompatActivity() {
         if (id == R.id.nav_plan) safe("Plan") { plan?.refresh() }
         if (id == R.id.nav_stores) safe("Stores") { stores?.refresh() }
         tabViews.forEach { (navId, view) -> view.visibility = if (navId == id) View.VISIBLE else View.GONE }
+        refreshTab(id)
         titleText.setText(
             when (id) {
                 R.id.nav_whatsapp -> R.string.tab_whatsapp
@@ -698,6 +699,23 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private var lastSnap: Snapshot? = null
+    private val dirtyTabs = HashSet<Int>()
+
+    /** Redraws one tab from the last snapshot if it has not been redrawn since the data changed. */
+    private fun refreshTab(id: Int) {
+        if (!dirtyTabs.remove(id)) return
+        val s = lastSnap ?: return
+        when (id) {
+            R.id.nav_today -> safe("Today") { today.refresh(s) }
+            R.id.nav_whatsapp -> safe("WhatsApp") { whatsapp.refresh(s) }
+            R.id.nav_vehicles -> safe("Vehicles") { vehicles.refresh(s) }
+            R.id.nav_live -> safe("Live") { live.refresh(s) }
+            R.id.nav_rates -> safe("Rates") { if (::rates.isInitialized) rates.refresh() }
+            R.id.nav_mail -> safe("Mail") { if (::mail.isInitialized) mail.refresh() }
+        }
+    }
+
     fun refreshAll() {
         var s = try { loadSnapshot() } catch (e: Throwable) {
             safe("Load data") { throw e }
@@ -715,12 +733,12 @@ class MainActivity : AppCompatActivity() {
         liveRing.backgroundTintList = ColorStateList.valueOf(
             if (s.hasAccess) 0xFFD4F5E3.toInt() else 0xFFFFE9DC.toInt()
         )
-        safe("Today") { today.refresh(s) }
-        safe("WhatsApp") { whatsapp.refresh(s) }
-        safe("Vehicles") { vehicles.refresh(s) }
-        safe("Live") { live.refresh(s) }
-        safe("Rates") { if (::rates.isInitialized) rates.refresh() }
-        safe("Mail") { if (::mail.isInitialized) mail.refresh() }
+        // Only the tab on screen is redrawn now; the others are redrawn when opened (every redraw reads the whole
+        // day's data on the main thread, which made switching tabs slow).
+        lastSnap = s
+        dirtyTabs.clear()
+        dirtyTabs.addAll(listOf(R.id.nav_today, R.id.nav_whatsapp, R.id.nav_vehicles, R.id.nav_live, R.id.nav_rates, R.id.nav_mail))
+        refreshTab(currentTab)
 
         val unmatchedToday = s.unmatched.count { it.time >= ReportBuilder.startOfDay() }
         if (unmatchedToday > 0) {

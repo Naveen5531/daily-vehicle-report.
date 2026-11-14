@@ -111,8 +111,9 @@ object VehicleStore {
     /** 2 = mobile + vendor, 3 = vehicle size, 4 = one entry per vehicle per day, 5 = re-read with the improved reader,
      *  6 = codes not in the vehicle list are entries too, 7 = full numbers seen become record-only vehicles,
      *  8 = driver mobile written as "+91…" straight after the place ("VIZAG+919908764329"),
-     *  9 = vendor written on the vehicle's own line ("1234 Hyderabad Sri Sai Transport", "… - Vendor: Navata"). */
-    private const val RECORDS_VERSION = 9
+     *  9 = vendor written on the vehicle's own line ("1234 Hyderabad Sri Sai Transport", "… - Vendor: Navata"),
+     *  10 = "9275 Hafeezpeth\n\n9573 Replacement": the vehicle above joins 9573's entry as its replacement. */
+    private const val RECORDS_VERSION = 10
     private var rememberSeenVehiclesLater = false
     const val KEY_DEDICATED = "dedicated_json"
     const val KEY_UNMATCHED = "unmatched_json"
@@ -669,6 +670,8 @@ object VehicleStore {
         val hints = MessageParser.cached(MasterData.get(context).asHints())
         val parsed = HashMap<String, List<Capture>>()
         val updates = HashMap<String, Capture>()   // record id -> new reading
+        val joins = HashMap<String, String>()      // record id -> replacement vehicle it now carries
+        val drops = HashSet<String>()              // record ids folded into another vehicle's entry as its replacement
         for (i in 0 until before.length()) {
             val o = before.optJSONObject(i) ?: continue
             val msg = o.optString("message")
@@ -677,6 +680,18 @@ object VehicleStore {
             } catch (t: Throwable) { emptyList() }
                 .firstOrNull { it.typed == o.optString("typed") && it.replacement == o.optString("replacement") } ?: continue
             updates[o.optString("id")] = c
+        }
+        // Posts saved before a replacement written under another vehicle was understood: the vehicle above the
+        // "Replacement" line is the replacement, so it joins the dedicated vehicle's entry instead of being its own.
+        for (i in 0 until before.length()) {
+            val o = before.optJSONObject(i) ?: continue
+            if (o.optString("replacement").isNotBlank()) continue
+            val caps = try { parsed.getOrPut(o.optString("message")) { MessageParser.parse(o.optString("message"), byLast4, dedicatedSet, hints).captures } } catch (t: Throwable) { continue }
+            for (cap in caps) {
+                if (cap.replacement.isBlank()) continue
+                if (o.optString("typed") == cap.typed) joins[o.optString("id")] = cap.replacement
+                else if (o.optString("vehicle") == cap.replacement || o.optString("typed") == cap.replacement) drops += o.optString("id")
+            }
         }
         val added = ArrayList<JSONObject>()
         for (u in unmatched) {
@@ -688,7 +703,14 @@ object VehicleStore {
         }
         synchronized(lock) {
             if (p.getInt(KEY_RECORDS_VERSION, 1) >= RECORDS_VERSION) return
-            val arr = loadRecords(p)   // as it is now (posts that came in meanwhile are kept)
+            val arr0 = loadRecords(p)   // as it is now (posts that came in meanwhile are kept)
+            val arr = JSONArray()
+            for (i in 0 until arr0.length()) {
+                val o = arr0.optJSONObject(i) ?: continue
+                if (o.optString("id") in drops) continue
+                joins[o.optString("id")]?.let { o.put("replacement", it) }
+                arr.put(o)
+            }
             for (i in 0 until arr.length()) {
                 val o = arr.optJSONObject(i) ?: continue
                 val c = updates[o.optString("id")] ?: continue
