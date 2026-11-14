@@ -287,10 +287,10 @@ object ReportBuilder {
 
     // ---------- 1b. Driver details report (the DC's paper format) ----------
 
-    val DRIVER_HEADERS = listOf("S.No", "Transport Name", "Vehicle No", "Store", "City", "DC In Time", "DC Out Time",
+    val DRIVER_HEADERS = listOf("S.No", "Transport Name (WhatsApp)", "Transport Name (Actual)", "Vehicle No", "Store", "City", "DC In Time", "DC Out Time",
         "Store In Time", "Store Out Time", "Driver Name", "Driver No", "Vehicle Type", "Dispatch From", "Destination",
         "Pulled From", "Posted By", "Dispatched Date")
-    val DRIVER_WIDTHS = listOf(6, 24, 16, 26, 16, 14, 14, 14, 14, 20, 14, 12, 16, 20, 20, 18, 16)
+    val DRIVER_WIDTHS = listOf(6, 24, 26, 16, 26, 16, 14, 14, 14, 14, 20, 14, 12, 16, 20, 20, 18, 16)
 
     /**
      * The daily dedicated data in the DC's paper layout: S.No, Transport Name, Vehicle No, Store, City, DC in/out,
@@ -329,7 +329,7 @@ object ReportBuilder {
             val dcOut = if (dcOutMs > 0) timeWithDate(dcOutMs, dayStart) else g(r, iOut)
             out += listOf(
                 (sn++).toString(),
-                g(r, iVendL, iVend, iTpt), veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
+                g(r, iVend), g(r, iVendL, iTpt, iVend), veh, g(r, iStore), cityOf(g(r, iCode)).ifBlank { g(r, iRegion) }, dcIn, dcOut,
                 tr?.storeIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 tr?.storeOut?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),
