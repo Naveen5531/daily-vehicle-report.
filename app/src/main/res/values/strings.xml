@@ -344,6 +344,9 @@
     <string name="chip_reported">Reported %1$d</string>
     <string name="chip_check">Check %1$d</string>
     <string name="sent_by">Sent “%1$s” by %2$s</string>
+    <string name="cancelled_pill">Cancelled</string>
+    <string name="replacement_title">🔁 Replacement</string>
+    <string name="replacement_waiting">🔁 Replacement: waiting</string>
     <string name="replacement_line">🔁 Replacement: %1$s</string>
     <string name="no_details">No details added</string>
     <string name="today_empty_no_vehicles">No vehicles posted in the WhatsApp group for this day yet.</string>

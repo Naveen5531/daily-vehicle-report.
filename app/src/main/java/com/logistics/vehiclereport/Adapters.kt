@@ -36,6 +36,14 @@ class StatusAdapter(
         val plateNote: TextView = v.findViewById(R.id.plateNote)
         val scan: MaterialButton = v.findViewById(R.id.scanButton)
         val gate: com.google.android.material.button.MaterialButtonToggleGroup = v.findViewById(R.id.gateGroup)
+        val replBlock: View = v.findViewById(R.id.replBlock)
+        val replTitle: TextView = v.findViewById(R.id.replTitle)
+        val replPlate: TextView = v.findViewById(R.id.replPlate)
+        val replMeta: TextView = v.findViewById(R.id.replMeta)
+        val replGateTimes: TextView = v.findViewById(R.id.replGateTimes)
+        val replPill: TextView = v.findViewById(R.id.replPill)
+        val replTime: TextView = v.findViewById(R.id.replTime)
+        val replGate: com.google.android.material.button.MaterialButtonToggleGroup = v.findViewById(R.id.replGate)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -96,6 +104,52 @@ class StatusAdapter(
         h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
         h.call.setOnClickListener { Ui.dial(ctx, mobile) }
         h.itemView.setOnClickListener { onOpen(d) }
+        bindReplacement(h, d, withRepl, first)
+    }
+
+    /**
+     * A replacement was given: the original stays in its own row, struck through and tagged Cancelled, and the
+     * replacement vehicle shows below it in the same card with the status, time and Yet / Reported / Departed.
+     * Status, marks and times are the same as before; only where they are drawn changes.
+     */
+    private fun bindReplacement(h: Holder, d: VehicleDay, withRepl: VehicleRecord?, first: VehicleRecord?) {
+        val ctx = h.itemView.context
+        val gateRepl = d.gate?.takeIf { it.vehicle != d.vehicle.number }
+        val replPlate = withRepl?.replacement?.takeIf { it.isNotBlank() } ?: gateRepl?.vehicle
+        h.plate.paintFlags = h.plate.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG.inv()
+        if (replPlate == null) {
+            h.replBlock.visibility = View.GONE
+            h.gate.visibility = View.VISIBLE
+            return
+        }
+        // Original: struck through, Cancelled; the live status moves to the replacement.
+        h.plate.paintFlags = h.plate.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+        h.meta2.visibility = View.GONE
+        h.plateNote.visibility = View.GONE
+        h.gateTimes.visibility = View.GONE
+        h.scan.visibility = View.GONE
+        h.pill.setText(R.string.cancelled_pill)
+        h.pill.setTextColor(Ui.color(ctx, R.color.no))
+        h.pill.backgroundTintList = android.content.res.ColorStateList.valueOf(Ui.color(ctx, R.color.no_bg))
+        h.timeText.visibility = View.GONE
+        h.gate.visibility = View.GONE
+        // Replacement block.
+        h.replBlock.visibility = View.VISIBLE
+        val arrived = d.gate != null
+        h.replTitle.text = if (arrived) Ui.joinNonBlank(ctx.getString(R.string.replacement_title), withRepl?.city.orEmpty().ifBlank { d.gate?.destination.orEmpty() })
+            else ctx.getString(R.string.replacement_waiting)
+        h.replPlate.text = replPlate
+        h.replMeta.text = Ui.joinNonBlank(
+            withRepl?.size.orEmpty().ifBlank { d.gate?.type.orEmpty() },
+            withRepl?.driver.orEmpty().ifBlank { d.gate?.driver.orEmpty() },
+            withRepl?.vendor.orEmpty()
+        )
+        h.replMeta.visibility = if (h.replMeta.text.isNullOrBlank()) View.GONE else View.VISIBLE
+        Ui.styleState(h.replPill, d.state)
+        h.replTime.text = h.timeText.text
+        h.replGateTimes.text = Ui.gateTimes(ctx, d.mark)
+        h.replGateTimes.visibility = if (h.replGateTimes.text.isNullOrBlank()) View.GONE else View.VISIBLE
+        Ui.bindGate(h.replGate, d.state) { onGate(d, it) }
     }
 }
 
