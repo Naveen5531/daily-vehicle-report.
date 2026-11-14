@@ -74,7 +74,7 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
         for (v in vendors) {
             val all = words(v.name)
             val key = all.filter { it !in VENDOR_NOISE }.ifEmpty { all }
-            val hits = wKey.count { a -> key.any { b -> loose(a, b) } }
+            val hits = wKey.count { a -> key.any { b -> same(a, b) } }
             if (hits == 0) continue
             val score = hits.toDouble() / maxOf(wKey.size, key.size)
             when {
@@ -82,8 +82,7 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
                 score == bestScore -> tie = true
             }
         }
-        // Even a slight match counts when it points to exactly one vendor of the list.
-        return if (best != null && !tie && bestScore > 0.0) best else null
+        return if (best != null && !tie && bestScore >= 0.5) best else null
     }
 
     /** Lets the message reader tell places and vendors from driver names and remarks. */
@@ -96,14 +95,9 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
     fun vendorsIn(text: String): List<Vendor> {
         val tw = words(text)
         if (tw.isEmpty()) return emptyList()
-        val all = vendors.filter { v ->
+        return vendors.filter { v ->
             val key = words(v.name).filter { it !in VENDOR_NOISE && it.length >= 2 }
             key.isNotEmpty() && key.all { k -> tw.any { same(it, k) } }
-        }
-        if (all.isNotEmpty()) return all
-        // Slight match: one distinctive word of the vendor's name appears (spelled loosely) anywhere in the text.
-        return vendors.filter { v ->
-            words(v.name).filter { it !in VENDOR_NOISE && it.length >= 4 }.any { k -> tw.any { loose(it, k) } }
         }
     }
 
@@ -151,20 +145,6 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
 
         fun words(s: String): List<String> =
             s.lowercase().replace(Regex("\\bd[\\s_.-]*ma(?:rt?)?\\b"), " ").split(Regex("[^a-z]+")).filter { it.isNotEmpty() }
-
-        /** [same], or one word starts with the other (4+ letters), or they differ by one letter (5+ letters). */
-        fun loose(a: String, b: String): Boolean {
-            if (same(a, b)) return true
-            if (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a))) return true
-            if (a.length >= 5 && b.length >= 5 && kotlin.math.abs(a.length - b.length) <= 1) {
-                var i = 0
-                while (i < minOf(a.length, b.length) && a[i] == b[i]) i++
-                var j = 0
-                while (j < minOf(a.length, b.length) - i && a[a.length - 1 - j] == b[b.length - 1 - j]) j++
-                return i + j >= maxOf(a.length, b.length) - 1
-            }
-            return false
-        }
 
         /** Same place / name allowing common spelling differences (vowels, h, w/v, doubled letters). */
         fun same(a: String, b: String): Boolean {
