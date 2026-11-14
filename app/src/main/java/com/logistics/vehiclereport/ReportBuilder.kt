@@ -295,12 +295,12 @@ object ReportBuilder {
     /**
      * The daily dedicated data in the DC's paper layout: S.No, Transport Name, Vehicle No, Store, City, DC in/out,
      * Store in/out, Driver Name / No, Vehicle Type, Dispatch From, Destination, Pulled From, Posted By, Dispatched Date.
-     * [storeIn] / [storeOut] give the store check-in / check-out time text for a vehicle on a date (blank when unknown).
+     * [trip] gives the vehicle's trip dispatched on a day: its DC in / DC out / store in / store out are taken from
+     * that trip whatever day each falls on (null = fall back to what the day's row shows).
      */
     fun driverRows(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, from: Long, to: Long = from, lk: Lookups? = null,
-        gates: Gates = Gates(), storeIn: (vehicle: String, date: String) -> String = { _, _ -> "" },
-        storeOut: (vehicle: String, date: String) -> String = { _, _ -> "" }
+        gates: Gates = Gates(), trip: (vehicle: String, dayStart: Long) -> TripTimes? = { _, _ -> null }
     ): List<List<String>> {
         val src = dailyRows(vehicles, records, from, to, lk, gates)
         val h = src.first()
@@ -313,25 +313,36 @@ object ReportBuilder {
         val iMobM = col("Driver Mobile (msg)"); val iMob = col("Driver Mobile")
         val iType = h.lastIndexOf("Vehicle Type"); val iType0 = col("Vehicle Type")
         val iFrom = col("Dispatch From"); val iGrp = col("WhatsApp Group"); val iGate = col("Drishti Gate")
-        val iBy = col("Reported By"); val iStatus = col("Status")
+        val iBy = col("Reported By")
         fun g(r: List<String>, vararg i: Int): String { for (k in i) if (k >= 0) r.getOrNull(k)?.takeIf { it.isNotBlank() }?.let { return it }; return "" }
+        val dayParse = dateFmt()
         val out = mutableListOf(DRIVER_HEADERS)
         var sn = 1
         for (r in src.drop(1)) {
             if (r.firstOrNull() == "TOTAL") continue
             val date = g(r, iDate); val veh = g(r, iVeh)
-            val dcOut = g(r, iOut)
+            val dayStart = try { startOfDay(dayParse.parse(date)!!.time) } catch (e: Exception) { 0L }
+            val tr = if (dayStart > 0) trip(veh, dayStart) else null
+            val dcIn = tr?.dcIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) } ?: g(r, iIn)
+            val dcOutMs = tr?.dcOut ?: 0L
+            val dcOut = if (dcOutMs > 0) timeWithDate(dcOutMs, dayStart) else g(r, iOut)
             out += listOf(
                 (sn++).toString(),
-                g(r, iTpt, iVend, iVendL), veh, g(r, iStore), g(r, iRegion), g(r, iIn), dcOut,
-                storeIn(veh, date), storeOut(veh, date),
+                g(r, iTpt, iVend, iVendL), veh, g(r, iStore), g(r, iRegion), dcIn, dcOut,
+                tr?.storeIn?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
+                tr?.storeOut?.takeIf { it > 0 }?.let { timeWithDate(it, dayStart) }.orEmpty(),
                 g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),
                 g(r, iGrp).ifBlank { if (g(r, iGate).isNotBlank()) "Drishti gate" else "" }, g(r, iBy),
-                if (dcOut.isNotBlank() || g(r, iStatus).startsWith("Departed")) date else ""
+                if (dcOutMs > 0) dateFmt().format(Date(dcOutMs)) else if (g(r, iOut).isNotBlank()) date else ""
             )
         }
         return out
     }
+
+    /** "hh:mm a" when [ms] is on [dayStart], else "dd-MM-yyyy hh:mm a" (the time belongs to another day). */
+    private fun timeWithDate(ms: Long, dayStart: Long): String =
+        if (ms >= dayStart && ms < dayStart + DAY_MS) timeFmt().format(Date(ms))
+        else dateFmt().format(Date(ms)) + " " + timeFmt().format(Date(ms))
 
     private fun oneDay(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long, lk: Lookups?,

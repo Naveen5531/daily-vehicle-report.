@@ -734,7 +734,7 @@ class ExportTab(private val a: MainActivity, private val root: View) {
             val s = snapshot()
             Exporter.deliver(a, "Dedicated_Vehicle_Report_${rangeName(dailyFrom, dailyTo)}.xlsx",
                 ReportBuilder.driverRows(s.vehicles, s.records, dailyFrom, dailyTo, lookups(), GateMarks.gates(a),
-                    storeIn = { veh, date -> StoreTimes.inTime(a, veh, date) }, storeOut = { veh, date -> StoreTimes.outTime(a, veh, date) }),
+                    trip = { veh, day -> StoreTimes.trip(a, veh, day) }),
                 ReportBuilder.DRIVER_WIDTHS)
         }
 
