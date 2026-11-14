@@ -202,6 +202,8 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        // Long-press the title to check for a new version at once.
+        titleText.setOnLongClickListener { AppUpdate.check(this, manual = true); true }
         bottomNav.setOnItemReselectedListener { item -> showTab(item.itemId) }
         bottomNav.setOnItemSelectedListener { item ->
             showTab(item.itemId)
@@ -598,6 +600,7 @@ class MainActivity : AppCompatActivity() {
         refreshAll()
         safe("Drishti live") { DrishtiLiveService.startIfOn(this) }
         safe("Drishti") { drishti?.resume() }
+        safe("Update") { AppUpdate.checkIfDue(this) }
     }
 
     override fun onPause() {

@@ -5,6 +5,8 @@
     <!-- Internet is used only for signing in, the account's own cloud copy of its data (Firebase),
          and the DMart Drishti page the user opens in the app. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- In-app update: opens the installer for the downloaded new version. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Camera: only to read a vehicle's number plate on the phone (no picture is saved or sent). -->
     <uses-permission android:name="android.permission.CAMERA" />
