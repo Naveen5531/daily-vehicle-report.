@@ -102,7 +102,7 @@
     <string name="hero_pending_text">Tap the call button to reach a pending driver.</string>
     <string name="hero_all_done">All vehicles reported 🎉</string>
     <string name="hero_all_done_text">Today\'s report is ready in the Export tab.</string>
-    <string name="hero_no_vehicles">No dedicated vehicles yet</string>
+    <string name="hero_no_vehicles">No vehicles posted in WhatsApp yet</string>
     <string name="hero_no_vehicles_text">Add them in the Vehicles tab to start tracking.</string>
     <string name="status_need_access">Turn on Notification Access to read WhatsApp.</string>
     <string name="enable">Enable</string>
@@ -346,7 +346,7 @@
     <string name="sent_by">Sent “%1$s” by %2$s</string>
     <string name="replacement_line">🔁 Replacement: %1$s</string>
     <string name="no_details">No details added</string>
-    <string name="today_empty_no_vehicles">Add your dedicated vehicles in the Vehicles tab.</string>
+    <string name="today_empty_no_vehicles">No vehicles posted in the WhatsApp group for this day yet.</string>
     <string name="today_empty_filter">Nothing here.</string>
     <string name="today_search_hint">Search vehicle no, last 4, vendor, driver, store</string>
     <string name="today_empty_search">No vehicle today matches “%1$s”.</string>

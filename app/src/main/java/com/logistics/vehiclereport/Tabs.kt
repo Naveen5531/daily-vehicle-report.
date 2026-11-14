@@ -268,7 +268,9 @@ class TodayTab(private val a: MainActivity, root: View) {
         val gateMap = gates.gateLog(today)
         val gateOnly = gates.gateOnly && !gates.legacy(today)
         val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
-        val local = ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras
+        // Today lists only the vehicles posted in WhatsApp that day; Drishti (gate check-in / check-out, also from an
+        // earlier day still open) says whether each one is Reported or Departed. Vehicles nobody posted are not shown.
+        val local = (ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras).filter { it.hits.isNotEmpty() }
         // A back day with nothing on this phone: its cloud copy (date-wise backup) is shown instead, read only.
         val localHasData = local.any { it.hits.isNotEmpty() || it.mark != null || it.gate != null }
         val day = dayFmt.format(Date(today))
@@ -295,8 +297,9 @@ class TodayTab(private val a: MainActivity, root: View) {
         heroTitle.text = if (isBack) a.getString(R.string.day_title_back, SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(today)))
             else a.getString(R.string.todays_reporting)
         // Gate mode: nothing is "Not posted" (WhatsApp is not needed), so that tile and chip are hidden.
-        tiles.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
-        chipFor.getValue(TodayState.NOT_POSTED).visibility = if (gateOnly) View.GONE else View.VISIBLE
+        // Only posted vehicles are listed, so "Not posted" never has any: hidden.
+        tiles.getValue(TodayState.NOT_POSTED).visibility = View.GONE
+        chipFor.getValue(TodayState.NOT_POSTED).visibility = View.GONE
         val counts = TodayState.values().associateWith { st -> days.count { it.state == st } }
         val total = days.size
         // Only full numbers can be added to the list; a 4-digit code alone is not enough.
@@ -389,7 +392,8 @@ class TodayTab(private val a: MainActivity, root: View) {
  * spelled as in the vendor list ("Happy road lines" and "HAPPY ROAD LINES" are one vendor).
  */
 private fun vendorOf(d: VehicleDay, m: Masters): String {
-    val written = d.vehicle.transporter.trim().ifBlank { d.hits.lastOrNull { it.vendor.isNotBlank() }?.vendor?.trim().orEmpty() }
+    // The vendor written in today's WhatsApp post first (it can change trip to trip), else the vehicle list's transporter.
+    val written = d.hits.lastOrNull { it.vendor.isNotBlank() }?.vendor?.trim().orEmpty().ifBlank { d.vehicle.transporter.trim() }
     if (written.isBlank()) return ""
     return m.resolveVendor(written, "", "", written)?.name?.trim()?.ifBlank { null } ?: written
 }
