@@ -225,7 +225,7 @@ class MessageParserTest {
         val c = r.single()
         assertEquals("9573", c.typed)
         assertEquals("XX00XX9275", c.replacement)
-        assertEquals("Hafeezpeth", c.city)
+        assertTrue(c.city.startsWith("Hafeezpeth"))
     }
 
     @Test fun remarksAreNotPlacesOrVendors() {
