@@ -528,7 +528,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="lock_unavailable">Set a screen lock (PIN, pattern or fingerprint) in phone Settings to use the app lock.</string>
     <string name="export">Export</string>
     <string name="rep_daily_title">Daily dedicated report</string>
-    <string name="rep_daily_desc">Pick a date range. One row per vehicle per day: Reported, Not Reported or Check, store, vendor, vehicle type, rate from the rate card, and a total.</string>
+    <string name="rep_daily_desc">Pick a date range. Driver details in the DC format: transport, vehicle, store, city, DC in/out, store in/out, driver, vehicle type, dispatch from, destination, pulled from, posted by, dispatched date.</string>
     <string name="rep_details_title">Vehicle details</string>
     <string name="rep_details_desc">The full dedicated vehicle list: number, type, driver, mobile, transporter and route.</string>
     <string name="rep_summary_title">Vehicle-wise summary</string>

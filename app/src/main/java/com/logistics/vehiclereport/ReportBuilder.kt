@@ -285,6 +285,54 @@ object ReportBuilder {
         return rows
     }
 
+    // ---------- 1b. Driver details report (the DC's paper format) ----------
+
+    val DRIVER_HEADERS = listOf("S.No", "Transport Name", "Vehicle No", "Store", "City", "DC In Time", "DC Out Time",
+        "Store In Time", "Store Out Time", "Driver Name", "Driver No", "Vehicle Type", "Dispatch From", "Destination",
+        "Pulled From", "Posted By", "Dispatched Date")
+    val DRIVER_WIDTHS = listOf(6, 24, 16, 26, 16, 14, 14, 14, 14, 20, 14, 12, 16, 20, 20, 18, 16)
+
+    /**
+     * The daily dedicated data in the DC's paper layout: S.No, Transport Name, Vehicle No, Store, City, DC in/out,
+     * Store in/out, Driver Name / No, Vehicle Type, Dispatch From, Destination, Pulled From, Posted By, Dispatched Date.
+     * [storeIn] / [storeOut] give the store check-in / check-out time text for a vehicle on a date (blank when unknown).
+     */
+    fun driverRows(
+        vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, from: Long, to: Long = from, lk: Lookups? = null,
+        gates: Gates = Gates(), storeIn: (vehicle: String, date: String) -> String = { _, _ -> "" },
+        storeOut: (vehicle: String, date: String) -> String = { _, _ -> "" }
+    ): List<List<String>> {
+        val src = dailyRows(vehicles, records, from, to, lk, gates)
+        val h = src.first()
+        fun col(vararg names: String): Int { for (n in names) { val i = h.indexOf(n); if (i >= 0) return i }; return -1 }
+        val iDate = col("Date"); val iVeh = col("Vehicle Number")
+        val iTpt = col("Transporter"); val iVend = col("Vendor (msg)"); val iVendL = col("Vendor (list)")
+        val iStore = col("Store Name"); val iRegion = col("Region"); val iLoc = col("Location")
+        val iIn = col("Reported At"); val iOut = col("Departed At")
+        val iDrvM = col("Driver Name (msg)"); val iDrv = col("Driver Name")
+        val iMobM = col("Driver Mobile (msg)"); val iMob = col("Driver Mobile")
+        val iType = h.lastIndexOf("Vehicle Type"); val iType0 = col("Vehicle Type")
+        val iFrom = col("Dispatch From"); val iGrp = col("WhatsApp Group"); val iGate = col("Drishti Gate")
+        val iBy = col("Reported By"); val iStatus = col("Status")
+        fun g(r: List<String>, vararg i: Int): String { for (k in i) if (k >= 0) r.getOrNull(k)?.takeIf { it.isNotBlank() }?.let { return it }; return "" }
+        val out = mutableListOf(DRIVER_HEADERS)
+        var sn = 1
+        for (r in src.drop(1)) {
+            if (r.firstOrNull() == "TOTAL") continue
+            val date = g(r, iDate); val veh = g(r, iVeh)
+            val dcOut = g(r, iOut)
+            out += listOf(
+                (sn++).toString(),
+                g(r, iTpt, iVend, iVendL), veh, g(r, iStore), g(r, iRegion), g(r, iIn), dcOut,
+                storeIn(veh, date), storeOut(veh, date),
+                g(r, iDrvM, iDrv), g(r, iMobM, iMob), g(r, iType, iType0), g(r, iFrom), g(r, iLoc),
+                g(r, iGrp).ifBlank { if (g(r, iGate).isNotBlank()) "Drishti gate" else "" }, g(r, iBy),
+                if (dcOut.isNotBlank() || g(r, iStatus).startsWith("Departed")) date else ""
+            )
+        }
+        return out
+    }
+
     private fun oneDay(
         vehicles: List<DedicatedVehicle>, records: List<VehicleRecord>, dayStart: Long, lk: Lookups?,
         rows: MutableList<List<String>>, firstSn: Int, gates: Gates
