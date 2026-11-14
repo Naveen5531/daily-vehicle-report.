@@ -50,6 +50,15 @@ object GateMarks {
     const val CARRY_DAYS = 3
 
     /**
+     * A check-out before 9 AM belongs to the previous day's loading (yesterday's vehicle leaving in the early morning):
+     * on the Today screen it counts as Departed on the day before, not on the day it went out.
+     */
+    const val EARLY_OUT_MS = 9 * 3_600_000L
+
+    /** Checked out in the first 9 hours of [day]: the trip belongs to the day before. */
+    fun earlyOut(out: Long, day: Long) = out >= day && out < day + EARLY_OUT_MS
+
+    /**
      * All marks at once, for reports over several days.
      * [carry] (Today screen): a vehicle that checked in on one of the last [CARRY_DAYS] days and has no check-out yet
      * is still at the DC, so it shows as Reported (with its first check-in time). Once it checks out (or is marked
@@ -65,12 +74,45 @@ object GateMarks {
         fun carriedFor(day: Long) = carried.getOrPut(day) {
             openTrips(day, ownMarks(day).keys + ownLog(day).keys, ::ownMarks, ::ownLog)
         }
+        val shifted = HashMap<Long, Pair<Map<String, GateMark>, Map<String, DrishtiRow>>>()
+        fun shiftedFor(day: Long) = shifted.getOrPut(day) {
+            val next = ReportBuilder.startOfDay(day + ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2)
+            earlyMorning(day, ownMarks(day), ownLog(day), ownMarks(next), ownLog(next))
+        }
         return ReportBuilder.Gates(
             since = since(c),
-            forDay = { day -> if (!carry) ownMarks(day) else ownMarks(day) + carriedFor(day).first },
+            forDay = { day -> if (!carry) ownMarks(day) else carriedFor(day).first + shiftedFor(day).first },
             gateOnly = DrishtiStore.gateOnly(c),
-            gateLog = { day -> if (!carry) ownLog(day) else carriedFor(day).second + ownLog(day) }
+            gateLog = { day -> if (!carry) ownLog(day) else carriedFor(day).second + shiftedFor(day).second }
         )
+    }
+
+    /**
+     * [day]'s own marks and gate rows, minus vehicles that checked in that day and went out before 9 AM (they are the
+     * day before's), plus vehicles of the next day that went out before 9 AM that morning (they are this day's,
+     * shown Departed).
+     */
+    fun earlyMorning(
+        day: Long, marks: Map<String, GateMark>, log: Map<String, DrishtiRow>,
+        nextMarks: Map<String, GateMark>, nextLog: Map<String, DrishtiRow>
+    ): Pair<Map<String, GateMark>, Map<String, DrishtiRow>> {
+        val next = ReportBuilder.startOfDay(day + ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2)
+        fun outOf(m: GateMark?, r: DrishtiRow?) =
+            (if (m?.gate == Gate.DEPARTED) m.departedAt else 0L).takeIf { it > 0 } ?: (r?.checkOut ?: 0L)
+        val early = (marks.keys + log.keys).filter { earlyOut(outOf(marks[it], log[it]), day) }.toSet()
+        val m = marks.filterKeys { it !in early }.toMutableMap()
+        val l = log.filterKeys { it !in early }.toMutableMap()
+        for (v in nextMarks.keys + nextLog.keys) {
+            val nm = nextMarks[v]; val nr = nextLog[v]
+            val out = outOf(nm, nr)
+            if (!earlyOut(out, next)) continue
+            if (m[v]?.gate == Gate.REPORTED || m[v] == null) {
+                val inAt = nm?.reportedAt?.takeIf { it > 0 } ?: nr?.checkIn ?: 0L
+                m[v] = GateMark(Gate.DEPARTED, m[v]?.reportedAt?.takeIf { it > 0 } ?: inAt, out)
+            }
+            if (nr != null && l[v] == null) l[v] = nr
+        }
+        return m to l
     }
 
     /**
@@ -100,7 +142,8 @@ object GateMarks {
                     r != null && r.checkOut > 0 -> r.checkOut
                     else -> 0L
                 }
-                if (out in 1 until day) continue                  // checked out before this day: trip closed
+                // Checked out before this day, or before 9 AM of it (yesterday's loading): trip closed.
+                if (out in 1 until day + EARLY_OUT_MS) continue
                 val inAt = m?.reportedAt?.takeIf { it > 0 } ?: r?.checkIn ?: 0L
                 marks[v] = if (out >= day) GateMark(Gate.DEPARTED, inAt, out) else GateMark(Gate.REPORTED, inAt)
                 if (r != null) rows[v] = r

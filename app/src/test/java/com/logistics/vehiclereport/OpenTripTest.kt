@@ -18,7 +18,8 @@ class OpenTripTest {
         y to mapOf(
             "OPEN1" to row("OPEN1", y + 20 * h),                 // in yesterday, never out -> still at DC
             "CLOSED" to row("CLOSED", y + 10 * h, y + 15 * h),   // in and out yesterday -> closed
-            "LEFTTODAY" to row("LEFTTODAY", y + 22 * h, day + 2 * h), // out today -> Departed today
+            "LEFTTODAY" to row("LEFTTODAY", y + 22 * h, day + 11 * h), // out today after 9 AM -> Departed today
+            "EARLYOUT" to row("EARLYOUT", y + 21 * h, day + 7 * h),    // out today before 9 AM -> yesterday's trip
             "AGAIN" to row("AGAIN", y + 8 * h)                   // also checked in again today
         ),
         y2 to mapOf(
@@ -46,7 +47,20 @@ class OpenTripTest {
 
     @Test fun leftTodayIsDeparted() {
         assertEquals(Gate.DEPARTED, trips.first["LEFTTODAY"]?.gate)
-        assertEquals(day + 2 * h, trips.first["LEFTTODAY"]?.departedAt)
+        assertEquals(day + 11 * h, trips.first["LEFTTODAY"]?.departedAt)
+    }
+
+    @Test fun outBefore9amIsYesterdays() {
+        assertFalse("EARLYOUT" in trips.first)
+        // Checked in today at 2 AM, out at 8 AM: yesterday's loading -> not today's, shown Departed on yesterday.
+        val today = GateMarks.earlyMorning(day, emptyMap(), mapOf("X" to row("X", day + 2 * h, day + 8 * h)), emptyMap(), emptyMap())
+        assertFalse("X" in today.first || "X" in today.second)
+        val yest = GateMarks.earlyMorning(y, emptyMap(), emptyMap(), emptyMap(), mapOf("X" to row("X", day + 2 * h, day + 8 * h)))
+        assertEquals(Gate.DEPARTED, yest.first["X"]?.gate)
+        assertEquals(day + 8 * h, yest.first["X"]?.departedAt)
+        // Out at 10 AM: today's own trip, stays today.
+        val late = GateMarks.earlyMorning(day, emptyMap(), mapOf("Z" to row("Z", day + 2 * h, day + 10 * h)), emptyMap(), emptyMap())
+        assertTrue("Z" in late.second)
     }
 
     @Test fun newCheckInTodayWins() {
