@@ -725,6 +725,10 @@ class ExportTab(private val a: MainActivity, private val root: View) {
     init {
         // Mail has no bottom-bar button: it opens from here (Back returns here).
         root.findViewById<View>(R.id.exportMail).setOnClickListener { a.showTab(R.id.nav_mail) }
+        root.findViewById<com.google.android.material.button.MaterialButton>(R.id.exportUpdate).apply {
+            text = "Check for app update (now ${BuildConfig.VERSION_NAME})"
+            setOnClickListener { AppUpdate.check(a, manual = true) }
+        }
         // 1. Daily dedicated report
         val daily = card(root.findViewById(R.id.repDaily), R.drawable.ic_calendar, R.color.brand_primary, R.color.ok_bg,
             R.string.rep_daily_title, R.string.rep_daily_desc)

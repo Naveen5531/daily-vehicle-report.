@@ -144,6 +144,16 @@
             android:text="@string/export_mail_button"
             app:icon="@drawable/ic_mail" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exportUpdate"
+            style="@style/DButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="10dp"
+            android:text="Check for app update" />
+
         <include android:id="@+id/repDaily" layout="@layout/report_card" />
         <include android:id="@+id/repDetails" layout="@layout/report_card" />
         <include android:id="@+id/repSummary" layout="@layout/report_card" />
