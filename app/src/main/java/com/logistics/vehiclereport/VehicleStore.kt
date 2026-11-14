@@ -528,26 +528,69 @@ object VehicleStore {
 
     // ---------- Write ----------
 
+    /** Chat / sender names last written (only new names, or every 10 minutes, are saved: each save is synced). */
+    @Volatile private var metaWrittenAt = 0L
+    private const val META_EVERY_MS = 10 * 60_000L
+
     /** Saves every vehicle found in [messages]. Returns how many entries were added. */
     fun ingest(context: Context, messages: List<IncomingMessage>, ignoreGroupFilter: Boolean = false): Int = synchronized(lock) {
         // Nobody signed in on this phone: nothing is kept.
         if (!Account.isSignedIn(context)) return@synchronized 0
         if (messages.isEmpty()) return 0
         val p = prefs(context)
-        val selected = p.getString(KEY_SELECTED_GROUP, "") ?: ""
-        val byLast4 = last4Map(loadVehicles(p).map { it.number })
         val now = System.currentTimeMillis()
+        val selected = p.getString(KEY_SELECTED_GROUP, "") ?: ""
+        val allowed = getAllowedSenders(context)
+
+        // 1. Cheap checks first: other chats and other people are dropped before anything heavy is loaded
+        //    (live reading calls this every second while WhatsApp is open).
+        val wanted = messages.filter { m ->
+            (ignoreGroupFilter || selected.isBlank() || sameChat(m.chat, selected)) &&
+                // Keep your own posts ("You") even when "Posted by" is limited to specific people.
+                (allowed.isEmpty() || m.sender.equals("You", true) || allowed.any { senderMatches(m.sender, it) })
+        }
         val seen = pruneSeen(loadSeen(p), now)
+        val seenBefore = seen.length()
+        fun keyOf(m: IncomingMessage) = hash(
+            if (m.exactTime) "${m.chat}|${m.sender}|${m.time}|${m.text}" else "${m.chat}|${m.sender}|${m.text}"
+        )
+        fun isSeen(m: IncomingMessage): Boolean {
+            val lastSeen = seen.optLong(keyOf(m), -1L)
+            return lastSeen >= 0 && (m.exactTime || now - lastSeen < FALLBACK_DUP_WINDOW_MS)
+        }
+        val fresh = wanted.filterNot { isSeen(it) }
+
+        val editor = p.edit()
+        var write = false
+        // Chat and sender names (for the group / "Posted by" pickers): only when a name is new, or every 10 min.
+        val chats = loadChats(p)
+        val senders = loadSenders(p)
+        val inGroup = messages.filter { selected.isBlank() || sameChat(it.chat, selected) }
+        val newName = messages.any { it.chat.isNotBlank() && it.chat != "WhatsApp" && !chats.has(it.chat) } ||
+            inGroup.any { it.sender.isNotBlank() && it.sender != "You" && !senders.has(it.sender) }
+        if (newName || now - metaWrittenAt > META_EVERY_MS) {
+            editor.putString(KEY_CHATS, rememberChats(chats, messages, now).toString())
+                .putString(KEY_SENDERS, rememberSenders(senders, inGroup, now).toString())
+            metaWrittenAt = now
+            write = true
+        }
+        if (fresh.isEmpty()) {
+            if (seen.length() != seenBefore) { editor.putString(KEY_SEEN, capSeen(seen).toString()); write = true }
+            if (write) editor.apply()
+            return@synchronized 0
+        }
+
+        // 2. Only new messages from the group: read them.
+        val vehicles = loadVehicles(p)
+        val byLast4 = last4Map(vehicles.map { it.number })
+        val dedicatedSet = vehicles.map { it.number }.toSet()
         val records = loadRecords(p)
         val index = dayIndex(records)
         var changed = false
         val unmatched = loadUnmatched(p, now).toMutableList()
         var added = 0
         var unmatchedChanged = false
-
-        val allowed = getAllowedSenders(context)
         val hints = MasterData.get(context).asHints()
-        val dedicatedSet = loadVehicles(p).map { it.number }.toSet()
 
         // Same message seen from another source (notification vs. screen): same text in the same minute.
         fun sameKey(text: String, time: Long) = text.trim().replace(Regex("\\s+"), " ").lowercase() + "|" + (time / 60_000)
@@ -558,20 +601,11 @@ object VehicleStore {
         }
         unmatched.forEach { known += sameKey(it.text, it.time) }
 
-        for (m in messages) {
-            if (!ignoreGroupFilter && selected.isNotBlank() && !sameChat(m.chat, selected)) continue
-            // Keep your own posts ("You") even when "Posted by" is limited to specific people.
-            if (allowed.isNotEmpty() && !m.sender.equals("You", true) && allowed.none { senderMatches(m.sender, it) }) continue
+        for (m in fresh) {
+            // Remembered even with no vehicle in it, so the same message is not read again every second.
+            seen.put(keyOf(m), now)
             val result = MessageParser.parse(m.text, byLast4, dedicatedSet, hints)
             if (result.captures.isEmpty() && result.unmatchedCodes.isEmpty()) continue
-
-            val key = hash(
-                if (m.exactTime) "${m.chat}|${m.sender}|${m.time}|${m.text}"
-                else "${m.chat}|${m.sender}|${m.text}"
-            )
-            val lastSeen = seen.optLong(key, -1L)
-            if (lastSeen >= 0 && (m.exactTime || now - lastSeen < FALLBACK_DUP_WINDOW_MS)) continue
-            seen.put(key, now)
             if (!known.add(sameKey(m.text, m.time))) continue
 
             for (c in result.captures) {
@@ -584,11 +618,7 @@ object VehicleStore {
             }
         }
 
-        val editor = p.edit()
-            .putString(KEY_SEEN, capSeen(seen).toString())
-            .putString(KEY_CHATS, rememberChats(loadChats(p), messages, now).toString())
-            .putString(KEY_SENDERS, rememberSenders(loadSenders(p),
-                messages.filter { selected.isBlank() || sameChat(it.chat, selected) }, now).toString())
+        editor.putString(KEY_SEEN, capSeen(seen).toString())
         if (changed) editor.putString(KEY_RECORDS, trimRecords(records).toString())
         if (unmatchedChanged) {
             val arr = JSONArray()
@@ -596,7 +626,7 @@ object VehicleStore {
             editor.putString(KEY_UNMATCHED, arr.toString())
         }
         editor.apply()
-        rememberSeenVehicles(context, p)
+        if (changed) rememberSeenVehicles(context, p)
         added
     }
 

@@ -52,7 +52,12 @@ class WhatsAppScreenReader : AccessibilityService() {
     }
 
     private val main = Handler(Looper.getMainLooper())
-    private var pending = false
+    /** Screen reading and saving run here, never on the main thread (that froze the app: "isn't responding"). */
+    private val worker = android.os.HandlerThread("live-read", android.os.Process.THREAD_PRIORITY_BACKGROUND).also { it.start() }
+    private val work = Handler(worker.looper)
+    @Volatile private var pending = false
+    /** What the last read saw; the same screen again is not saved again. */
+    private var lastScreen = 0
     private var lastToast = 0L
     private var lastHint = 0L
     private var sessionNew = 0
@@ -64,6 +69,7 @@ class WhatsAppScreenReader : AccessibilityService() {
         try { readScreen() } catch (e: Throwable) {
             Log.e(TAG, "read failed", e)
             note("Error: ${e.javaClass.simpleName}")
+            pending = false
             try { CrashLog.save(this, "Live screen reading", e) } catch (t: Throwable) { }
         }
     }
@@ -82,6 +88,8 @@ class WhatsAppScreenReader : AccessibilityService() {
 
     override fun onDestroy() {
         main.removeCallbacks(autoOff)
+        work.removeCallbacksAndMessages(null)
+        worker.quitSafely()
         if (running === this) running = null
         super.onDestroy()
     }
@@ -90,9 +98,13 @@ class WhatsAppScreenReader : AccessibilityService() {
         running = this
         val pkg = event?.packageName?.toString() ?: return
         if (pkg !in WA) return
-        if (!pending) {            // read at most every ~0.8 s while scrolling
+        // Only screen changes and scrolling matter (not every touch / focus / announcement).
+        val type = event.eventType
+        if (type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED && type != AccessibilityEvent.TYPE_VIEW_SCROLLED &&
+            type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (!pending) {            // read at most once a second while scrolling, on the worker thread
             pending = true
-            main.postDelayed(readNow, 800)
+            work.postDelayed(readNow, 1000)
         }
     }
 
@@ -108,7 +120,7 @@ class WhatsAppScreenReader : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (now - lastHint < 15_000) return
         lastHint = now
-        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+        main.post { Toast.makeText(this, text, Toast.LENGTH_SHORT).show() }
     }
 
     /** WhatsApp's main window, even when the keyboard or a popup is the active one. */
@@ -126,14 +138,30 @@ class WhatsAppScreenReader : AccessibilityService() {
             ids.asSequence().flatMap { node.findAccessibilityNodeInfosByViewId("$pkg:id/$it").orEmpty().asSequence() }.toList()
 
         val screen = Rect().also { root.getBoundsInScreen(it) }
-        val chat = (byId(root, "conversation_contact_name", "conversation_contact_name_text").firstOrNull()?.text?.toString()
-            ?: titleFallback(root, screen))?.trim()
+        val header = byId(root, "conversation_contact_name", "conversation_contact_name_text").firstOrNull()?.text?.toString()
+        val bubble = byId(root, "message_text").firstOrNull()
+        // The chat list, status, calls…: no chat header and no message bubbles. Nothing to read (this used to
+        // read the chat list as messages every second and froze the app).
+        if (header.isNullOrBlank() && bubble == null) {
+            if (lastScreen != 1) note("WhatsApp open – no chat open")
+            lastScreen = 1
+            return
+        }
+        val chat = (header ?: titleFallback(root, screen))?.trim()
         if (chat.isNullOrBlank()) {
             note("WhatsApp open – no chat open")
             return
         }
+        // Another chat than the chosen group: nothing to save.
+        val group = VehicleStore.getSelectedGroup(this)
+        if (group.isNotBlank() && !VehicleStore.sameChat(chat, group)) {
+            if (lastScreen != chat.hashCode()) note("\"$chat\" – not the chosen group")
+            lastScreen = chat.hashCode()
+            hint(getString(R.string.live_hint_other_chat, group))
+            return
+        }
 
-        val list = messageList(root, byId(root, "message_text").firstOrNull())
+        val list = messageList(root, bubble)
         if (list == null) {
             note("\"$chat\" – messages not found on screen")
             hint(getString(R.string.live_hint_no_messages))
@@ -187,6 +215,10 @@ class WhatsAppScreenReader : AccessibilityService() {
             note("\"$chat\" – no messages read")
             return
         }
+        // The same bubbles as last time (screen redrawn, not scrolled): nothing new to save.
+        val sig = messages.fold(chat.hashCode()) { h, m -> 31 * h + (m.sender + "|" + m.time + "|" + m.text).hashCode() }
+        if (sig == lastScreen) return
+        lastScreen = sig
         val added = VehicleStore.ingest(applicationContext, messages)
         note("\"$chat\" – ${messages.size} message(s) on screen, $added new vehicle(s)")
         if (added > 0) {
@@ -197,13 +229,9 @@ class WhatsAppScreenReader : AccessibilityService() {
                 .apply()
             if (now - lastToast > 2500) {
                 lastToast = now
-                Toast.makeText(this, getString(R.string.live_toast_new, sessionNew), Toast.LENGTH_SHORT).show()
+                val n = sessionNew
+                main.post { Toast.makeText(this, getString(R.string.live_toast_new, n), Toast.LENGTH_SHORT).show() }
                 sessionNew = 0
-            }
-        } else {
-            val group = VehicleStore.getSelectedGroup(this)
-            if (group.isNotBlank() && !VehicleStore.sameChat(chat, group)) {
-                hint(getString(R.string.live_hint_other_chat, group))
             }
         }
     }

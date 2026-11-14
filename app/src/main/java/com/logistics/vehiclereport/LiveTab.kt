@@ -155,9 +155,13 @@ class LiveTab(private val a: MainActivity, root: View) {
             Toast.makeText(a, R.string.live_not_connected, Toast.LENGTH_LONG).show()
             return
         }
-        val (read, added) = listener.pullActive()
-        Toast.makeText(a, a.getString(R.string.live_pulled, read, added), Toast.LENGTH_LONG).show()
-        a.refreshAll()
+        Thread {
+            val (read, added) = try { listener.pullActive() } catch (e: Throwable) { 0 to 0 }
+            a.runOnUiThread {
+                Toast.makeText(a, a.getString(R.string.live_pulled, read, added), Toast.LENGTH_LONG).show()
+                a.refreshAll()
+            }
+        }.start()
     }
 
     private fun card(view: View, icon: Int, fg: Int, bg: Int, title: Int, desc: Int): ChipGroup {

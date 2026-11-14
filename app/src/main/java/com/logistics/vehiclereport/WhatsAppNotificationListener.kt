@@ -18,6 +18,8 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         @Volatile var instance: WhatsAppNotificationListener? = null
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         /** "Transport Group (3 messages)" -> "Transport Group" */
+        /** One background thread for saving: notifications are saved in the order they came. */
+        private val IO = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "wa-notif").apply { priority = Thread.MIN_PRIORITY } }
         private val COUNT_SUFFIX = Regex("\\s*\\(\\d+\\s+(new\\s+)?messages?\\)\\s*$", RegexOption.IGNORE_CASE)
     }
 
@@ -39,12 +41,19 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         // Skip the "5 messages from 2 chats" summary; the individual chat notifications carry the text.
         if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
 
-        try {
-            val messages = readMessages(sbn, notification)
-            val added = VehicleStore.ingest(applicationContext, messages)
-            if (added > 0) Log.i(TAG, "Captured $added vehicle number(s)")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading WhatsApp notification", e)
+        val messages = try { readMessages(sbn, notification) } catch (e: Exception) {
+            Log.e(TAG, "Error reading WhatsApp notification", e); return
+        }
+        if (messages.isEmpty()) return
+        // Saving reads the whole day's data: done in the background, one notification at a time,
+        // so the app never freezes ("isn't responding") while WhatsApp messages keep coming.
+        IO.execute {
+            try {
+                val added = VehicleStore.ingest(applicationContext, messages)
+                if (added > 0) Log.i(TAG, "Captured $added vehicle number(s)")
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error saving WhatsApp notification", e)
+            }
         }
     }
 

@@ -54,8 +54,11 @@ class MainActivity : AppCompatActivity() {
 
     private val watchedKeys = setOf(VehicleStore.KEY_RECORDS, VehicleStore.KEY_DEDICATED, VehicleStore.KEY_UNMATCHED, GateMarks.KEY, PlateScans.KEY, DrishtiStore.KEY_STATUS, DrishtiStore.KEY_LOG, DrishtiStore.KEY_GATE_ONLY)
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key in watchedKeys) runOnUiThread { refreshAll() }
+        // Many saves in a row (a burst of WhatsApp posts) -> one refresh, not one per save.
+        if (key in watchedKeys) { uiHandler.removeCallbacks(refreshSoon); uiHandler.postDelayed(refreshSoon, 700) }
     }
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val refreshSoon = Runnable { if (!isFinishing && !isDestroyed) refreshAll() }
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) importFile(uri)
@@ -600,8 +603,11 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         drishti?.pause()
-        CloudSync.flushNow(this)
+        // Reading every setting to send it is slow with a big day: never on the main thread.
+        val ctx = applicationContext
+        Thread { try { CloudSync.flushNow(ctx) } catch (t: Throwable) { } }.start()
         VehicleStore.prefs(this).unregisterOnSharedPreferenceChangeListener(prefsListener)
+        uiHandler.removeCallbacks(refreshSoon)
     }
 
     // ---------- Tabs ----------

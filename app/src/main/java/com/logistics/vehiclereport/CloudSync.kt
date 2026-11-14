@@ -30,7 +30,7 @@ object CloudSync {
         main.postDelayed(flush, DELAY_MS)
     }
 
-    private val flush = Runnable { appContext?.let { flushNow(it) } }
+    private val flush = Runnable { appContext?.let { c -> Thread { try { flushNow(c) } catch (t: Throwable) { } }.start() } }
 
     private fun enabled(c: Context) = Account.isSignedIn(c) && !Account.isLocal(c) && Account.cloudReady(c)
 
