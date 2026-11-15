@@ -202,14 +202,12 @@
             app:cardCornerRadius="20dp"
             app:cardElevation="0dp">
 
-            <com.google.android.material.progressindicator.CircularProgressIndicator
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <View
+                android:id="@+id/busySpinner"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_margin="18dp"
-                android:indeterminate="true"
-                app:indicatorColor="@color/emerald"
-                app:indicatorSize="44dp"
-                app:trackThickness="4dp" />
+                android:background="@drawable/spinner_ring" />
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
 

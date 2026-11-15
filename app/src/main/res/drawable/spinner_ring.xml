@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spinning ring of the loading card: turned by the render thread, so it keeps moving while the screen is busy. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:innerRadiusRatio="2.6"
+    android:shape="ring"
+    android:thicknessRatio="9"
+    android:useLevel="false">
+    <gradient
+        android:endColor="#0B3D2E"
+        android:startColor="#000B3D2E"
+        android:type="sweep"
+        android:useLevel="false" />
+</shape>

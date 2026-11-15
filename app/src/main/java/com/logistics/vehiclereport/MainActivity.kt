@@ -730,6 +730,19 @@ class MainActivity : AppCompatActivity() {
     fun busy(on: Boolean) {
         busyCount = (busyCount + if (on) 1 else -1).coerceAtLeast(0)
         busyBar?.visibility = if (busyCount > 0) View.VISIBLE else View.GONE
+        if (busyCount > 0) spin() else busySpinner?.animate()?.cancel()
+    }
+
+    private val busySpinner: View? by lazy { findViewById<View>(R.id.busySpinner) }
+
+    /** One turn per second, drawn by the render thread (ViewPropertyAnimator), so a busy main thread does not freeze it. */
+    private fun spin() {
+        val v = busySpinner ?: return
+        if (busyCount <= 0) return
+        v.animate().cancel()
+        v.rotation = 0f
+        v.animate().rotation(360f).setDuration(900).setInterpolator(android.view.animation.LinearInterpolator())
+            .withEndAction { if (busyCount > 0) spin() }.start()
     }
 
     /** Shows the bar, lets it draw, runs [block] (main thread), then hides the bar. */
