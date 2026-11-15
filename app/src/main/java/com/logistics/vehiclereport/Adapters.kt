@@ -62,14 +62,30 @@ class StatusAdapter(
         val plateNote: TextView = v.findViewById(R.id.plateNote)
         val scan: MaterialButton = v.findViewById(R.id.scanButton)
         val gate: com.google.android.material.button.MaterialButtonToggleGroup = v.findViewById(R.id.gateGroup)
-        val replBlock: View = v.findViewById(R.id.replBlock)
-        val replTitle: TextView = v.findViewById(R.id.replTitle)
-        val replPlate: TextView = v.findViewById(R.id.replPlate)
-        val replMeta: TextView = v.findViewById(R.id.replMeta)
-        val replGateTimes: TextView = v.findViewById(R.id.replGateTimes)
-        val replPill: TextView = v.findViewById(R.id.replPill)
-        val replTime: TextView = v.findViewById(R.id.replTime)
-        val replGate: com.google.android.material.button.MaterialButtonToggleGroup = v.findViewById(R.id.replGate)
+        private val replStub: android.view.ViewStub = v.findViewById(R.id.replStub)
+        var replInflated = false
+        lateinit var replBlock: View
+        lateinit var replTitle: TextView
+        lateinit var replPlate: TextView
+        lateinit var replMeta: TextView
+        lateinit var replGateTimes: TextView
+        lateinit var replPill: TextView
+        lateinit var replTime: TextView
+        lateinit var replGate: com.google.android.material.button.MaterialButtonToggleGroup
+
+        /** The replacement block is built only when a row needs it (most rows have none). */
+        fun ensureRepl() {
+            if (replInflated) return
+            replBlock = replStub.inflate()
+            replTitle = replBlock.findViewById(R.id.replTitle)
+            replPlate = replBlock.findViewById(R.id.replPlate)
+            replMeta = replBlock.findViewById(R.id.replMeta)
+            replGateTimes = replBlock.findViewById(R.id.replGateTimes)
+            replPill = replBlock.findViewById(R.id.replPill)
+            replTime = replBlock.findViewById(R.id.replTime)
+            replGate = replBlock.findViewById(R.id.replGate)
+            replInflated = true
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -150,7 +166,7 @@ class StatusAdapter(
         val cancelledOnly = replPlate == null && manual != null
         h.plate.paintFlags = h.plate.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG.inv()
         if (replPlate == null && !cancelledOnly) {
-            h.replBlock.visibility = View.GONE
+            if (h.replInflated) h.replBlock.visibility = View.GONE
             h.gate.visibility = View.VISIBLE
             return
         }
@@ -166,6 +182,7 @@ class StatusAdapter(
         h.timeText.visibility = View.GONE
         h.gate.visibility = View.GONE
         // Replacement block.
+        h.ensureRepl()
         h.replBlock.visibility = View.VISIBLE
         val arrived = d.gate != null
         h.replTitle.text = if (cancelledOnly) ctx.getString(R.string.replacement_not_added) else if (arrived) Ui.joinNonBlank(ctx.getString(R.string.replacement_title), withRepl?.city.orEmpty().ifBlank { d.gate?.destination.orEmpty() })

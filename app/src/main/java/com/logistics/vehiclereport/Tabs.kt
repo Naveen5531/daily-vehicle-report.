@@ -110,7 +110,7 @@ class TodayTab(private val a: MainActivity, root: View) {
 
     /** The days of the last full refresh, so typing in the search box only re-filters (no re-reading of posts / gate). */
     private var cachedDays: List<VehicleDay> = emptyList()
-    private val PAGE = 30
+    private val PAGE = 20
     private var pageLimit = PAGE
     private var pageSig = ""
     private val moreBtn: MaterialButton = root.findViewById(R.id.todayMore)
@@ -522,7 +522,7 @@ class WhatsAppTab(private val a: MainActivity, root: View) {
     private val senderName: TextView = root.findViewById(R.id.senderName)
     private val senderHint: TextView = root.findViewById(R.id.senderHint)
     private var filter = Filter.TODAY
-    private val PAGE = 30
+    private val PAGE = 20
     private var pageLimit = PAGE
     private var pageSig = ""
     private val moreBtn: MaterialButton = root.findViewById(R.id.feedMore)
@@ -719,7 +719,7 @@ class VehiclesTab(private val a: MainActivity, root: View) {
     private var query = ""
     private var last: Snapshot? = null
     private lateinit var mastersButton: MaterialButton
-    private val PAGE = 30
+    private val PAGE = 20
     private var pageLimit = PAGE
     private var pageSig = ""
     private val moreBtn: MaterialButton = root.findViewById(R.id.vehicleMore)
