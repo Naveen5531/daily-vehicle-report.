@@ -57,7 +57,8 @@ class DrishtiAuto(private val a: MainActivity, private val host: ViewGroup) : Dr
         host.addView(w, ViewGroup.LayoutParams(1, 1))
         web = w
         started = false
-        page = DrishtiPage(w, this).also { it.setup(); it.openReport() }
+        // The hidden reader only needs the table: no pictures (less drawing on the main thread while it runs).
+        page = DrishtiPage(w, this).also { it.setup(); try { w.settings.blockNetworkImage = true } catch (e: Exception) { }; it.openReport() }
         main.postDelayed(giveUp, 180_000)
     }
 
