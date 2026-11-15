@@ -106,20 +106,40 @@ object StoreLocations {
         }.start()
     }
 
-    /** Excel of every store with its location now, to fill in once and import back. */
+    /**
+     * Excel of every store: code, name, circle, latitude, longitude and a Google Maps link. Stores with no pin yet are
+     * first looked up on the map (the phone's map search, "DMart <place>"); approximate ones are marked "Approx (check)".
+     * Re-import the file (after fixing a pin) with the bulk upload button.
+     */
     fun export(a: MainActivity) {
+        val stores = MasterData.get(a).stores
+        val stops = stores.map { PlanStop(code = it.code.trim(), name = it.name, volume = 0.0, city = it.city, region = it.region) }
+        val missing = StoreGeo.places(a).let { have -> stores.any { it.code.trim() !in have } }
+        if (!missing) { deliverExport(a); return }
+        val box = MaterialAlertDialogBuilder(a).setTitle("Finding stores on the map")
+            .setMessage("Looking up ${stores.size} stores… this can take a few minutes. Keep the app open.")
+            .setCancelable(false).show()
+        StoreGeo.fill(a, stops) { _ ->
+            try { box.dismiss() } catch (e: Exception) { }
+            deliverExport(a)
+        }
+        // Nothing to look up right now (tried recently): export what is known.
+        if (!StoreGeo.busy) { try { box.dismiss() } catch (e: Exception) { }; deliverExport(a) }
+    }
+
+    private fun deliverExport(a: MainActivity) {
         val places = StoreGeo.places(a)
         val rows = ArrayList<List<String>>()
-        rows += listOf("Store Code", "Store Name", "Actual City", "Region", "Latitude", "Longitude", "Google Maps Link", "Pin")
+        rows += listOf("Store Code", "Store Name", "Circle", "Latitude", "Longitude", "Google Maps Link", "Pin")
         for (s in MasterData.get(a).stores) {
             val at = places[s.code.trim()]
-            rows += listOf(s.code, s.name, s.city, s.region,
-                at?.let { String.format(Locale.US, "%.6f", it.lat) }.orEmpty(),
-                at?.let { String.format(Locale.US, "%.6f", it.lon) }.orEmpty(), "",
-                when (StoreGeo.kind(a, s.code)) { StoreGeo.Kind.EXACT -> "Exact"; StoreGeo.Kind.AUTO -> "Approx (check)"; StoreGeo.Kind.NONE -> "Not set" })
+            val lat = at?.let { String.format(Locale.US, "%.6f", it.lat) }.orEmpty()
+            val lon = at?.let { String.format(Locale.US, "%.6f", it.lon) }.orEmpty()
+            rows += listOf(s.code, s.name, s.region, lat, lon,
+                if (at != null) "https://www.google.com/maps?q=$lat,$lon" else "",
+                when (StoreGeo.kind(a, s.code)) { StoreGeo.Kind.EXACT -> "Exact"; StoreGeo.Kind.AUTO -> "Approx (check)"; StoreGeo.Kind.NONE -> "Not found" })
         }
-        if (rows.size < 2) rows += listOf("5043", "Gajuwaka", "Visakhapatnam", "Vizag", "17.690000", "83.210000", "", "Example – delete this row")
-        Exporter.deliver(a, "Store_Master_Locations.xlsx", rows, listOf(12, 30, 18, 14, 12, 12, 34, 14))
+        Exporter.deliver(a, "Store_Locations.xlsx", rows, listOf(12, 36, 14, 12, 12, 42, 14))
     }
 
     /** Blank upload template with two example rows (one with lat / long, one with a Google Maps link). */
