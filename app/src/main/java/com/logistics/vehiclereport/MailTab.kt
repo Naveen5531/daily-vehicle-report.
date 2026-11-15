@@ -155,8 +155,20 @@ class MailTab(private val a: MainActivity, root: View) {
         }
     }
 
+    private var previewGen = 0
+
+    /** The mail text (every day's rows of the range) is worked out off the main thread. */
     fun refresh() {
-        preview.text = try { a.getString(R.string.mail_subject_line, subjectText()) + "\n\n" + bodyText() } catch (e: Exception) { e.message.orEmpty() }
+        val gen = ++previewGen
+        val subj = subjectText()
+        a.busy(true)
+        Thread {
+            val text = try { a.getString(R.string.mail_subject_line, subj) + "\n\n" + bodyText() } catch (e: Exception) { e.message.orEmpty() }
+            a.runOnUiThread {
+                a.busy(false)
+                if (gen == previewGen) preview.text = text
+            }
+        }.start()
     }
 
     private fun send() {

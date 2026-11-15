@@ -700,6 +700,8 @@ class VehiclesTab(private val a: MainActivity, root: View) {
     private var query = ""
     private var last: Snapshot? = null
     private lateinit var mastersButton: MaterialButton
+    private val typeTick = android.os.Handler(android.os.Looper.getMainLooper())
+    private val typeRun = Runnable { last?.let { s -> refresh(s) } }
 
     init {
         root.findViewById<RecyclerView>(R.id.vehicleList).apply {
@@ -708,7 +710,9 @@ class VehiclesTab(private val a: MainActivity, root: View) {
         }
         root.findViewById<TextInputEditText>(R.id.searchInput).addTextChangedListener(afterTextChanged {
             query = it.trim().lowercase()
-            last?.let { s -> refresh(s) }
+            // Wait for a short pause in typing.
+            typeTick.removeCallbacks(typeRun)
+            typeTick.postDelayed(typeRun, 200)
         })
         root.findViewById<MaterialButton>(R.id.importButton).setOnClickListener { a.pickImportFile() }
         root.findViewById<MaterialButton>(R.id.ratesButton).setOnClickListener { a.showTab(R.id.nav_rates) }

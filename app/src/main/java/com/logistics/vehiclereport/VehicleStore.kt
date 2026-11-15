@@ -242,7 +242,10 @@ object VehicleStore {
     // ---------- Dedicated vehicle list ----------
 
     fun getVehicles(context: Context): List<DedicatedVehicle> = synchronized(lock) {
-        loadVehicles(prefs(context))
+        val raw = prefs(context).getString(KEY_DEDICATED, null)
+        val p = prefs(context)
+        if (vehPrefs === p && raw != null && (vehKey === raw || vehKey == raw)) return@synchronized vehCache
+        loadVehicles(p).also { vehCache = it; vehKey = raw; vehPrefs = p }
     }
 
     fun getDedicated(context: Context): List<String> = getVehicles(context).map { it.number }
@@ -427,9 +430,29 @@ object VehicleStore {
 
     // ---------- Read ----------
 
+    // The parsed lists are kept until the saved text (posts, vehicle list, plate scans, allowed senders) changes: they
+    // are read from many screens and the JSON is large. The lists are never changed by the readers.
+    private var allPrefs: Any? = null
+    private var vehPrefs: Any? = null
+    private var allKey: List<String?>? = null
+    private var allCache: List<VehicleRecord> = emptyList()
+    private var vehKey: String? = null
+    private var vehCache: List<DedicatedVehicle> = emptyList()
+
+    private fun same(a: List<String?>?, b: List<String?>): Boolean =
+        a != null && a.size == b.size && a.indices.all { a[it] === b[it] || a[it] == b[it] }
+
     fun getAll(context: Context): List<VehicleRecord> = synchronized(lock) {
+        val p = prefs(context)
+        val key = listOf(p.getString(KEY_RECORDS, null), p.getString(KEY_DEDICATED, null),
+            p.getString(PlateScans.KEY, null), p.getString(KEY_ALLOWED_SENDERS, null))
+        if (allPrefs === p && same(allKey, key)) return@synchronized allCache
+        computeAll(context).also { allCache = it; allKey = key; allPrefs = p }
+    }
+
+    private fun computeAll(context: Context): List<VehicleRecord> {
         val arr = loadRecords(prefs(context))
-        (0 until arr.length()).mapNotNull { i ->
+        return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             val cands = o.optJSONArray("candidates")
             VehicleRecord(

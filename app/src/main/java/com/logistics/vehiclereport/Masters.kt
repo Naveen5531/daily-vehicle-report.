@@ -27,8 +27,16 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
     }
 
     /** Best store for a delivery location such as "Suryabagh", "Isnapur to Raichur", "ELURU". */
+    private val storeMemo = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<StoreMatch>>()
+    private val vendorMemo = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<Vendor>>()
+
     fun matchStore(location: String): StoreMatch? {
         if (location.isBlank() || stores.isEmpty()) return null
+        if (storeMemo.size > 5000) storeMemo.clear()
+        return storeMemo.getOrPut(location) { java.util.Optional.ofNullable(matchStoreRaw(location)) }.orElse(null)
+    }
+
+    private fun matchStoreRaw(location: String): StoreMatch? {
         // "A to B": the delivery point is the last place that matches.
         val parts = location.split(Regex("\\bto\\b", RegexOption.IGNORE_CASE)).map { it.trim() }.filter { it.isNotEmpty() }
         for (part in parts.reversed()) {
@@ -65,6 +73,11 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
 
     /** Vendor from the list for what was written, e.g. "Veerbhadra cargo" -> VEERABHADRA CORGO MOVERS. */
     fun matchVendor(written: String, slight: Boolean = false): Vendor? {
+        if (vendorMemo.size > 5000) vendorMemo.clear()
+        return vendorMemo.getOrPut((if (slight) "~" else "=") + written) { java.util.Optional.ofNullable(matchVendorRaw(written, slight)) }.orElse(null)
+    }
+
+    private fun matchVendorRaw(written: String, slight: Boolean): Vendor? {
         val w = words(written)
         if (w.isEmpty() || vendors.isEmpty()) return null
         val wKey = w.filter { it !in VENDOR_NOISE }.ifEmpty { w }

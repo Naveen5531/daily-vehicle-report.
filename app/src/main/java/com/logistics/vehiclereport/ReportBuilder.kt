@@ -98,8 +98,11 @@ object ReportBuilder {
     ): List<VehicleDay> {
         val day = records.filter { it.time >= dayStart && it.time < dayStart + DAY_MS }.sortedBy { it.time }
         // Record-only vehicles appear only on days they reported (or were marked); they are never "Not posted".
+        // One pass over the day's posts instead of one per vehicle.
+        val byVehicle = HashMap<String, MutableList<VehicleRecord>>()
+        for (r in day) for (c in r.candidates.distinct()) byVehicle.getOrPut(c) { ArrayList() } += r
         return vehicles.mapNotNull { v ->
-            val hits = day.filter { v.number in it.candidates }
+            val hits = byVehicle[v.number] ?: emptyList()
             val mark = marks[v.number]
             if (!v.dedicated && hits.isEmpty() && mark == null) return@mapNotNull null
             // Its own gate row, else the gate row of the replacement posted for it.
