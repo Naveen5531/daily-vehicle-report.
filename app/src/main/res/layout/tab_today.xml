@@ -100,17 +100,19 @@
 
                 <TextView
                     android:id="@+id/heroTitle"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
                     android:text="@string/todays_reporting"
                     android:textColor="@color/on_emerald_muted"
                     android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/heroUpdated"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
                     android:background="@drawable/pill_bg"
                     android:backgroundTint="#1AFFFFFF"
                     android:paddingStart="10dp"

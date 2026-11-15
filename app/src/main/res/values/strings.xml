@@ -771,7 +771,7 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="drishti_gate_suffix"> · gate mode</string>
     <string name="drishti_card_log">Gate log</string>
     <string name="gate_updated_at">Drishti gate read at %1$s</string>
-    <string name="gate_not_read_today">Drishti gate not read yet today – open Drishti and log in</string>
+    <string name="gate_not_read_today">Drishti gate not read yet today</string>
     <string name="gate_replacement_line">Came as replacement %1$s (gate)</string>
     <string name="gate_source">At gate (Drishti)</string>
     <string name="gate_log_title">Drishti gate log – today</string>
