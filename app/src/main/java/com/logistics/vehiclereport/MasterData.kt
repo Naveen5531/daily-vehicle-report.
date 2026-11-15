@@ -37,13 +37,14 @@ object MasterData {
                 val st = o.getJSONArray("stores"); val vd = o.getJSONArray("vendors")
                 return Masters(
                     (0 until st.length()).map { st.getJSONObject(it) }
-                        .map { Store(it.optString("code"), it.optString("name"), it.optString("city"), it.optString("region")) },
+                        .map { Store(it.optString("code"), it.optString("name"), it.optString("city"), it.optString("region")) }
+                        .ifEmpty { DefaultStores.stores },
                     (0 until vd.length()).map { vd.getJSONObject(it) }.map { Vendor(it.optString("name"), it.optString("code")) }
                         .ifEmpty { DEFAULT_VENDORS }
                 )
             } catch (e: Exception) { }
         }
-        return Masters(emptyList(), DEFAULT_VENDORS)
+        return Masters(DefaultStores.stores, DEFAULT_VENDORS)
     }
 
     /** The DC's transporter list, used until a vendor list is imported (an imported list replaces it). */
