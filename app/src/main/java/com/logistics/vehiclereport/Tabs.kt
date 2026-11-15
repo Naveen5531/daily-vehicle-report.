@@ -335,7 +335,8 @@ class TodayTab(private val a: MainActivity, root: View) {
         }) + if (toCheck > 0) " · " + a.getString(R.string.hero_to_check, toCheck) else ""
         val lastPost = (if (cloudView) days.flatMap { it.hits }.map { it.lastTime } else
             s.records.filter { it.time >= today && it.time < today + ReportBuilder.DAY_MS }.map { it.time }).maxOrNull()?.takeIf { it > 0 }
-        val lastGate = maxOf(DrishtiStore.lastPull(a), DrishtiStore.lastImport(a)).takeIf { it >= today && it < today + ReportBuilder.DAY_MS }
+        // The in-transit / yard data from the laptop counts as the gate being read too.
+        val lastGate = maxOf(DrishtiStore.lastPull(a), DrishtiStore.lastImport(a), YardStore.lastAt(a)).takeIf { it >= today && it < today + ReportBuilder.DAY_MS }
         heroUpdated.text = when {
             gateOnly && lastGate != null -> a.getString(R.string.gate_updated_at, clock.format(Date(lastGate)))
             gateOnly -> a.getString(R.string.gate_not_read_today)
