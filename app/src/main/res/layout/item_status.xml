@@ -29,12 +29,12 @@
 
         <TextView
             android:id="@+id/avatar"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@drawable/avatar_bg"
             android:fontFamily="@font/jakarta_bold"
             android:gravity="center"
-            android:textSize="13sp" />
+            android:textSize="15sp" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -46,22 +46,26 @@
             <TextView
                 android:id="@+id/plateText"
                 style="@style/Plate"
+                android:textSize="20sp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
             <TextView
                 android:id="@+id/meta1"
+                android:textSize="14sp"
                 style="@style/Meta" />
 
             <TextView
                 android:id="@+id/meta2"
                 style="@style/Meta"
+                android:textSize="14sp"
                 android:textColor="@color/faint" />
 
             <!-- Only the last 4 were posted: scan the plate; or when it was scanned -->
             <TextView
                 android:id="@+id/plateNote"
                 style="@style/Meta"
+                android:textSize="14sp"
                 android:fontFamily="@font/jakarta_semibold"
                 android:textColor="@color/chk"
                 android:visibility="gone" />
@@ -69,6 +73,7 @@
             <TextView
                 android:id="@+id/gateTimes"
                 style="@style/Meta"
+                android:textSize="14sp"
                 android:maxLines="2"
                 android:fontFamily="@font/jakarta_semibold"
                 android:textColor="@color/ok"
@@ -84,6 +89,7 @@
 
             <TextView
                 android:id="@+id/statusPill"
+                android:textSize="13.5sp"
                 style="@style/StatusPill" />
 
             <TextView
@@ -93,7 +99,7 @@
                 android:layout_marginTop="5dp"
                 android:fontFamily="@font/jakarta_semibold"
                 android:textColor="@color/muted"
-                android:textSize="11.5sp" />
+                android:textSize="13sp" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
@@ -140,6 +146,7 @@
         <TextView
             android:id="@+id/replTitle"
             style="@style/Meta"
+                android:textSize="14sp"
             android:fontFamily="@font/jakarta_semibold" />
 
         <LinearLayout
@@ -157,16 +164,19 @@
                 <TextView
                     android:id="@+id/replPlate"
                     style="@style/Plate"
+                android:textSize="20sp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
 
                 <TextView
                     android:id="@+id/replMeta"
+                android:textSize="14sp"
                     style="@style/Meta" />
 
                 <TextView
                     android:id="@+id/replGateTimes"
                     style="@style/Meta"
+                android:textSize="14sp"
                     android:fontFamily="@font/jakarta_semibold"
                     android:maxLines="2"
                     android:textColor="@color/ok"
@@ -182,6 +192,7 @@
 
                 <TextView
                     android:id="@+id/replPill"
+                android:textSize="13.5sp"
                     style="@style/StatusPill" />
 
                 <TextView
@@ -191,7 +202,7 @@
                     android:layout_marginTop="5dp"
                     android:fontFamily="@font/jakarta_semibold"
                     android:textColor="@color/muted"
-                    android:textSize="11.5sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
 
