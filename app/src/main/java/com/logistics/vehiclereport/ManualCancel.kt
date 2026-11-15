@@ -24,8 +24,18 @@ object ManualCancel {
         JSONObject(VehicleStore.prefs(c).getString(KEY, null) ?: "{}")
     } catch (e: Exception) { JSONObject() }
 
+    private var rawSeen: String? = null
+    private var objSeen = JSONObject()
+
+    @Synchronized
+    private fun shared(c: Context): JSONObject {
+        val raw = VehicleStore.prefs(c).getString(KEY, null) ?: "{}"
+        if (raw != rawSeen) { objSeen = try { JSONObject(raw) } catch (e: Exception) { JSONObject() }; rawSeen = raw }
+        return objSeen
+    }
+
     fun get(c: Context, dayStart: Long, vehicle: String): Mark? {
-        val a = read(c).optJSONObject(dayKey(dayStart))?.optJSONArray(vehicle) ?: return null
+        val a = shared(c).optJSONObject(dayKey(dayStart))?.optJSONArray(vehicle) ?: return null
         return Mark(a.optString(0))
     }
 

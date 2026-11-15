@@ -108,6 +108,40 @@ class TodayTab(private val a: MainActivity, root: View) {
     private var shown: List<String> = emptyList()
     private var hold = false
 
+    /** The days of the last full refresh, so typing in the search box only re-filters (no re-reading of posts / gate). */
+    private var cachedDays: List<VehicleDay> = emptyList()
+    private val hay = java.util.IdentityHashMap<VehicleDay, String>()
+    private val searchTick = android.os.Handler(android.os.Looper.getMainLooper())
+    private val searchRun = Runnable { showRows(cachedDays) }
+
+    private fun showRows(days: List<VehicleDay>) {
+        val total = days.size
+        val m = MasterData.get(a)
+        val filtered = days.filter {
+            (if (last4Filter) it.last4Only && it.gate == null else filter == null || it.state == filter) && matchesSearch(it, query, m, hay)
+        }
+        val list = if (timeWise) ReportBuilder.timeWise(filtered) else {
+            // Status-wise: what still needs action first.
+            val order = mapOf(TodayState.NOT_POSTED to 0, TodayState.CHECK to 1, TodayState.YET to 2, TodayState.REPORTED to 3, TodayState.DEPARTED to 4)
+            filtered.sortedWith(compareBy<VehicleDay> { order.getValue(it.state) }.thenBy { it.hits.firstOrNull()?.time ?: Long.MAX_VALUE })
+        }
+        val rows = if (hold && shown.isNotEmpty()) {
+            // Keep the rows on screen in their places (with their new status); anything new goes below.
+            val byNumber = days.associateBy { it.vehicle.number }
+            val kept = shown.mapNotNull { byNumber[it] }
+            val keptSet = kept.mapTo(HashSet()) { it.vehicle.number }
+            kept + list.filter { it.vehicle.number !in keptSet }
+        } else list
+        shown = rows.map { it.vehicle.number }
+        adapter.submit(rows)
+        empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+        empty.text = when {
+            total == 0 -> a.getString(R.string.today_empty_no_vehicles)
+            query.isNotEmpty() -> a.getString(R.string.today_empty_search, query)
+            else -> a.getString(R.string.today_empty_filter)
+        }
+    }
+
     fun holdOrder() { hold = true }
     fun releaseOrder() { hold = false }
     private val tiles: Map<TodayState, View> = mapOf(
@@ -207,7 +241,9 @@ class TodayTab(private val a: MainActivity, root: View) {
         search.addTextChangedListener(afterTextChanged {
             hold = false
             query = it.trim()
-            last?.let { s -> refresh(s) }
+            // Wait for a short pause in typing, then only re-filter the rows.
+            searchTick.removeCallbacks(searchRun)
+            searchTick.postDelayed(searchRun, 180)
         })
         search.setOnEditorActionListener { v, _, _ ->
             (a.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
@@ -394,30 +430,9 @@ class TodayTab(private val a: MainActivity, root: View) {
         // "Check" only when a shared last 4 needs a look (or it is the chosen filter).
         chipFor.getValue(TodayState.CHECK).visibility = if (toCheck > 0 || filter == TodayState.CHECK) View.VISIBLE else View.GONE
 
-        val m = MasterData.get(a)
-        val filtered = days.filter {
-            (if (last4Filter) it.last4Only && it.gate == null else filter == null || it.state == filter) && matchesSearch(it, query, m)
-        }
-        val list = if (timeWise) ReportBuilder.timeWise(filtered) else {
-            // Status-wise: what still needs action first.
-            val order = mapOf(TodayState.NOT_POSTED to 0, TodayState.CHECK to 1, TodayState.YET to 2, TodayState.REPORTED to 3, TodayState.DEPARTED to 4)
-            filtered.sortedWith(compareBy<VehicleDay> { order.getValue(it.state) }.thenBy { it.hits.firstOrNull()?.time ?: Long.MAX_VALUE })
-        }
-        val rows = if (hold && shown.isNotEmpty()) {
-            // Keep the rows on screen in their places (with their new status); anything new goes below.
-            val byNumber = days.associateBy { it.vehicle.number }
-            val kept = shown.mapNotNull { byNumber[it] }
-            val keptSet = kept.mapTo(HashSet()) { it.vehicle.number }
-            kept + list.filter { it.vehicle.number !in keptSet }
-        } else list
-        shown = rows.map { it.vehicle.number }
-        adapter.submit(rows)
-        empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
-        empty.text = when {
-            total == 0 -> a.getString(R.string.today_empty_no_vehicles)
-            query.isNotEmpty() -> a.getString(R.string.today_empty_search, query)
-            else -> a.getString(R.string.today_empty_filter)
-        }
+        cachedDays = days
+        hay.clear()
+        showRows(days)
     }
 }
 
@@ -449,16 +464,16 @@ private fun vendorStats(days: List<VehicleDay>, m: Masters, other: String): List
 }
 
 /** Today's quick search: vehicle number or last 4, vendor, driver, mobile, type, store or place, who posted. */
-private fun matchesSearch(d: VehicleDay, query: String, m: Masters): Boolean {
+private fun matchesSearch(d: VehicleDay, query: String, m: Masters, cache: MutableMap<VehicleDay, String>): Boolean {
     if (query.isBlank()) return true
     fun sq(x: String) = x.lowercase().filter { it.isLetterOrDigit() }
     val words = query.split(Regex("\\s+")).map { sq(it) }.filter { it.isNotEmpty() }
     if (words.isEmpty()) return true
     val v = d.vehicle
-    val hay = sq(buildString {
+    val hay = cache.getOrPut(d) { sq(buildString {
         listOf(v.number, v.type, v.driver, v.mobile, v.transporter, v.route, vendorOf(d, m)).forEach { append(it).append(' ') }
         d.hits.forEach { h -> listOf(h.city, h.vendor, h.mobile, h.driver, h.size, h.sender, h.typed, h.replacement).forEach { append(it).append(' ') } }
-    })
+    }) }
     return words.all { hay.contains(it) }
 }
 
