@@ -343,6 +343,8 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
         }
         // Not set on top, then approximate (to check), then exact at the bottom; a store moves down once it is set.
         val rank = { s: Store -> when (kinds[s.code]) { StoreGeo.Kind.NONE, null -> 0; StoreGeo.Kind.AUTO -> 1; else -> 2 } }
+        if (stores.isNotEmpty()) summary.text = summary.text.toString() + "\nStores: ${stores.size}" +
+            if (shown.size != stores.size) " · showing ${shown.size}" else ""
         for (s in shown.sortedBy(rank).take(500)) {
             val kind = kinds[s.code] ?: StoreGeo.Kind.NONE
             val row = LinearLayout(a).apply {
