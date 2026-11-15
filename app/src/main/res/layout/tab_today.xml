@@ -180,9 +180,11 @@
                         android:id="@+id/progressRing"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
+                        android:layout_gravity="center"
                         android:max="100"
                         app:indicatorColor="@color/mint"
-                        app:indicatorSize="92dp"
+                        app:indicatorInset="0dp"
+                        app:indicatorSize="78dp"
                         app:trackColor="#1FFFFFFF"
                         app:trackCornerRadius="5dp"
                         app:trackThickness="10dp" />
