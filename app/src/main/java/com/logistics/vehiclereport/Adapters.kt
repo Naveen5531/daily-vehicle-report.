@@ -53,8 +53,20 @@ class StatusAdapter(
 
     override fun onBindViewHolder(h: Holder, position: Int) {
         val d = items[position]
-        val v = d.vehicle
         val ctx = h.itemView.context
+        // The same vehicle number can come with another vendor / driver / contact on another day: what the day's post
+        // (else the gate log) says wins over what the vehicle list holds. A replaced vehicle keeps its list details.
+        val own = d.vehicle
+        val hasRepl = d.hits.any { it.replacement.isNotBlank() }
+        val v = when {
+            d.hits.isNotEmpty() && !hasRepl -> PostedDetails.of(ctx, own.number, d.hits.asReversed()).let { p ->
+                own.copy(type = p.type.ifBlank { own.type }, driver = p.driver.ifBlank { own.driver },
+                    mobile = p.mobile.ifBlank { own.mobile }, transporter = p.transporter.ifBlank { own.transporter })
+            }
+            d.hits.isEmpty() && d.gate != null && d.gate.vehicle == own.number -> own.copy(
+                type = d.gate.type.ifBlank { own.type }, driver = d.gate.driver.ifBlank { own.driver }, mobile = d.gate.mobile.ifBlank { own.mobile })
+            else -> own
+        }
         h.plate.text = v.number
         h.meta1.text = if (!d.inList) Ui.joinNonBlank(ctx.getString(R.string.not_in_list), v.type, v.transporter)
             else if (!v.dedicated) Ui.joinNonBlank(ctx.getString(R.string.record_only), v.type, v.transporter)
