@@ -62,12 +62,12 @@ object VehicleDetailSheet {
         }.sortedByDescending { it.time }
         val m = MasterData.get(a)
         val seen = fromWhatsApp(a, number, posts, codeOnly)
-        // What the list has, completed with what WhatsApp posts say (a detail found in a post is not "pending").
+        // The latest WhatsApp post wins (the same number comes with another vendor / driver / contact); the list fills what it lacks.
         val shown = (v ?: DedicatedVehicle(number)).let { x ->
             x.copy(
-                type = x.type.ifBlank { seen.type }, transporter = x.transporter.ifBlank { seen.transporter },
-                driver = x.driver.ifBlank { seen.driver }, mobile = x.mobile.ifBlank { seen.mobile },
-                route = x.route.ifBlank { seen.route }
+                type = seen.type.ifBlank { x.type }, transporter = seen.transporter.ifBlank { x.transporter },
+                driver = seen.driver.ifBlank { x.driver }, mobile = seen.mobile.ifBlank { x.mobile },
+                route = seen.route.ifBlank { x.route }
             )
         }
         val today = ReportBuilder.startOfDay()

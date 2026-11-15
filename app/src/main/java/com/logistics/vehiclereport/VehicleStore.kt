@@ -297,14 +297,19 @@ object VehicleStore {
     fun fillBlanksFromPosts(context: Context, records: List<VehicleRecord>? = null): Int = synchronized(lock) {
         val p = prefs(context)
         val list = loadVehicles(p)
-        val needing = list.filter { PostedDetails.hasBlanks(it) }
+        // A vehicle the app only recorded (not in your list) always follows its latest post: the same number comes
+        // with another vendor / driver / contact. A listed vehicle only gets its empty details filled.
+        val needing = list.filter { PostedDetails.hasBlanks(it) || !it.dedicated }
         if (needing.isEmpty()) return@synchronized 0
         val posted = PostedDetails.forVehicles(context, needing, records ?: getAll(context))
         if (posted.isEmpty()) return@synchronized 0
         var changed = 0
         val out = list.map { v ->
             val seen = posted[v.number] ?: return@map v
-            PostedDetails.fillBlanks(v, seen).also { if (it != v) changed++ }
+            (if (v.dedicated) PostedDetails.fillBlanks(v, seen) else v.copy(
+                type = seen.type.ifBlank { v.type }, driver = seen.driver.ifBlank { v.driver }, mobile = seen.mobile.ifBlank { v.mobile },
+                transporter = seen.transporter.ifBlank { v.transporter }, route = seen.route.ifBlank { v.route }
+            )).also { if (it != v) changed++ }
         }
         if (changed > 0) p.edit().putString(KEY_DEDICATED, vehiclesJson(out).toString()).apply()
         changed
