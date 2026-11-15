@@ -877,16 +877,18 @@ class ExportTab(private val a: MainActivity, private val root: View) {
         fun show() { f.text = a.getString(R.string.from_date, dateLabel.format(Date(from()))); t.text = a.getString(R.string.to_date, dateLabel.format(Date(to()))) }
         f.setOnClickListener { pick(from()) { setFrom(it); if (to() < it) setTo(it); show() } }
         t.setOnClickListener { pick(to()) { setTo(it); if (from() > it) setFrom(it); show() } }
-        val today = ReportBuilder.startOfDay()
-        val quick = listOf(
-            R.string.quick_today to (today to today),
-            R.string.quick_week to (ReportBuilder.startOfDay(today - 6 * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2) to today),
-            R.string.quick_month to (Calendar.getInstance().apply { timeInMillis = today; set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis.let { ReportBuilder.startOfDay(it) } to today)
+        // Worked out when tapped, so "Today" / "Yesterday" stay right after midnight.
+        val quick = listOf<Pair<Int, () -> Pair<Long, Long>>>(
+            R.string.quick_yesterday to { ReportBuilder.startOfDay().let { t -> ReportBuilder.startOfDay(t - ReportBuilder.DAY_MS / 2).let { it to it } } },
+            R.string.quick_today to { ReportBuilder.startOfDay().let { it to it } },
+            R.string.quick_week to { ReportBuilder.startOfDay().let { t -> ReportBuilder.startOfDay(t - 6 * ReportBuilder.DAY_MS + ReportBuilder.DAY_MS / 2) to t } },
+            R.string.quick_month to { ReportBuilder.startOfDay().let { t ->
+                ReportBuilder.startOfDay(Calendar.getInstance().apply { timeInMillis = t; set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis) to t } }
         )
         for ((label, range) in quick) {
             val c = Chip(a)
             c.setText(label)
-            c.setOnClickListener { setFrom(range.first); setTo(range.second); show() }
+            c.setOnClickListener { val r = range(); setFrom(r.first); setTo(r.second); show() }
             group.addView(c)
         }
         show()

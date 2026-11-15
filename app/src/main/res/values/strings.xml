@@ -541,6 +541,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="from_date">From %1$s</string>
     <string name="to_date">To %1$s</string>
     <string name="quick_today">Today</string>
+    <string name="quick_yesterday">Yesterday</string>
     <string name="quick_week">Last 7 days</string>
     <string name="quick_month">This month</string>
     <string name="range_invalid">End date is before start date</string>
