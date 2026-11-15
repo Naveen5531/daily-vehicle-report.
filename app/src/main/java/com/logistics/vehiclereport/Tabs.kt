@@ -346,12 +346,12 @@ class TodayTab(private val a: MainActivity, root: View) {
                 val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
                 // Only vehicles posted in WhatsApp that day are listed; Drishti says Reported / Departed.
                 val local = (ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras).filter { it.hits.isNotEmpty() }
-                Pair(gateOnly, local)
+                Triple(gateOnly, local, local.associateWithTo(java.util.IdentityHashMap<VehicleDay, DedicatedVehicle>()) { StatusAdapter.compute(a, it) })
             } catch (t: Throwable) { null }
             a.runOnUiThread {
                 a.busy(false)
                 if (gen != refreshGen || res == null) return@runOnUiThread
-                try { render(s, today, isBack, res.first, res.second) } catch (t: Throwable) { CrashLog.save(a, "Today", t) }
+                try { adapter.setDetails(res.third); render(s, today, isBack, res.first, res.second) } catch (t: Throwable) { CrashLog.save(a, "Today", t) }
             }
         }.start()
     }

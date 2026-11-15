@@ -26,6 +26,28 @@ class StatusAdapter(
     private val time = SimpleDateFormat("hh:mm a", Locale.getDefault())
     private val carriedFmt = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
 
+    /** What each row shows for its vehicle, worked out in the background by the tab ([details]); computed here if missing. */
+    private var details: Map<VehicleDay, DedicatedVehicle> = emptyMap()
+    fun setDetails(m: Map<VehicleDay, DedicatedVehicle>) { details = m }
+
+    fun shownVehicle(ctx: android.content.Context, d: VehicleDay): DedicatedVehicle = details[d] ?: compute(ctx, d)
+
+    companion object {
+        fun compute(ctx: android.content.Context, d: VehicleDay): DedicatedVehicle {
+        val own = d.vehicle
+        val hasRepl = d.hits.any { it.replacement.isNotBlank() }
+        return when {
+            d.hits.isNotEmpty() && !hasRepl -> PostedDetails.of(ctx, own.number, d.hits.asReversed()).let { p ->
+                own.copy(type = p.type.ifBlank { own.type }, driver = p.driver.ifBlank { own.driver },
+                    mobile = p.mobile.ifBlank { own.mobile }, transporter = p.transporter.ifBlank { own.transporter })
+            }
+            d.hits.isEmpty() && d.gate != null && d.gate.vehicle == own.number -> own.copy(
+                type = d.gate.type.ifBlank { own.type }, driver = d.gate.driver.ifBlank { own.driver }, mobile = d.gate.mobile.ifBlank { own.mobile })
+            else -> own
+        }
+        }
+    }
+
     fun submit(list: List<VehicleDay>) { items = list; notifyDataSetChanged() }
 
     class Holder(v: View) : RecyclerView.ViewHolder(v) {
@@ -60,17 +82,7 @@ class StatusAdapter(
         val ctx = h.itemView.context
         // The same vehicle number can come with another vendor / driver / contact on another day: what the day's post
         // (else the gate log) says wins over what the vehicle list holds. A replaced vehicle keeps its list details.
-        val own = d.vehicle
-        val hasRepl = d.hits.any { it.replacement.isNotBlank() }
-        val v = when {
-            d.hits.isNotEmpty() && !hasRepl -> PostedDetails.of(ctx, own.number, d.hits.asReversed()).let { p ->
-                own.copy(type = p.type.ifBlank { own.type }, driver = p.driver.ifBlank { own.driver },
-                    mobile = p.mobile.ifBlank { own.mobile }, transporter = p.transporter.ifBlank { own.transporter })
-            }
-            d.hits.isEmpty() && d.gate != null && d.gate.vehicle == own.number -> own.copy(
-                type = d.gate.type.ifBlank { own.type }, driver = d.gate.driver.ifBlank { own.driver }, mobile = d.gate.mobile.ifBlank { own.mobile })
-            else -> own
-        }
+        val v = shownVehicle(ctx, d)
         h.plate.text = v.number
         h.meta1.text = if (!d.inList) Ui.joinNonBlank(ctx.getString(R.string.not_in_list), v.type, v.transporter)
             else if (!v.dedicated) Ui.joinNonBlank(ctx.getString(R.string.record_only), v.type, v.transporter)

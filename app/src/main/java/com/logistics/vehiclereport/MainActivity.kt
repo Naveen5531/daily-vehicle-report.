@@ -739,15 +739,33 @@ class MainActivity : AppCompatActivity() {
         }, 60)
     }
 
+    private var snapGen = 0
+
+    /**
+     * Reads the saved posts / vehicles and fills captured details OFF the main thread (the whole day's JSON is large and
+     * a refresh can come every second while posts and gate data arrive), then redraws the tab on screen.
+     */
     fun refreshAll() {
-        var s = try { loadSnapshot() } catch (e: Throwable) {
-            safe("Load data") { throw e }
-            return
-        }
-        // Driver mobile, driver name, vendor, size and store written in WhatsApp fill empty vehicle details.
-        safe("Capture details") {
-            if (VehicleStore.fillBlanksFromPosts(this, s.records) > 0) s = s.copy(vehicles = VehicleStore.getVehicles(this))
-        }
+        val gen = ++snapGen
+        Thread {
+            var s: Snapshot? = null
+            var err: Throwable? = null
+            try {
+                s = loadSnapshot()
+                // Driver mobile, driver name, vendor, size and store written in WhatsApp fill empty vehicle details.
+                try {
+                    if (VehicleStore.fillBlanksFromPosts(this, s.records) > 0) s = s.copy(vehicles = VehicleStore.getVehicles(this))
+                } catch (e: Throwable) { CrashLog.save(this, "Capture details", e) }
+            } catch (e: Throwable) { err = e }
+            runOnUiThread {
+                if (isFinishing || isDestroyed || gen != snapGen) return@runOnUiThread
+                if (err != null) { safe("Load data") { throw err }; return@runOnUiThread }
+                s?.let { applySnapshot(it) }
+            }
+        }.start()
+    }
+
+    private fun applySnapshot(s: Snapshot) {
         subtitleText.text = SimpleDateFormat("EEEE, d MMM", Locale.getDefault()).format(Date())
         liveText.setText(if (s.hasAccess) R.string.live else R.string.off)
         liveDot.backgroundTintList = ColorStateList.valueOf(
