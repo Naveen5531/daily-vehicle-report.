@@ -626,6 +626,7 @@ class MainActivity : AppCompatActivity() {
 
     fun showTab(id: Int) {
         currentTab = id
+        LagWatch.where = try { resources.getResourceEntryName(id) } catch (e: Exception) { id.toString() }
         if (id == R.id.nav_today && ::today.isInitialized) today.releaseOrder()
         if (id == R.id.nav_plan) safe("Plan") { plan?.refresh() }
         if (id == R.id.nav_stores) busyRun { safe("Stores") { stores?.refresh() } }

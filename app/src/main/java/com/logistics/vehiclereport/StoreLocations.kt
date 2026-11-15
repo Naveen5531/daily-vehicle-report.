@@ -324,9 +324,14 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(s: Editable?) { refresh() }
+            override fun afterTextChanged(s: Editable?) { typeTick.removeCallbacks(typeRun); typeTick.postDelayed(typeRun, 250) }
         })
     }
+
+    private var pageLimit = 40
+    private var pageSig = ""
+    private val typeTick = android.os.Handler(android.os.Looper.getMainLooper())
+    private val typeRun = Runnable { refresh() }
 
     fun refresh() {
         val stores = MasterData.get(a).stores
@@ -345,7 +350,11 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
         val rank = { s: Store -> when (kinds[s.code]) { StoreGeo.Kind.NONE, null -> 0; StoreGeo.Kind.AUTO -> 1; else -> 2 } }
         if (stores.isNotEmpty()) summary.text = summary.text.toString() + "\nStores: ${stores.size}" +
             if (shown.size != stores.size) " · showing ${shown.size}" else ""
-        for (s in shown.sortedBy(rank).take(500)) {
+        val sig = "$filter|$q"
+        if (sig != pageSig) { pageSig = sig; pageLimit = 40 }
+        val sorted = shown.sortedBy(rank)
+        val typeface = ResourcesCompat.getFont(a, R.font.jakarta_semibold)
+        for (s in sorted.take(pageLimit)) {
             val kind = kinds[s.code] ?: StoreGeo.Kind.NONE
             val row = LinearLayout(a).apply {
                 orientation = LinearLayout.VERTICAL
@@ -355,7 +364,7 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             }
             row.addView(TextView(a).apply {
                 text = "${s.code} · ${s.name}"; textSize = 15f; setTextColor(Ui.color(a, R.color.ink))
-                typeface = ResourcesCompat.getFont(a, R.font.jakarta_semibold)
+                this.typeface = typeface
             })
             val at = places[s.code.trim()]
             row.addView(TextView(a).apply {
@@ -369,6 +378,10 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             list.addView(row)
             list.addView(View(a).apply { setBackgroundColor(Ui.color(a, R.color.line)) }, LinearLayout.LayoutParams(-1, 1))
         }
+        if (sorted.size > pageLimit) list.addView(com.google.android.material.button.MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = a.getString(R.string.show_more, sorted.size - pageLimit)
+            setOnClickListener { pageLimit += 40; refresh() }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(8) })
         if (shown.isEmpty()) list.addView(TextView(a).apply {
             setText(if (stores.isEmpty()) R.string.sm_empty else R.string.sm_none_here); textSize = 13.5f
             setTextColor(Ui.color(a, R.color.muted)); setPadding(px(4), px(20), px(4), px(20)); gravity = Gravity.CENTER

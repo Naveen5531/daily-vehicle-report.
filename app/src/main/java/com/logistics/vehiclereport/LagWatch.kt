@@ -16,6 +16,8 @@ object LagWatch {
     private const val LIMIT_MS = 350L
     private const val MAX_BYTES = 60_000
     @Volatile private var started = false
+    /** The tab on screen, written to the log with each hang. */
+    @Volatile var where = ""
 
     private fun file(c: Context) = File(c.filesDir, "lag_log.txt")
 
@@ -44,7 +46,7 @@ object LagWatch {
                     try {
                         val f = file(app)
                         val old = if (f.exists() && f.length() < MAX_BYTES) f.readText() else ""
-                        f.writeText("${fmt.format(Date())}  stuck ${blocked} ms in:\n$worst\n\n$old")
+                        f.writeText("${fmt.format(Date())}  stuck ${blocked} ms on [$where] in:\n$worst\n\n$old")
                     } catch (e: Exception) { }
                 }
                 Thread.sleep(150)

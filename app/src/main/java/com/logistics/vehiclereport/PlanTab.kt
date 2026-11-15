@@ -216,6 +216,8 @@ class PlanTab(private val a: MainActivity, root: View) {
     }
 
     private var refreshGen = 0
+    /** Load cards drawn at once (all of them at once hung the screen); "Show more" adds 12. */
+    private var planLimit = 12
     private val loadingShow = Runnable {
         list.removeAllViews()
         val d = a.resources.displayMetrics.density
@@ -312,6 +314,8 @@ class PlanTab(private val a: MainActivity, root: View) {
                 setPadding((20 * d).toInt(), (12 * d).toInt(), (20 * d).toInt(), 0)
             })
         }
+        var drawn = 0
+        var moreLoads = 0
         shown.groupBy { it.value.cluster }.forEach { (cluster, loads) ->
             val cap = loads.sumOf { it.value.type?.capacity ?: 0.0 }
             val v = loads.sumOf { it.value.volume }
@@ -323,8 +327,15 @@ class PlanTab(private val a: MainActivity, root: View) {
                 val d = a.resources.displayMetrics.density
                 setPadding((20 * d).toInt(), (18 * d).toInt(), (20 * d).toInt(), (8 * d).toInt())
             })
-            for ((i, l) in loads) list.addView(card(inflater, i, l))
+            for ((i, l) in loads) {
+                if (drawn >= planLimit) { moreLoads++; continue }
+                list.addView(card(inflater, i, l)); drawn++
+            }
         }
+        if (moreLoads > 0) list.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = a.getString(R.string.show_more, moreLoads)
+            setOnClickListener { planLimit += 12; result?.let { rr -> applyPlan(plan, rr, opts, stops) } }
+        }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * a.resources.displayMetrics.density).toInt(), 8, (16 * a.resources.displayMetrics.density).toInt(), 8) })
         showHeld(held.filter { (zoneFilter == null || zones[it.code] == zoneFilter) &&
             (storeQuery.isEmpty() || listOf(it.code, it.shownName, it.name, it.city, it.region).any { f -> f.lowercase().contains(storeQuery) }) })
         // Searched for a store that is not on today's plan at all (not read from the sheet).
