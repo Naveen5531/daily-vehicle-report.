@@ -841,6 +841,17 @@ class ExportTab(private val a: MainActivity, private val root: View) {
             text = "Check for app update (now ${BuildConfig.VERSION_NAME})"
             setOnClickListener { AppUpdate.check(a, manual = true) }
         }
+        root.findViewById<com.google.android.material.button.MaterialButton>(R.id.exportSpeed).setOnClickListener {
+            val log = LagWatch.read(a).ifBlank { "No hang seen yet. Use the app (open the tabs, type in search), then open this again." }
+            MaterialAlertDialogBuilder(a).setTitle("Speed report")
+                .setMessage(log.take(6000))
+                .setPositiveButton("Share") { _, _ ->
+                    a.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, log), "Share speed report"))
+                }
+                .setNeutralButton("Clear") { _, _ -> LagWatch.clear(a) }
+                .setNegativeButton(android.R.string.cancel, null).show()
+        }
         // 1. Daily dedicated report
         val daily = card(root.findViewById(R.id.repDaily), R.drawable.ic_calendar, R.color.brand_primary, R.color.ok_bg,
             R.string.rep_daily_title, R.string.rep_daily_desc)

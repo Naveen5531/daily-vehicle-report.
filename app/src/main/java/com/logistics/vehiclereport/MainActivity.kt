@@ -135,6 +135,7 @@ class MainActivity : AppCompatActivity() {
             navigationBarStyle = androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         )
         super.onCreate(savedInstanceState)
+        LagWatch.start(this)
         // Every account keeps its own data: sign in first.
         if (!Account.isSignedIn(this)) {
             startActivity(Intent(this, SignInActivity::class.java).apply {
