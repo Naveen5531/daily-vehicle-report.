@@ -627,7 +627,7 @@ class MainActivity : AppCompatActivity() {
         currentTab = id
         if (id == R.id.nav_today && ::today.isInitialized) today.releaseOrder()
         if (id == R.id.nav_plan) safe("Plan") { plan?.refresh() }
-        if (id == R.id.nav_stores) safe("Stores") { stores?.refresh() }
+        if (id == R.id.nav_stores) busyRun { safe("Stores") { stores?.refresh() } }
         tabViews.forEach { (navId, view) -> view.visibility = if (navId == id) View.VISIBLE else View.GONE }
         refreshTab(id)
         titleText.setText(
@@ -710,13 +710,33 @@ class MainActivity : AppCompatActivity() {
         if (!dirtyTabs.remove(id)) return
         val s = lastSnap ?: return
         when (id) {
+            // These work off the main thread and show the loading bar themselves.
             R.id.nav_today -> safe("Today") { today.refresh(s) }
-            R.id.nav_whatsapp -> safe("WhatsApp") { whatsapp.refresh(s) }
             R.id.nav_vehicles -> safe("Vehicles") { vehicles.refresh(s) }
-            R.id.nav_live -> safe("Live") { live.refresh(s) }
-            R.id.nav_rates -> safe("Rates") { if (::rates.isInitialized) rates.refresh() }
-            R.id.nav_mail -> safe("Mail") { if (::mail.isInitialized) mail.refresh() }
+            // The others draw on the main thread: the tab opens at once with the loading bar, then fills in.
+            R.id.nav_whatsapp -> busyRun { safe("WhatsApp") { whatsapp.refresh(s) } }
+            R.id.nav_live -> busyRun { safe("Live") { live.refresh(s) } }
+            R.id.nav_rates -> busyRun { safe("Rates") { if (::rates.isInitialized) rates.refresh() } }
+            R.id.nav_mail -> busyRun { safe("Mail") { if (::mail.isInitialized) mail.refresh() } }
         }
+    }
+
+    // ---------- Loading bar: shows from the tap until the screen is filled ----------
+    private var busyCount = 0
+    private val busyBar: View? by lazy { findViewById<View>(R.id.busyBar) }
+
+    /** Loading bar on ([on] true) / off. Calls are counted, so overlapping work keeps the bar until all of it ends. */
+    fun busy(on: Boolean) {
+        busyCount = (busyCount + if (on) 1 else -1).coerceAtLeast(0)
+        busyBar?.visibility = if (busyCount > 0) View.VISIBLE else View.GONE
+    }
+
+    /** Shows the bar, lets it draw, runs [block] (main thread), then hides the bar. */
+    fun busyRun(block: () -> Unit) {
+        busy(true)
+        window.decorView.postDelayed({
+            try { block() } finally { window.decorView.post { busy(false) } }
+        }, 60)
     }
 
     fun refreshAll() {

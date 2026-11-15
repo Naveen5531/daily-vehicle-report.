@@ -325,22 +325,38 @@ class TodayTab(private val a: MainActivity, root: View) {
         }
     }
 
+    private var refreshGen = 0
+
+    /** The day's rows are worked out off the main thread (the loading bar runs meanwhile), then drawn. */
     fun refresh(s: Snapshot) {
         last = s
         banner.visibility = if (s.hasAccess) View.GONE else View.VISIBLE
         drishtiStatus.text = DrishtiActivity.statusText(a)
-        // Your vehicle list, plus vehicles posted with their full number that are not in it yet.
         val today = viewDay()
         val isBack = backDay != null
-        // Today also shows vehicles still at the DC from an earlier check-in (no check-out yet).
-        val gates = GateMarks.gates(a, carry = true)
-        val marks = gates.forDay(today)
-        val gateMap = gates.gateLog(today)
-        val gateOnly = gates.gateOnly && !gates.legacy(today)
-        val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
-        // Today lists only the vehicles posted in WhatsApp that day; Drishti (gate check-in / check-out, also from an
-        // earlier day still open) says whether each one is Reported or Departed. Vehicles nobody posted are not shown.
-        val local = (ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras).filter { it.hits.isNotEmpty() }
+        val gen = ++refreshGen
+        a.busy(true)
+        Thread {
+            val res = try {
+                // Today also shows vehicles still at the DC from an earlier check-in (no check-out yet).
+                val gates = GateMarks.gates(a, carry = true)
+                val marks = gates.forDay(today)
+                val gateMap = gates.gateLog(today)
+                val gateOnly = gates.gateOnly && !gates.legacy(today)
+                val extras = ReportBuilder.notInList(s.vehicles, s.records, today, marks, gates.legacy(today), gateMap, gates.gateOnly)
+                // Only vehicles posted in WhatsApp that day are listed; Drishti says Reported / Departed.
+                val local = (ReportBuilder.dayStatus(s.vehicles, s.records, today, gates) + extras).filter { it.hits.isNotEmpty() }
+                Pair(gateOnly, local)
+            } catch (t: Throwable) { null }
+            a.runOnUiThread {
+                a.busy(false)
+                if (gen != refreshGen || res == null) return@runOnUiThread
+                try { render(s, today, isBack, res.first, res.second) } catch (t: Throwable) { CrashLog.save(a, "Today", t) }
+            }
+        }.start()
+    }
+
+    private fun render(s: Snapshot, today: Long, isBack: Boolean, gateOnly: Boolean, local: List<VehicleDay>) {
         // A back day with nothing on this phone: its cloud copy (date-wise backup) is shown instead, read only.
         val localHasData = local.any { it.hits.isNotEmpty() || it.mark != null || it.gate != null }
         val day = dayFmt.format(Date(today))
@@ -753,11 +769,13 @@ class VehiclesTab(private val a: MainActivity, root: View) {
         }
         count.text = a.getString(R.string.vehicle_count, list.size, s.vehicles.size)
         if (adapter.itemCount == 0) { empty.text = "Loading…"; empty.visibility = View.VISIBLE }
+        a.busy(true)
         Thread {
             val m = MasterData.get(a)
             val details = try { VehicleDetailSheet.postedDetails(a, list, s.records) } catch (t: Throwable) { emptyMap() }
             val clashes = s.vehicles.groupBy { VehicleParser.last4(it.number) }.filter { it.value.size > 1 }
             a.runOnUiThread {
+                a.busy(false)
                 if (mine != gen) return@runOnUiThread
                 mastersButton.text = a.getString(R.string.masters_button, m.stores.size, m.vendors.size)
                 adapter.submit(list, details)

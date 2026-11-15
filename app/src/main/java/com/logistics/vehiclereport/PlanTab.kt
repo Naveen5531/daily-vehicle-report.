@@ -230,6 +230,7 @@ class PlanTab(private val a: MainActivity, root: View) {
     /** The plan is worked out off the main thread; "Loading…" shows if it takes a moment, so the screen never freezes. */
     fun refresh() {
         val gen = ++refreshGen
+        a.busy(true)
         list.removeCallbacks(loadingShow)
         list.postDelayed(loadingShow, 150)
         Thread {
@@ -238,6 +239,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 Pair(plan, planWith(PlanData.shuffle(a)))
             } catch (t: Throwable) { null }
             a.runOnUiThread {
+                a.busy(false)
                 if (gen != refreshGen) return@runOnUiThread
                 list.removeCallbacks(loadingShow)
                 if (res != null) applyPlan(res.first, res.second.first, res.second.second, res.second.third)
