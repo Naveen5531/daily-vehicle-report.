@@ -691,21 +691,33 @@ class VehiclesTab(private val a: MainActivity, root: View) {
             .show()
     }
 
+    private var gen = 0
+
+    /** The posted details of every vehicle are worked out off the main thread; the list says "Loading…" meanwhile. */
     fun refresh(s: Snapshot) {
-        MasterData.get(a).let { m -> mastersButton.text = a.getString(R.string.masters_button, m.stores.size, m.vendors.size) }
         last = s
+        val mine = ++gen
         val list = s.vehicles.filter { v ->
             query.isEmpty() || listOf(v.number, v.type, v.driver, v.mobile, v.transporter, v.route)
                 .any { it.lowercase().contains(query) }
         }
-        adapter.submit(list, VehicleDetailSheet.postedDetails(a, list, s.records))
         count.text = a.getString(R.string.vehicle_count, list.size, s.vehicles.size)
-        empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-
-        val clashes = s.vehicles.groupBy { VehicleParser.last4(it.number) }.filter { it.value.size > 1 }
-        clashCard.visibility = if (clashes.isEmpty()) View.GONE else View.VISIBLE
-        clashText.text = a.getString(R.string.clash_warning) + "\n" +
-            clashes.entries.joinToString("\n") { (code, vs) -> "• $code → ${vs.joinToString(", ") { it.number }}" }
+        if (adapter.itemCount == 0) { empty.text = "Loading…"; empty.visibility = View.VISIBLE }
+        Thread {
+            val m = MasterData.get(a)
+            val details = try { VehicleDetailSheet.postedDetails(a, list, s.records) } catch (t: Throwable) { emptyMap() }
+            val clashes = s.vehicles.groupBy { VehicleParser.last4(it.number) }.filter { it.value.size > 1 }
+            a.runOnUiThread {
+                if (mine != gen) return@runOnUiThread
+                mastersButton.text = a.getString(R.string.masters_button, m.stores.size, m.vendors.size)
+                adapter.submit(list, details)
+                empty.setText(R.string.vehicles_empty)
+                empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                clashCard.visibility = if (clashes.isEmpty()) View.GONE else View.VISIBLE
+                clashText.text = a.getString(R.string.clash_warning) + "\n" +
+                    clashes.entries.joinToString("\n") { (code, vs) -> "• $code → ${vs.joinToString(", ") { it.number }}" }
+            }
+        }.start()
     }
 }
 

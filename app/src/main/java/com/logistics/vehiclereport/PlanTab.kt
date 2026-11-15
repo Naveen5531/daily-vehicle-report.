@@ -215,9 +215,37 @@ class PlanTab(private val a: MainActivity, root: View) {
             .show()
     }
 
+    private var refreshGen = 0
+    private val loadingShow = Runnable {
+        list.removeAllViews()
+        val d = a.resources.displayMetrics.density
+        list.addView(TextView(a).apply {
+            text = "Loading…"
+            setTextColor(Ui.color(a, R.color.muted)); textSize = 14f
+            gravity = android.view.Gravity.CENTER
+            setPadding((20 * d).toInt(), (40 * d).toInt(), (20 * d).toInt(), (40 * d).toInt())
+        })
+    }
+
+    /** The plan is worked out off the main thread; "Loading…" shows if it takes a moment, so the screen never freezes. */
     fun refresh() {
-        val plan = PlanData.load(a)
-        val (r, opts, stops) = planWith(PlanData.shuffle(a))
+        val gen = ++refreshGen
+        list.removeCallbacks(loadingShow)
+        list.postDelayed(loadingShow, 150)
+        Thread {
+            val res = try {
+                val plan = PlanData.load(a)
+                Pair(plan, planWith(PlanData.shuffle(a)))
+            } catch (t: Throwable) { null }
+            a.runOnUiThread {
+                if (gen != refreshGen) return@runOnUiThread
+                list.removeCallbacks(loadingShow)
+                if (res != null) applyPlan(res.first, res.second.first, res.second.second, res.second.third)
+            }
+        }.start()
+    }
+
+    private fun applyPlan(plan: PlanData.Plan, r: PlanResult, opts: VehiclePlanner.Options, stops: List<PlanStop>) {
         val held = r.held
         result = r
         dcPlace = opts.dc
