@@ -103,7 +103,7 @@ object VehicleDetailSheet {
         // ---- At the DC today: Yet to report / Reported / Departed ----
         val gateShown = state != null
         view.findViewById<View>(R.id.detGateTitle).visibility = if (gateShown) View.VISIBLE else View.GONE
-        val gateGroup = view.findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.gateGroup)
+        val gateGroup = view.findViewById<android.view.ViewGroup>(R.id.gateGroup)
         gateGroup.visibility = if (gateShown) View.VISIBLE else View.GONE
         val gateTimes = view.findViewById<TextView>(R.id.detGateTimes)
         gateTimes.text = Ui.gateTimes(a, todayDay?.mark)

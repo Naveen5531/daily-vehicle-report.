@@ -71,8 +71,7 @@ object Ui {
     }
 
     /** The three-way Yet to report / Reported / Departed buttons: shows [state], reports taps through [onPick]. */
-    fun bindGate(group: com.google.android.material.button.MaterialButtonToggleGroup, state: TodayState, onPick: (Gate?) -> Unit) {
-        group.clearOnButtonCheckedListeners()
+    fun bindGate(group: android.view.ViewGroup, state: TodayState, onPick: (Gate?) -> Unit) {
         val ids = mapOf(Gate.YET to R.id.gateYet, Gate.REPORTED to R.id.gateReported, Gate.DEPARTED to R.id.gateDeparted)
         val shown = when (state) {
             TodayState.YET -> Gate.YET
@@ -80,13 +79,11 @@ object Ui {
             TodayState.DEPARTED -> Gate.DEPARTED
             else -> null
         }
-        if (shown == null) group.clearChecked() else group.check(ids.getValue(shown))
-        group.addOnButtonCheckedListener { g, id, isChecked ->
-            val picked = ids.entries.firstOrNull { it.value == id }?.key ?: return@addOnButtonCheckedListener
-            when {
-                isChecked && picked != shown -> g.post { onPick(picked) }
-                !isChecked && picked == shown && g.checkedButtonId == android.view.View.NO_ID -> g.post { onPick(null) }
-            }
+        for ((gate, id) in ids) {
+            val b = group.findViewById<View>(id) ?: continue
+            b.isSelected = gate == shown
+            // Tapping the chosen one clears it; another one marks it.
+            b.setOnClickListener { group.post { onPick(if (gate == shown) null else gate) } }
         }
     }
 

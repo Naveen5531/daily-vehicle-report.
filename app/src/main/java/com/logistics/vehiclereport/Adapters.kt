@@ -61,7 +61,7 @@ class StatusAdapter(
         val gateTimes: TextView = v.findViewById(R.id.gateTimes)
         val plateNote: TextView = v.findViewById(R.id.plateNote)
         val scan: MaterialButton = v.findViewById(R.id.scanButton)
-        val gate: com.google.android.material.button.MaterialButtonToggleGroup = v.findViewById(R.id.gateGroup)
+        val gate: android.view.ViewGroup = v.findViewById(R.id.gateGroup)
         private val replStub: android.view.ViewStub = v.findViewById(R.id.replStub)
         var replInflated = false
         lateinit var replBlock: View
@@ -71,7 +71,7 @@ class StatusAdapter(
         lateinit var replGateTimes: TextView
         lateinit var replPill: TextView
         lateinit var replTime: TextView
-        lateinit var replGate: com.google.android.material.button.MaterialButtonToggleGroup
+        lateinit var replGate: android.view.ViewGroup
 
         /** The replacement block is built only when a row needs it (most rows have none). */
         fun ensureRepl() {

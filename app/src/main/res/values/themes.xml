@@ -108,6 +108,18 @@
         <item name="android:paddingEnd">20dp</item>
     </style>
     <!-- One part of the Yet to report / Reported / Departed choice on a vehicle. -->
+    <style name="GateSeg">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">38dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/jakarta_semibold</item>
+        <item name="android:textColor">@color/gate_seg_text</item>
+        <item name="android:background">@drawable/gate_seg_bg</item>
+        <item name="android:clickable">true</item>
+    </style>
+
     <style name="DSeg" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:minHeight">38dp</item>
         <item name="android:insetTop">0dp</item>
