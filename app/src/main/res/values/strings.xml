@@ -349,6 +349,7 @@
     <string name="manual_replacement">Replacement vehicle…</string>
     <string name="manual_clear">Clear cancelled / replacement</string>
     <string name="manual_replacement_hint">Replacement vehicle number</string>
+    <string name="show_more">Show more · %1$d left</string>
     <string name="cancelled_pill">Cancelled</string>
     <string name="replacement_title">🔁 Replacement</string>
     <string name="replacement_waiting">🔁 Replacement: waiting</string>

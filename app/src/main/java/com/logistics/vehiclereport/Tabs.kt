@@ -110,6 +110,10 @@ class TodayTab(private val a: MainActivity, root: View) {
 
     /** The days of the last full refresh, so typing in the search box only re-filters (no re-reading of posts / gate). */
     private var cachedDays: List<VehicleDay> = emptyList()
+    private val PAGE = 30
+    private var pageLimit = PAGE
+    private var pageSig = ""
+    private val moreBtn: MaterialButton = root.findViewById(R.id.todayMore)
     private val hay = java.util.IdentityHashMap<VehicleDay, String>()
     private val searchTick = android.os.Handler(android.os.Looper.getMainLooper())
     private val searchRun = Runnable { showRows(cachedDays) }
@@ -133,7 +137,13 @@ class TodayTab(private val a: MainActivity, root: View) {
             kept + list.filter { it.vehicle.number !in keptSet }
         } else list
         shown = rows.map { it.vehicle.number }
-        adapter.submit(rows)
+        // Only a page of rows is drawn at a time (a long list drawn at once made the screen hang); "Show more" adds the next page.
+        val sig = "$filter|$last4Filter|$query|$timeWise|${viewDay()}"
+        if (sig != pageSig) { pageSig = sig; pageLimit = PAGE }
+        adapter.submit(rows.take(pageLimit))
+        moreBtn.visibility = if (rows.size > pageLimit) View.VISIBLE else View.GONE
+        moreBtn.text = a.getString(R.string.show_more, rows.size - pageLimit)
+        moreBtn.setOnClickListener { pageLimit += PAGE; showRows(cachedDays) }
         empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
         empty.text = when {
             total == 0 -> a.getString(R.string.today_empty_no_vehicles)
@@ -512,6 +522,10 @@ class WhatsAppTab(private val a: MainActivity, root: View) {
     private val senderName: TextView = root.findViewById(R.id.senderName)
     private val senderHint: TextView = root.findViewById(R.id.senderHint)
     private var filter = Filter.TODAY
+    private val PAGE = 30
+    private var pageLimit = PAGE
+    private var pageSig = ""
+    private val moreBtn: MaterialButton = root.findViewById(R.id.feedMore)
     private var last: Snapshot? = null
     private var lastUnmatchedCode: String? = null
     private val time = SimpleDateFormat("hh:mm a", Locale.getDefault())
@@ -682,7 +696,12 @@ class WhatsAppTab(private val a: MainActivity, root: View) {
             Filter.FULL -> today.filter { it.match == MatchType.FULL }
             Filter.ALL -> s.records
         }
-        adapter.submit(list, s.vehicles.associateBy { it.number }, filter == Filter.ALL)
+        val sig = "$filter"
+        if (sig != pageSig) { pageSig = sig; pageLimit = PAGE }
+        adapter.submit(list.take(pageLimit), s.vehicles.associateBy { it.number }, filter == Filter.ALL)
+        moreBtn.visibility = if (list.size > pageLimit) View.VISIBLE else View.GONE
+        moreBtn.text = a.getString(R.string.show_more, list.size - pageLimit)
+        moreBtn.setOnClickListener { pageLimit += PAGE; last?.let { refresh(it) } }
         empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
         empty.setText(if (s.hasAccess) R.string.feed_empty else R.string.feed_empty_no_access)
     }
@@ -700,6 +719,10 @@ class VehiclesTab(private val a: MainActivity, root: View) {
     private var query = ""
     private var last: Snapshot? = null
     private lateinit var mastersButton: MaterialButton
+    private val PAGE = 30
+    private var pageLimit = PAGE
+    private var pageSig = ""
+    private val moreBtn: MaterialButton = root.findViewById(R.id.vehicleMore)
     private val typeTick = android.os.Handler(android.os.Looper.getMainLooper())
     private val typeRun = Runnable { last?.let { s -> refresh(s) } }
 
@@ -782,7 +805,12 @@ class VehiclesTab(private val a: MainActivity, root: View) {
                 a.busy(false)
                 if (mine != gen) return@runOnUiThread
                 mastersButton.text = a.getString(R.string.masters_button, m.stores.size, m.vendors.size)
-                adapter.submit(list, details)
+                val sig = query
+                if (sig != pageSig) { pageSig = sig; pageLimit = PAGE }
+                adapter.submit(list.take(pageLimit), details)
+                moreBtn.visibility = if (list.size > pageLimit) View.VISIBLE else View.GONE
+                moreBtn.text = a.getString(R.string.show_more, list.size - pageLimit)
+                moreBtn.setOnClickListener { pageLimit += PAGE; last?.let { refresh(it) } }
                 empty.setText(R.string.vehicles_empty)
                 empty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
                 clashCard.visibility = if (clashes.isEmpty()) View.GONE else View.VISIBLE
