@@ -131,7 +131,8 @@ object StoreLocations {
         val places = StoreGeo.places(a)
         val rows = ArrayList<List<String>>()
         rows += listOf("Store Code", "Store Name", "Circle", "Latitude", "Longitude", "Google Maps Link", "Pin")
-        for (s in MasterData.get(a).stores) {
+        val order = { s: Store -> when (StoreGeo.kind(a, s.code)) { StoreGeo.Kind.NONE -> 0; StoreGeo.Kind.AUTO -> 1; else -> 2 } }
+        for (s in MasterData.get(a).stores.sortedBy(order)) {
             val at = places[s.code.trim()]
             val lat = at?.let { String.format(Locale.US, "%.6f", it.lat) }.orEmpty()
             val lon = at?.let { String.format(Locale.US, "%.6f", it.lon) }.orEmpty()
@@ -340,7 +341,9 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             (filter == 0 || kinds[s.code] != StoreGeo.Kind.EXACT) &&
                 (q.isEmpty() || listOf(s.code, s.name, s.city, s.region).any { it.lowercase().contains(q) })
         }
-        for (s in shown.take(500)) {
+        // Not set on top, then approximate (to check), then exact at the bottom; a store moves down once it is set.
+        val rank = { s: Store -> when (kinds[s.code]) { StoreGeo.Kind.NONE, null -> 0; StoreGeo.Kind.AUTO -> 1; else -> 2 } }
+        for (s in shown.sortedBy(rank).take(500)) {
             val kind = kinds[s.code] ?: StoreGeo.Kind.NONE
             val row = LinearLayout(a).apply {
                 orientation = LinearLayout.VERTICAL
