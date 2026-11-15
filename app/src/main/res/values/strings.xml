@@ -344,6 +344,11 @@
     <string name="chip_reported">Reported %1$d</string>
     <string name="chip_check">Check %1$d</string>
     <string name="sent_by">Sent “%1$s” by %2$s</string>
+    <string name="replacement_not_added">🔁 Replacement: not added yet</string>
+    <string name="manual_cancel">Vehicle cancelled</string>
+    <string name="manual_replacement">Replacement vehicle…</string>
+    <string name="manual_clear">Clear cancelled / replacement</string>
+    <string name="manual_replacement_hint">Replacement vehicle number</string>
     <string name="cancelled_pill">Cancelled</string>
     <string name="replacement_title">🔁 Replacement</string>
     <string name="replacement_waiting">🔁 Replacement: waiting</string>

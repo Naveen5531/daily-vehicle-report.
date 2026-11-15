@@ -16,7 +16,11 @@ class StatusAdapter(
     /** Yet to report / Reported / Departed tapped on a row (null = mark cleared). */
     private val onGate: (VehicleDay, Gate?) -> Unit = { _, _ -> },
     /** Camera button on a vehicle posted with only its last 4 digits. */
-    private val onScan: (VehicleDay) -> Unit = {}
+    private val onScan: (VehicleDay) -> Unit = {},
+    /** Long press: set Vehicle cancelled / Replacement by hand (changes saved, the screen refreshes). */
+    private val onManual: (VehicleDay) -> Unit = {},
+    /** The day shown (today or a back day). */
+    private val dayOf: () -> Long = { ReportBuilder.startOfDay() }
 ) : RecyclerView.Adapter<StatusAdapter.Holder>() {
     private var items: List<VehicleDay> = emptyList()
     private val time = SimpleDateFormat("hh:mm a", Locale.getDefault())
@@ -116,6 +120,7 @@ class StatusAdapter(
         h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
         h.call.setOnClickListener { Ui.dial(ctx, mobile) }
         h.itemView.setOnClickListener { onOpen(d) }
+        h.itemView.setOnLongClickListener { onManual(d); true }
         bindReplacement(h, d, withRepl, first)
     }
 
@@ -127,9 +132,12 @@ class StatusAdapter(
     private fun bindReplacement(h: Holder, d: VehicleDay, withRepl: VehicleRecord?, first: VehicleRecord?) {
         val ctx = h.itemView.context
         val gateRepl = d.gate?.takeIf { it.vehicle != d.vehicle.number }
+        val manual = ManualCancel.get(ctx, dayOf(), d.vehicle.number)
         val replPlate = withRepl?.replacement?.takeIf { it.isNotBlank() } ?: gateRepl?.vehicle
+            ?: manual?.replacement?.takeIf { it.isNotBlank() }
+        val cancelledOnly = replPlate == null && manual != null
         h.plate.paintFlags = h.plate.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG.inv()
-        if (replPlate == null) {
+        if (replPlate == null && !cancelledOnly) {
             h.replBlock.visibility = View.GONE
             h.gate.visibility = View.VISIBLE
             return
@@ -148,9 +156,9 @@ class StatusAdapter(
         // Replacement block.
         h.replBlock.visibility = View.VISIBLE
         val arrived = d.gate != null
-        h.replTitle.text = if (arrived) Ui.joinNonBlank(ctx.getString(R.string.replacement_title), withRepl?.city.orEmpty().ifBlank { d.gate?.destination.orEmpty() })
+        h.replTitle.text = if (cancelledOnly) ctx.getString(R.string.replacement_not_added) else if (arrived) Ui.joinNonBlank(ctx.getString(R.string.replacement_title), withRepl?.city.orEmpty().ifBlank { d.gate?.destination.orEmpty() })
             else ctx.getString(R.string.replacement_waiting)
-        h.replPlate.text = replPlate
+        h.replPlate.text = replPlate ?: "—"
         h.replMeta.text = Ui.joinNonBlank(
             withRepl?.size.orEmpty().ifBlank { d.gate?.type.orEmpty() },
             withRepl?.driver.orEmpty().ifBlank { d.gate?.driver.orEmpty() },

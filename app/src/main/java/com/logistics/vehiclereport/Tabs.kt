@@ -64,8 +64,42 @@ class TodayTab(private val a: MainActivity, root: View) {
             // A back day read from the cloud copy is read only; on this phone's back days a mark can still be corrected.
             if (!cloudView) { hold = true; GateMarks.set(a, viewDay(), d.vehicle.number, gate) }
         },
-        onScan = { d -> a.scanPlate(d.vehicle.number) }
+        onScan = { d -> a.scanPlate(d.vehicle.number) },
+        onManual = { d -> manualCancel(d) },
+        dayOf = { viewDay() }
     )
+
+    /** Long press on a row: Vehicle cancelled / Replacement set by hand. A cancelled vehicle still gets Yet / Reported / Departed. */
+    private fun manualCancel(d: VehicleDay) {
+        if (cloudView) return
+        val day = viewDay()
+        val no = d.vehicle.number
+        val cur = ManualCancel.get(a, day, no)
+        val items = mutableListOf(a.getString(R.string.manual_cancel), a.getString(R.string.manual_replacement))
+        if (cur != null) items += a.getString(R.string.manual_clear)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(a)
+            .setTitle(no)
+            .setItems(items.toTypedArray()) { _, i ->
+                when (i) {
+                    0 -> { ManualCancel.set(a, day, no, ManualCancel.Mark(cur?.replacement.orEmpty())); hold = true; a.refreshAll() }
+                    1 -> {
+                        val input = android.widget.EditText(a).apply {
+                            hint = a.getString(R.string.manual_replacement_hint)
+                            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                            setText(cur?.replacement.orEmpty())
+                        }
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(a)
+                            .setTitle(R.string.manual_replacement)
+                            .setView(input)
+                            .setPositiveButton(android.R.string.ok) { _, _ ->
+                                ManualCancel.set(a, day, no, ManualCancel.Mark(input.text.toString())); hold = true; a.refreshAll()
+                            }
+                            .setNegativeButton(android.R.string.cancel, null).show()
+                    }
+                    else -> { ManualCancel.set(a, day, no, null); hold = true; a.refreshAll() }
+                }
+            }.show()
+    }
     /**
      * Vehicle numbers in the order last shown. After a tap on Yet to report / Reported / Departed every row stays
      * where it is (none moves away or drops out of the chosen filter, so the next row never slides under the finger)
