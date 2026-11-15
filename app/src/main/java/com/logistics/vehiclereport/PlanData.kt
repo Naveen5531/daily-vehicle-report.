@@ -59,7 +59,13 @@ object PlanData {
             }
         }.orEmpty()
         val sizes = o.optJSONObject("sizes")?.let { m -> m.keys().asSequence().associateWith { m.optString(it) } }.orEmpty()
-        return Plan(o.optLong("created", 0L), stops, strings(o.optJSONArray("noClub")).toSet(), clubs, sources, sizes)
+        val created = o.optLong("created", 0L)
+        // The plan sheet is for one day: from 12 AM the next day it starts empty again.
+        if (stops.isNotEmpty() && created > 0 && ReportBuilder.startOfDay(created) < ReportBuilder.startOfDay()) {
+            clear(c)
+            return Plan(0L, emptyList(), emptySet(), emptyList(), emptyList(), emptyMap())
+        }
+        return Plan(created, stops, strings(o.optJSONArray("noClub")).toSet(), clubs, sources, sizes)
     }
 
     fun save(c: Context, plan: Plan) {
