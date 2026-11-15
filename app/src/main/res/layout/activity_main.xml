@@ -192,15 +192,25 @@
             android:layout_height="match_parent"
             android:visibility="gone" />
     
-        <com.google.android.material.progressindicator.LinearProgressIndicator
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/busyBar"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top"
-            android:indeterminate="true"
+            android:layout_gravity="center"
             android:visibility="gone"
-            app:indicatorColor="@color/emerald"
-            app:trackThickness="4dp" />
+            app:cardBackgroundColor="#E6FFFFFF"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="6dp">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="18dp"
+                android:indeterminate="true"
+                app:indicatorColor="@color/emerald"
+                app:indicatorSize="44dp"
+                app:trackThickness="4dp" />
+        </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
 
     <!-- Floating tab bar -->
