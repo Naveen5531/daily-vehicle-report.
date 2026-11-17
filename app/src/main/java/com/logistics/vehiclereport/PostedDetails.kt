@@ -41,15 +41,19 @@ object PostedDetails {
         return byVehicle.mapValues { (num, posts) -> of(context, num, posts.sortedByDescending { it.time }) }
     }
 
-    /** Fills only the empty details of [v] with [p]; what you typed or imported is never replaced. */
+    /**
+     * Fills the empty details of [v] with [p]; type, driver, mobile and vendor you typed or imported are never replaced.
+     * The store / route is different: it is the vehicle's current trip, so it always follows the latest WhatsApp post.
+     */
     fun fillBlanks(v: DedicatedVehicle, p: DedicatedVehicle) = v.copy(
         type = v.type.ifBlank { p.type },
         driver = v.driver.ifBlank { p.driver },
         mobile = v.mobile.ifBlank { p.mobile },
         transporter = v.transporter.ifBlank { p.transporter },
-        route = v.route.ifBlank { p.route }
+        route = p.route.ifBlank { v.route }
     )
 
-    fun hasBlanks(v: DedicatedVehicle) =
-        v.type.isBlank() || v.driver.isBlank() || v.mobile.isBlank() || v.transporter.isBlank() || v.route.isBlank()
+    /** True for every vehicle, so each one is checked against its latest post and the store / route stays current. */
+    @Suppress("UNUSED_PARAMETER")
+    fun hasBlanks(v: DedicatedVehicle) = true
 }
