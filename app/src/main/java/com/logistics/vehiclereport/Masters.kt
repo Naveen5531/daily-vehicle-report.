@@ -61,7 +61,8 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
                 seg.filter { it.length > 1 }.let { w -> w.isNotEmpty() && w.all { s -> loc.any { l -> same(l, s) } } } -> 4
                 // written as one word: "Himyatnagar" = "Himayat Nagar", "Sd road" = "S.D Road"
                 seg.indices.any { a -> (a until seg.size).any { b -> same(locJoin, seg.subList(a, b + 1).joinToString("")) } } -> 3
-                loc.any { l -> l.length >= 4 && seg.any { s -> same(l, s) } } -> 1
+                // one shared word only counts when it is a real place name, not "nagar" / "colony" / "market"
+                loc.any { l -> l.length >= 4 && l !in GENERIC_PLACE_WORDS && seg.any { s -> same(l, s) } } -> 1
                 else -> 0
             }
             if (sc > 0) best = maxOf(best, sc + firstCity)
@@ -155,6 +156,13 @@ class Masters(val stores: List<Store>, val vendors: List<Vendor>) {
             vendor -> "Vendor only"
             else -> "Not matched"
         }
+
+        /** Words found in many place names; alone they never identify a store. */
+        private val GENERIC_PLACE_WORDS = setOf(
+            "nagar", "colony", "city", "market", "bazar", "bazaar", "puram", "gate", "circle", "chowk", "junction", "area",
+            "main", "new", "old", "phase", "sector", "layout", "extension", "hills", "park", "town", "village", "street",
+            "cross", "bypass", "highway", "opp", "east", "west", "north", "south", "central", "bhavan", "complex"
+        )
 
         val STORE_NOISE = setOf(
             "mart", "dmart", "dma", "ap", "tl", "near", "dist", "district", "the", "and", "road", "rd", "club"

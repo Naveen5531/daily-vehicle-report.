@@ -18,14 +18,17 @@ object PostedDetails {
         val vendor = sure.firstOrNull { it.vendor.isNotBlank() }
             ?.let { m.resolveVendor(it.vendor, it.message, it.chat, "")?.name ?: it.vendor.trim() }.orEmpty()
         val city = pick { it.city }
-        val store = m.matchStore(city)?.store
+        // "Anakapalle + Sheela nagar": several places in one post, each matched to its own store.
+        val places = city.split(Regex("\\s*[+&]\\s*|\\s+and\\s+", RegexOption.IGNORE_CASE)).map { it.trim() }.filter { it.isNotEmpty() }
+        val route = if (places.size > 1) places.joinToString(" + ") { p -> m.matchStore(p)?.store?.let { "${it.code} ${it.name}" } ?: p }
+            else m.matchStore(city)?.store?.let { "${it.code} ${it.name}" } ?: city
         return DedicatedVehicle(
             number = number,
             type = pick { it.size },
             driver = pick { it.driver },
             mobile = pick { it.mobile },
             transporter = vendor,
-            route = store?.let { "${it.code} ${it.name}" } ?: city
+            route = route
         )
     }
 
