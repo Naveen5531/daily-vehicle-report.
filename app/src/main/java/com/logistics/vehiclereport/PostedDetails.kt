@@ -18,10 +18,7 @@ object PostedDetails {
         val vendor = sure.firstOrNull { it.vendor.isNotBlank() }
             ?.let { m.resolveVendor(it.vendor, it.message, it.chat, "")?.name ?: it.vendor.trim() }.orEmpty()
         val city = pick { it.city }
-        // "Anakapalle + Sheela nagar": several places in one post, each matched to its own store.
-        val places = city.split(Regex("\\s*[+&]\\s*|\\s+and\\s+", RegexOption.IGNORE_CASE)).map { it.trim() }.filter { it.isNotEmpty() }
-        val route = if (places.size > 1) places.joinToString(" + ") { p -> m.matchStore(p)?.store?.let { "${it.code} ${it.name}" } ?: p }
-            else m.matchStore(city)?.store?.let { "${it.code} ${it.name}" } ?: city
+        val route = routeOf(context, city)
         return DedicatedVehicle(
             number = number,
             type = pick { it.size },
@@ -30,6 +27,14 @@ object PostedDetails {
             transporter = vendor,
             route = route
         )
+    }
+
+    /** Store label of a posted place; "Anakapalle + Sheela nagar" gives one label per stop, each matched to its own store. */
+    fun routeOf(context: Context, city: String): String {
+        val m = MasterData.get(context)
+        fun label(place: String) = m.matchStore(place)?.store?.let { "${it.code} ${it.name}" } ?: place
+        val places = city.split("+").map { it.trim() }.filter { it.isNotEmpty() }
+        return if (places.size > 1) places.joinToString(" + ") { label(it) } else label(city)
     }
 
     /** Posted details for each of [vehicles] that has posts. */

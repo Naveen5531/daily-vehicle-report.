@@ -314,7 +314,7 @@ object VehicleDetailSheet {
             Ui.styleState(tag, if (p.match == MatchType.MULTI) TodayState.CHECK else TodayState.REPORTED)
             if (p.match != MatchType.MULTI) tag.setText(R.string.st_posted)
             val st = m.matchStore(p.city)
-            r.findViewById<TextView>(R.id.postWhere).text = "→ " + (st?.let { Ui.joinNonBlank("${it.store.code} ${it.store.name}", it.store.region) }
+            r.findViewById<TextView>(R.id.postWhere).text = "→ " + if (p.city.contains("+")) PostedDetails.routeOf(a, p.city) else (st?.let { Ui.joinNonBlank("${it.store.code} ${it.store.name}", it.store.region) }
                 ?: p.city.ifBlank { a.getString(R.string.location_unknown) })
             r.findViewById<TextView>(R.id.postWho).text = Ui.joinNonBlank(
                 a.getString(R.string.det_by, p.senders.joinToString(", ").ifBlank { p.sender }),

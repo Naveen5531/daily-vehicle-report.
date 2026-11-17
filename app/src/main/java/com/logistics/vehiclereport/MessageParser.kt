@@ -460,13 +460,17 @@ object MessageParser {
     }
 
     /** Delivery location from its own line: "Isnapur to Raichur", "ELURU 22FT" -> "Eluru". */
-    fun locationOf(line: String): String {
-        val words = SIZE.replace(line, " ").split(Regex("[^\\p{L}]+"))
-            .filter { it.length >= 2 && (it.equals("to", true) || it.lowercase() !in FILLER) }
-            .dropWhile { it.equals("to", true) }.dropLastWhile { it.equals("to", true) }
-            .take(6)
-        return words.joinToString(" ") { w -> if (w.equals("to", true)) "to" else titleCase(w) }
-    }
+    /** A "+" between two places ("Anakapalle + Sheela nagar") means a clubbed vehicle with several stops. */
+    private val PLACE_PLUS = Regex("(?<=\\p{L})\\s*\\+\\s*(?=\\p{L})")
+
+    fun locationOf(line: String): String =
+        line.split(PLACE_PLUS).map { part ->
+            val words = SIZE.replace(part, " ").split(Regex("[^\\p{L}]+"))
+                .filter { it.length >= 2 && (it.equals("to", true) || it.lowercase() !in FILLER) }
+                .dropWhile { it.equals("to", true) }.dropLastWhile { it.equals("to", true) }
+                .take(6)
+            words.joinToString(" ") { w -> if (w.equals("to", true)) "to" else titleCase(w) }
+        }.filter { it.isNotBlank() }.joinToString(" + ")
 
     /** Vendor from the block's last line: "Veerbhadra cargo" -> "Veerbhadra Cargo". */
     fun vendorOf(line: String): String =
@@ -483,9 +487,11 @@ object MessageParser {
         val sb = StringBuilder(text)
         skip.forEach { r -> for (i in r) if (i < sb.length) sb.setCharAt(i, ' ') }
         val clean = SIZE.replace(REPL.replace(sb.toString(), " "), " ")
-        return clean.split(Regex("[^\\p{L}]+"))
-            .filter { it.length >= 2 && it.lowercase() !in FILLER }
-            .take(3)
-            .joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.uppercase() } }
+        return clean.split(PLACE_PLUS).map { part ->
+            part.split(Regex("[^\\p{L}]+"))
+                .filter { it.length >= 2 && it.lowercase() !in FILLER }
+                .take(3)
+                .joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.uppercase() } }
+        }.filter { it.isNotBlank() }.joinToString(" + ")
     }
 }
