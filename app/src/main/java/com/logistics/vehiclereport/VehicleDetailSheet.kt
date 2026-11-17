@@ -250,7 +250,10 @@ object VehicleDetailSheet {
         val store = m.matchStore(shown.route)
         val rate = store?.let { st -> RateCard.get(a).lookup(st.store.code, shown.type) }
         for (f in fields) {
-            val value = f.inList.ifBlank { f.posted }
+            // The store / route is the current trip: the latest WhatsApp post wins over what is saved in the list.
+            val postedWins = f.label == R.string.field_route && f.posted.isNotBlank()
+            val useList = f.inList.isNotBlank() && !postedWins
+            val value = if (postedWins) f.posted else f.inList.ifBlank { f.posted }
             // Extra line: vendor code, or the store's code and region.
             val extra = when (f.label) {
                 R.string.field_transporter -> if (value.isBlank()) "" else
@@ -262,7 +265,7 @@ object VehicleDetailSheet {
                 else -> ""
             }
             when {
-                f.inList.isNotBlank() -> row(name(f), value, sub = extra,
+                useList -> row(name(f), value, sub = extra,
                     action = if (f.label == R.string.field_mobile) a.getString(R.string.call) else null,
                     onAction = { Ui.dial(a, value) })
                 f.posted.isNotBlank() -> row(name(f), value,

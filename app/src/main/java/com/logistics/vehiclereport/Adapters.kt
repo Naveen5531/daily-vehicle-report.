@@ -355,7 +355,7 @@ class VehicleDetailAdapter(
         val wa = ctx.getString(R.string.wa_short)
         fun pick(own: String, seen: String?) = own.ifBlank { seen.orEmpty().let { if (it.isBlank()) "" else "$it ($wa)" } }
         h.meta2.text = "👤 " + Ui.joinNonBlank(pick(v.driver, p?.driver), pick(v.mobile, p?.mobile)).ifEmpty { "—" }
-        h.meta3.text = "📍 " + pick(v.route, p?.route).ifBlank { "—" }
+        h.meta3.text = "📍 " + (p?.route?.takeIf { it.isNotBlank() } ?: v.route).ifBlank { "—" }
         h.edit.setOnClickListener { onEdit(v) }
         h.itemView.setOnClickListener { onOpen(v) }
         h.call.visibility = if (v.mobile.isBlank()) View.GONE else View.VISIBLE
