@@ -50,15 +50,25 @@ object CloudSync {
         main.removeCallbacks(flush)
     }
 
-    /** Sends the changed settings now (also called when the app goes to the background). */
+    /** Sends the changed settings now (also called when the app goes to the background), and a full backup once a day. */
     fun flushNow(c: Context) {
         main.removeCallbacks(flush)
         if (!enabled(c)) return
-        val keys = synchronized(dirty) { dirty.toList().also { dirty.clear() } }
-        if (keys.isEmpty()) return
         val uid = Account.uid(c) ?: return
-        val all = VehicleStore.prefs(c).all
-        for (k in keys) upload(uid, k, all[k])
+        val keys = synchronized(dirty) { dirty.toList().also { dirty.clear() } }
+        if (keys.isNotEmpty()) {
+            val all = VehicleStore.prefs(c).all
+            for (k in keys) upload(uid, k, all[k])
+        }
+        dailyBackup(c)
+    }
+
+    /** Full backup of everything (store master, vehicles, posts) when the last one is more than a day old. */
+    private fun dailyBackup(c: Context) {
+        val p = VehicleStore.prefs(c)
+        if (System.currentTimeMillis() - p.getLong(KEY_LAST_BACKUP, 0L) < 24L * 60 * 60 * 1000) return
+        uploadAll(c)
+        p.edit().putLong(KEY_LAST_BACKUP, System.currentTimeMillis()).apply()
     }
 
     /** Sends everything (first sign-in with data already on the phone). */

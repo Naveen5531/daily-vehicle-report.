@@ -249,6 +249,48 @@ object StoreLocations {
         dlg.show()
     }
 
+    /**
+     * Quick add for a place posted in WhatsApp that has no store in the master: just the store code (and name).
+     * It is saved in the store master for good, so the same place gets its code from then on, and the cloud
+     * backup carries it. [done] runs after saving.
+     */
+    fun addCodeFor(a: MainActivity, place: String, done: () -> Unit) {
+        val d = a.resources.displayMetrics.density
+        fun px(v: Int) = (v * d).toInt()
+        val box = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; setPadding(px(20), px(8), px(20), 0) }
+        fun field(hint: Int, value: String, type: Int): TextInputEditText {
+            val l = TextInputLayout(a, null, com.google.android.material.R.attr.textInputOutlinedStyle).apply { this.hint = a.getString(hint) }
+            val e = TextInputEditText(l.context).apply { setText(value); inputType = type; setSingleLine() }
+            l.addView(e)
+            box.addView(l, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6) })
+            return e
+        }
+        val code = field(R.string.sm_code, "", InputType.TYPE_CLASS_TEXT)
+        val name = field(R.string.sm_name, place, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+        val dlg = MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.sm_add_code_title, place))
+            .setView(box)
+            .setPositiveButton(R.string.save, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dlg.setOnShowListener {
+            dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val c = code.text?.toString()?.trim().orEmpty().removeSuffix(".0")
+                val n = name.text?.toString()?.trim().orEmpty()
+                if (c.isBlank() || n.isBlank()) { Toast.makeText(a, R.string.sm_need_code_name, Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                if (MasterData.get(a).stores.any { it.code.trim() == c }) {
+                    Toast.makeText(a, a.getString(R.string.sm_code_exists, c), Toast.LENGTH_LONG).show(); return@setOnClickListener
+                }
+                // The place as written in the post is kept as the store's city, so the same posting matches it again.
+                putStore(a, Store(c, n, place, ""))
+                Toast.makeText(a, R.string.saved, Toast.LENGTH_SHORT).show()
+                dlg.dismiss()
+                done()
+            }
+        }
+        dlg.show()
+    }
+
     /** Asks the location of each store one by one (Save → next, Skip → next); [finished] when the list is done. */
     fun askOneByOne(a: MainActivity, stores: List<Store>, finished: () -> Unit) {
         fun step(i: Int) {

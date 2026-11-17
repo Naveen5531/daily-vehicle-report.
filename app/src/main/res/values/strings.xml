@@ -447,6 +447,9 @@ Columns: S.No, Vehicle No, Transporter Name, Vehicle Type. Fill one vehicle per 
     <string name="sm_empty">No stores yet. Tap Add store, or Bulk import an Excel (Store Code, Store Name, City, Region, Latitude, Longitude).</string>
     <string name="sm_none_here">No stores here</string>
     <string name="sm_code">Store code</string>
+    <string name="sm_add_code_title">Add store code for %1$s</string>
+    <string name="sm_missing_code">Store code missing</string>
+    <string name="sm_add_code">Add code</string>
     <string name="sm_name">Store name</string>
     <string name="sm_city">City</string>
     <string name="sm_region">Region</string>

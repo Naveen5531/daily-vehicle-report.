@@ -276,6 +276,15 @@ object VehicleDetailSheet {
                 else -> row(name(f), "", action = add, onAction = edit)
             }
         }
+        // A posted place with no store in the master: give it a store code once; it is kept for good and backed up.
+        val postedCity = posts.firstOrNull { it.match != MatchType.MULTI && it.city.isNotBlank() }?.city.orEmpty()
+        for (place in postedCity.split("+").map { it.trim() }.filter { it.isNotEmpty() }) {
+            if (m.matchStore(place) == null) {
+                row(a.getString(R.string.sm_missing_code), place, action = a.getString(R.string.sm_add_code)) {
+                    StoreLocations.addCodeFor(a, place) { again() }
+                }
+            }
+        }
         if (rate != null) row(a.getString(R.string.det_rate), "₹ " + RatesTab.formatAmount(rate.amount), sub = rate.vehicleType)
         row(a.getString(R.string.det_from), Masters.DISPATCH_FROM)
 
