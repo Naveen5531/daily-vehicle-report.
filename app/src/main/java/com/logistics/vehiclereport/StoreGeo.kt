@@ -57,14 +57,19 @@ object StoreGeo {
     /** The place name used for a store (typed by hand, or the one looked up). */
     fun query(c: Context, code: String): String? = read(c).optJSONArray(code)?.optString(2)?.takeIf { it.isNotBlank() }
 
+    /** Default DC: 1041 Isnapur (local city Hyderabad, state Telangana), used until another DC place is set. */
+    const val DEFAULT_DC = "Isnapur"
+    private val DEFAULT_DC_AT = LatLon(17.550, 78.250)
+
     fun dc(c: Context): LatLon? = try {
         p(c).getString(KEY_DC, null)?.let { JSONArray(it) }?.let { LatLon(it.getDouble(0), it.getDouble(1)) }
-    } catch (e: Exception) { null }
+    } catch (e: Exception) { null } ?: if (dcQuery(c).equals(DEFAULT_DC, ignoreCase = true)) DEFAULT_DC_AT else null
 
     /** The DC's place name: as typed, else the DC name without its number ("1041 - Isnapur DC" -> "Isnapur"). */
     fun dcQuery(c: Context): String = try { p(c).getString(KEY_DC, null)?.let { JSONArray(it).optString(2) } } catch (e: Exception) { null }
         ?.takeIf { it.isNotBlank() }
         ?: Masters.dispatchName.replace(Regex("^[\\d\\s\\-–:]+"), "").replace(Regex("(?i)\\b(dc|warehouse|wh)\\b"), "").trim()
+            .ifBlank { DEFAULT_DC }
 
     private fun clean(s: String) = s.replace(Regex("\\(.*?\\)"), " ").replace(Regex("(?i)d[- _]?mart"), " ")
         .replace(Regex("[^A-Za-z0-9 ,.-]"), " ").replace(Regex("\\s+"), " ").trim().trim(',', '-', ' ')
