@@ -1080,8 +1080,10 @@ class PlanTab(private val a: MainActivity, root: View) {
                 map = it
             }
         } catch (e: Throwable) { mapCard.visibility = View.GONE; return }
-        val pinned = PlanMap.show(m, shownResult(), places, dcPlace, mapLabels(), shown.map { it.index + 1 })
-        val total = shown.flatMap { it.value.codes }.distinct().size
+        PlanMap.show(m, shownResult(), places, dcPlace, mapLabels(), shown.map { it.index + 1 })
+        val shownCodes = shown.flatMap { it.value.codes }.distinct()
+        val total = shownCodes.size
+        val pinned = shownCodes.count { it in places }      // stores, not pins: a store on two vehicles is one store
         mapText.text = if (pinned == 0) a.getString(R.string.plan_map_none) else a.getString(R.string.plan_map_text, pinned, total)
     }
 
@@ -1090,10 +1092,21 @@ class PlanTab(private val a: MainActivity, root: View) {
     private val pinPrompt: MaterialButton by lazy {
         MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).also { b ->
             b.setIconResource(R.drawable.ic_pin)
+            // A slim amber banner inside the card: tap to give the missing locations.
+            b.isAllCaps = false
+            b.textSize = 12.5f
+            b.minHeight = 0; b.minimumHeight = 0
+            b.insetTop = 0; b.insetBottom = 0
+            b.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+            b.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            b.backgroundTintList = android.content.res.ColorStateList.valueOf(Ui.color(a, R.color.warn_bg))
+            b.strokeColor = android.content.res.ColorStateList.valueOf(Ui.color(a, R.color.warn_line))
+            b.setTextColor(Ui.color(a, R.color.chk))
+            b.iconTint = android.content.res.ColorStateList.valueOf(Ui.color(a, R.color.chk))
             (geoText.parent as? android.view.ViewGroup)?.let { p ->
                 val d = a.resources.displayMetrics.density
                 p.addView(b, p.indexOfChild(geoText) + 1, android.view.ViewGroup.MarginLayoutParams(-1, -2).apply {
-                    marginStart = (16 * d).toInt(); marginEnd = (16 * d).toInt()
+                    topMargin = (6 * d).toInt()
                 })
             }
         }
