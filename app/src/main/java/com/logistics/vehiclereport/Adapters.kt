@@ -58,6 +58,7 @@ class StatusAdapter(
         val pill: TextView = v.findViewById(R.id.statusPill)
         val timeText: TextView = v.findViewById(R.id.timeText)
         val call: MaterialButton = v.findViewById(R.id.callButton)
+        val city: TextView = v.findViewById(R.id.cityText)
         val gateTimes: TextView = v.findViewById(R.id.gateTimes)
         val plateNote: TextView = v.findViewById(R.id.plateNote)
         val scan: MaterialButton = v.findViewById(R.id.scanButton)
@@ -147,6 +148,10 @@ class StatusAdapter(
         val mobile = v.mobile.ifBlank { d.gate?.mobile.orEmpty() }
         h.call.visibility = if (mobile.isBlank()) View.GONE else View.VISIBLE
         h.call.setOnClickListener { Ui.dial(ctx, mobile) }
+        // City shown on top of the camera / call buttons: the posted city, else the gate log's destination.
+        val city = (withRepl?.city?.takeIf { it.isNotBlank() } ?: d.hits.firstOrNull { it.city.isNotBlank() }?.city ?: d.gate?.destination).orEmpty().trim()
+        h.city.text = city
+        h.city.visibility = if (city.isBlank()) View.GONE else View.VISIBLE
         h.itemView.setOnClickListener { onOpen(d) }
         h.itemView.setOnLongClickListener { onManual(d); true }
         bindReplacement(h, d, withRepl, first)
