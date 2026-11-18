@@ -1154,21 +1154,39 @@ class PlanTab(private val a: MainActivity, root: View) {
     }
 
     private fun export() {
-        val r = shownResult() ?: return
-        if (r.loads.isEmpty()) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return }
-        val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
-        val tag = zoneFilter?.let { "_" + zoneName(it).replace(Regex("[^A-Za-z]"), "") }.orEmpty()
-        Exporter.deliverSheets(a, "Vehicle_Planning_Report_$day$tag.xlsx", planReport(r), numbers = true)
+        chooseScope { r, tag ->
+            if (r.loads.isEmpty()) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return@chooseScope }
+            val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
+            Exporter.deliverSheets(a, "Vehicle_Planning_Report_$day$tag.xlsx", planReport(r), numbers = true)
+        }
     }
 
-    /** Exports only the clubbed vehicles (what is on the screen, so the zone filter applies). */
-    private fun exportClubbing() {
-        val r = shownResult() ?: return
-        val sheet = clubbingSheet(r)
-        if (sheet.rows.size <= 1) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return }
-        val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
+    /**
+     * With a zone filter or search on, asks whether to export the overall plan (every vehicle) or only what is shown;
+     * with none on, exports the overall plan straight away.
+     */
+    private fun chooseScope(go: (r: PlanResult, tag: String) -> Unit) {
+        val whole = result ?: return
+        val shownR = shownResult() ?: return
         val tag = zoneFilter?.let { "_" + zoneName(it).replace(Regex("[^A-Za-z]"), "") }.orEmpty()
-        Exporter.deliverSheets(a, "Vehicle_Clubbing_Report_$day$tag.xlsx", listOf(sheet), numbers = true)
+        if (shownR === whole) { go(whole, ""); return }
+        MaterialAlertDialogBuilder(a)
+            .setTitle(R.string.plan_export_scope_title)
+            .setItems(arrayOf(a.getString(R.string.plan_export_overall, whole.vehicles), a.getString(R.string.plan_export_shown, shownR.vehicles))) { _, which ->
+                if (which == 0) go(whole, "") else go(shownR, tag)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** Exports only the clubbed vehicles. */
+    private fun exportClubbing() {
+        chooseScope { r, tag ->
+            val sheet = clubbingSheet(r)
+            if (sheet.rows.size <= 1) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return@chooseScope }
+            val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
+            Exporter.deliverSheets(a, "Vehicle_Clubbing_Report_$day$tag.xlsx", listOf(sheet), numbers = true)
+        }
     }
 
     /** One line per clubbed vehicle: its stores in route order, store-to-store road km, trip km from the DC and the extra km clubbing adds. */
