@@ -111,15 +111,17 @@ object VehiclePlanner {
         val shuffle: Int = 0,
         /** Vehicle size chosen by hand for a store (long-press a vehicle: 22 ft / 24 ft): its loads fill that size, and
          *  more stores may be clubbed onto it up to that size. */
-        val sizeFor: Map<String, VehicleCap> = emptyMap()
+        val sizeFor: Map<String, VehicleCap> = emptyMap(),
+        /** Bigger vehicles Upcountry stores may use besides [upcountryType] (22 ft, 24 ft), whatever is ticked in Sizes. */
+        val upcountryExtra: List<VehicleCap> = emptyList()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
-            sizeFor: Map<String, VehicleCap> = this.sizeFor
+            sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra)
     }
 
     /** Straight-line km between two places. */
@@ -258,21 +260,22 @@ object VehiclePlanner {
     }
 
     /**
-     * Upcountry stores are planned on their own: only the Upcountry vehicle ([Options.upcountryType], 20 ft by default),
-     * full loads first, then every part load may ride with another Upcountry load on the same route (not only small
+     * Upcountry stores are planned on their own: only 20 ft, 22 ft and 24 ft ([Options.upcountryType] plus
+     * [Options.upcountryExtra]), each load getting the smallest of them that carries it, full loads first, then every part load may ride with another Upcountry load on the same route (not only small
      * ones), up to [Options.upcountryMaxStops] stores, to fill the vehicles. The rest is planned as usual.
      */
     fun plan(stops: List<PlanStop>, o: Options = Options()): PlanResult {
         val up = o.upcountryType
         if (up == null || up.capacity <= 0 || stops.none { it.code in o.upcountry }) return planGroup(stops, o)
         val upType = up.copy(on = true)
+        val upTypes = (listOf(upType) + o.upcountryExtra.filter { it.capacity > 0 }.map { it.copy(on = true) }).distinctBy { it.name }
         val near = planGroup(stops.filter { it.code !in o.upcountry }, o.copy(upcountry = emptySet(), upcountryType = null))
         val far = planGroup(stops.filter { it.code in o.upcountry },
-            o.copy(types = listOf(upType), clubBelow = upType.capacity + 1.0, maxStops = o.upcountryMaxStops,
+            o.copy(types = upTypes, clubBelow = upTypes.maxOf { it.capacity } + 1.0, maxStops = o.upcountryMaxStops,
                 upcountry = emptySet(), upcountryType = null))
         val order = stops.filter { it.volume > EPS }.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
         val loads = chain((near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume }))
-        val types = (o.types.filter { it.on && it.capacity > 0 } + upType + o.sizeFor.values).distinctBy { it.name }.sortedByDescending { it.capacity }
+        val types = (o.types.filter { it.on && it.capacity > 0 } + upTypes + o.sizeFor.values).distinctBy { it.name }.sortedByDescending { it.capacity }
         val byType = types.map { t -> t to loads.count { it.type?.name == t.name } }.filter { it.second > 0 }
         return PlanResult(loads, byType, near.totalVolume + far.totalVolume, near.held + far.held)
     }

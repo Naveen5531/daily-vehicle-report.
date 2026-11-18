@@ -202,6 +202,19 @@ class VehiclePlannerTest {
         assertEquals("Pickup", r.loads.first { "CHM" in it.codes }.type?.name) // local stores keep the smallest vehicle
     }
 
+    @Test fun upcountryUsesOnlyTwentyTwentyTwoAndTwentyFourFeet() {
+        val twenty = VehiclePlanner.DEFAULT_TYPES.first { it.name.startsWith("20 ft") }
+        val extra = VehiclePlanner.DEFAULT_TYPES.filter { it.name == "22 ft" || it.name == "24 ft" }.map { it.copy(on = true) }
+        val stops = listOf(s("GJW", 300.0), s("SHL", 950.0), s("VPG", 1050.0), s("CHM", 100.0))
+        val r = VehiclePlanner.plan(stops, geo().copy(upcountry = setOf("GJW", "SHL", "VPG"), upcountryType = twenty, upcountryExtra = extra))
+        val allowed = setOf(twenty.name, "22 ft", "24 ft")
+        val up = r.loads.filter { l -> l.codes.any { it != "CHM" } }
+        assertTrue(up.all { it.type?.name in allowed })                          // never 17 ft, 14 ft, 407 or Pickup
+        assertEquals("22 ft", up.first { it.codes == setOf("SHL") }.type?.name)   // 950 needs a 22 ft
+        assertEquals("24 ft", up.first { it.codes == setOf("VPG") }.type?.name)   // 1050 needs a 24 ft
+        assertEquals("Pickup", r.loads.first { "CHM" in it.codes }.type?.name)    // local stores are unchanged
+    }
+
     @Test fun storesAboveThreeHundredAreClubbedWhenTheyFitOneVehicle() {
         // Default: any size. Kachiguda + Champapet (5 km apart) and two Vizag stores, all 300+, each pair fits one 20 ft.
         val r = VehiclePlanner.plan(listOf(s("KCG", 450.0), s("CHM", 330.0), s("GJW", 500.0, region = "R2"), s("SHL", 320.0, region = "R2")),

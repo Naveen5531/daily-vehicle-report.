@@ -167,7 +167,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
         val r = VehiclePlanner.plan(stops,
-            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryMaxStops = PlanData.upcountryMaxStops(a),
+            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a), upcountryMaxStops = PlanData.upcountryMaxStops(a),
                 rideOnly = small, shuffle = shuffle))
         return Triple(r, opts, stops)
     }

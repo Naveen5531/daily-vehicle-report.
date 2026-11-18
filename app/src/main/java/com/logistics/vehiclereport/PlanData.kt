@@ -183,9 +183,13 @@ object PlanData {
 
     private const val KEY_UP_STOPS = "plan_up_max_stops"
 
-    /** The only vehicle used for Upcountry stores: the 20 ft (1109), with its capacity from Sizes. */
+    /** The smallest vehicle used for Upcountry stores: the 20 ft (1109), with its capacity from Sizes. */
     fun upcountryType(c: Context): VehicleCap =
         (types(c).firstOrNull { it.name.startsWith("20 ft") } ?: VehiclePlanner.DEFAULT_TYPES.first { it.name.startsWith("20 ft") }).copy(on = true)
+    /** 22 ft and 24 ft for Upcountry stores: always allowed there (Upcountry uses only 20, 22 and 24 ft), capacity from Sizes. */
+    fun upcountryExtra(c: Context): List<VehicleCap> = listOf("22 ft", "24 ft").mapNotNull { n ->
+        (types(c).firstOrNull { it.name == n } ?: VehiclePlanner.DEFAULT_TYPES.firstOrNull { it.name == n })?.copy(on = true)
+    }
     /** Most stores on one Upcountry vehicle (route clubbing). */
     fun upcountryMaxStops(c: Context): Int = p(c).getInt(KEY_UP_STOPS, 3).coerceAtLeast(1)
     fun setUpcountryMaxStops(c: Context, n: Int) = p(c).edit().putInt(KEY_UP_STOPS, n.coerceIn(1, 6)).apply()
