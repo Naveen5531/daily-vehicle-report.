@@ -190,7 +190,7 @@ class MessageParserTest {
 
     @Test fun placeBeforeCodeWithBlankLinesAndSize() {
         val r = any4("Uppalbag+uppalranga 909\n2201\n\n My home \n1987\n\nBalanagar \n6381\nSai Kiran transport").captures
-        assertEquals(listOf("Uppalbag Uppalranga", "My Home", "Balanagar"), r.map { it.city })
+        assertEquals(listOf("Uppalbag + Uppalranga", "My Home", "Balanagar"), r.map { it.city })
         assertEquals("909", r[0].size)
         assertTrue(r.all { it.vendor == "Sai Kiran Transport" })
     }
