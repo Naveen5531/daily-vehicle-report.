@@ -116,6 +116,11 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="ocr" />
 
+        <!-- Answer of the installer for the automatic app update -->
+        <receiver
+            android:name=".AppUpdate$InstallResultReceiver"
+            android:exported="false" />
+
         <!-- Lets the exported Excel file be shared to WhatsApp, Gmail, Drive, etc. -->
         <provider
             android:name="androidx.core.content.FileProvider"
