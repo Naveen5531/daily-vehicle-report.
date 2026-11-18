@@ -180,9 +180,9 @@ class VehiclePlannerTest {
         val rows = VehiclePlanner.exportRows(r)
         assertEquals(VehiclePlanner.EXPORT_WIDTHS.size, rows.first().size)
         rows.forEach { assertEquals(rows.first().size, it.size) }
-        assertEquals("Zone", rows.first()[2])
+        assertEquals("Zone", rows.first()[3])
         assertEquals("Trip km", rows.first()[18])
-        val kodad = rows.first { it[8] == "KDD" }
+        val kodad = rows.first { it[9] == "KDD" }
         assertTrue(kodad[18].toInt() > 200)          // Isnapur to Vijayawada, straight line
         assertTrue(kodad[19].isNotEmpty())           // what the clubbed stop adds
         assertEquals("TOTAL", rows.last()[0])
