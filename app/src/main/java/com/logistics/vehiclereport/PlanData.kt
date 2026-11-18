@@ -186,9 +186,9 @@ object PlanData {
     /** The smallest vehicle used for Upcountry stores: the 20 ft (1109), with its capacity from Sizes. */
     fun upcountryType(c: Context): VehicleCap =
         (types(c).firstOrNull { it.name.startsWith("20 ft") } ?: VehiclePlanner.DEFAULT_TYPES.first { it.name.startsWith("20 ft") }).copy(on = true)
-    /** 22 ft and 24 ft for Upcountry stores: always allowed there (Upcountry uses only 20, 22 and 24 ft), capacity from Sizes. */
+    /** 22 ft and 24 ft for Upcountry stores, only when ticked in Sizes (Upcountry uses just 20, 22 and 24 ft); capacity from Sizes. */
     fun upcountryExtra(c: Context): List<VehicleCap> = listOf("22 ft", "24 ft").mapNotNull { n ->
-        (types(c).firstOrNull { it.name == n } ?: VehiclePlanner.DEFAULT_TYPES.firstOrNull { it.name == n })?.copy(on = true)
+        (types(c).firstOrNull { it.name == n } ?: VehiclePlanner.DEFAULT_TYPES.firstOrNull { it.name == n })?.takeIf { it.on && it.capacity > 0 }
     }
     /** Most stores on one Upcountry vehicle (route clubbing). */
     fun upcountryMaxStops(c: Context): Int = p(c).getInt(KEY_UP_STOPS, 3).coerceAtLeast(1)
