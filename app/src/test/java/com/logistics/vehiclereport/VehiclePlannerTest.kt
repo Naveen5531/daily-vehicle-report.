@@ -207,12 +207,14 @@ class VehiclePlannerTest {
         val extra = VehiclePlanner.DEFAULT_TYPES.filter { it.name == "22 ft" || it.name == "24 ft" }.map { it.copy(on = true) }
         val stops = listOf(s("GJW", 300.0), s("SHL", 950.0), s("VPG", 1050.0), s("CHM", 100.0))
         val r = VehiclePlanner.plan(stops, geo().copy(upcountry = setOf("GJW", "SHL", "VPG"), upcountryType = twenty, upcountryExtra = extra))
+        val shown = r.loads.map { l -> l.codes.sorted().joinToString("+") + "=" + l.type?.name + "(" + l.volume + ")" }
         val allowed = setOf(twenty.name, "22 ft", "24 ft")
         val up = r.loads.filter { l -> l.codes.any { it != "CHM" } }
-        assertTrue(up.all { it.type?.name in allowed })                          // never 17 ft, 14 ft, 407 or Pickup
-        assertEquals("22 ft", up.first { it.codes == setOf("SHL") }.type?.name)   // 950 needs a 22 ft
-        assertEquals("24 ft", up.first { it.codes == setOf("VPG") }.type?.name)   // 1050 needs a 24 ft
-        assertEquals("Pickup", r.loads.first { "CHM" in it.codes }.type?.name)    // local stores are unchanged
+        assertTrue("loads: $shown", up.all { it.type?.name in allowed })                 // never 17 ft, 14 ft, 407 or Pickup
+        val byCode = r.loads.associate { l -> l.codes.sorted().joinToString("+") to l.type?.name }
+        assertEquals("loads: $shown", "22 ft", byCode["SHL"])                            // 950 needs a 22 ft
+        assertEquals("loads: $shown", "24 ft", byCode["VPG"])                            // 1050 needs a 24 ft
+        assertEquals("loads: $shown", "Pickup", byCode["CHM"])                           // local stores are unchanged
     }
 
     @Test fun storesAboveThreeHundredAreClubbedWhenTheyFitOneVehicle() {
