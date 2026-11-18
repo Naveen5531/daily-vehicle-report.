@@ -79,6 +79,13 @@ class VehiclePlannerTest {
         assertEquals(1, VehiclePlanner.plan(listOf(s("CHM", 600.0), s("KCG", 100.0)), o).vehicles)
     }
 
+    @Test fun twoNightStoresAreNotClubbedTogether() {
+        val stops = listOf(s("CHM", 300.0), s("KCG", 200.0))      // ~5 km apart: they club
+        assertEquals(1, VehiclePlanner.plan(stops, geo(clubBelow = 0.0)).vehicles)
+        assertEquals(2, VehiclePlanner.plan(stops, geo(clubBelow = 0.0).copy(nightStores = setOf("CHM", "KCG"))).vehicles)
+        assertEquals(1, VehiclePlanner.plan(stops, geo(clubBelow = 0.0).copy(nightStores = setOf("CHM"))).vehicles)   // night + day is fine
+    }
+
     @Test fun smallStoreRidesOnAVehicleGoingItsWayElseIsHeld() {
         // Kachiguda (100, below the minimum) rides with the Champapet vehicle nearby; Warangal (100) has none: held.
         val o = VehiclePlanner.Options(places = at, dc = dc, rideOnly = setOf("KCG", "WGL"))

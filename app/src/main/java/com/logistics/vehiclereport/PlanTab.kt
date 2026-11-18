@@ -170,6 +170,7 @@ class PlanTab(private val a: MainActivity, root: View) {
             opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a),
                 bufferFor = zones.mapNotNull { (code, z) -> PlanData.zoneBuffer(a, z).takeIf { it > 0 && (z == Zone.UPCOUNTRY || z == Zone.LOCAL) }?.let { code to it } }.toMap(),
                 upcountryMaxStops = PlanData.upcountryMaxStops(a),
+                nightStores = stops.map { it.code }.filter { StoreShift.isNight(a, it) }.toSet(),
                 rideOnly = small, shuffle = shuffle))
         return Triple(r, opts, stops)
     }

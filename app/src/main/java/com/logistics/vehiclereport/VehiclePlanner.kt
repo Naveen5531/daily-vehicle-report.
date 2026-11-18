@@ -115,16 +115,18 @@ object VehiclePlanner {
         /** Bigger vehicles Upcountry stores may use besides [upcountryType] (22 ft, 24 ft), whatever is ticked in Sizes. */
         val upcountryExtra: List<VehicleCap> = emptyList(),
         /** Buffer volume by store code: a load below it is left out of clubbing (it keeps its own vehicle). */
-        val bufferFor: Map<String, Double> = emptyMap()
+        val bufferFor: Map<String, Double> = emptyMap(),
+        /** Stores that unload at night: two of them are never clubbed on one vehicle. */
+        val nightStores: Set<String> = emptySet()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
             sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra,
-            bufferFor: Map<String, Double> = this.bufferFor
+            bufferFor: Map<String, Double> = this.bufferFor, nightStores: Set<String> = this.nightStores
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores)
     }
 
     /** Straight-line km between two places. */
@@ -157,12 +159,15 @@ object VehiclePlanner {
     fun fitsOnRoute(host: List<PlanStop>, add: List<PlanStop>, o: Options): Boolean {
         val all = host + add
         if (all.map { it.code }.distinct().size <= 1) return true
+        // Two night-unloading stores are never clubbed together.
+        if (host.any { it.code in o.nightStores } && add.any { it.code in o.nightStores }) return false
         val hp = host.map { o.places[it.code] }
         val ap = add.map { o.places[it.code] }
-        // The set limit: every added store within that many km of a store already on the vehicle.
+        // The set limit (road km, about): every added store within that many km of a store already on the vehicle.
+        // Roads run longer than the straight line, so the straight line is stretched by [ROAD_FACTOR] before it is compared.
         if (o.maxClubKm > 0) {
             if ((hp + ap).any { it == null }) return false
-            if (ap.any { x -> hp.none { y -> km(x!!, y!!) <= o.maxClubKm + EPS } }) return false
+            if (ap.any { x -> hp.none { y -> km(x!!, y!!) * ROAD_FACTOR <= o.maxClubKm + EPS } }) return false
         }
         if ((hp + ap).all { it != null }) {
             val h = hp.filterNotNull(); val a = ap.filterNotNull()
@@ -190,6 +195,9 @@ object VehiclePlanner {
     }
 
     private const val EPS = 1e-6
+
+    /** Typical road length over the straight line between two towns. */
+    const val ROAD_FACTOR = 1.4
 
     val EXPORT_WIDTHS = listOf(9, 22, 18, 12, 14, 10, 12, 8, 7, 10, 36, 14, 14, 13, 8, 12, 14, 9, 11, 11)
 

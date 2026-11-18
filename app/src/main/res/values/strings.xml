@@ -163,7 +163,7 @@
     <string name="plan_club_title">Club small stores</string>
     <string name="plan_club_text">Stores below %1$s ride with a vehicle going nearby, or passing them on its way from the DC: %2$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
     <string name="plan_max_stops_label">Most stores per vehicle</string>
-    <string name="plan_max_club_km_label">Max km between clubbed stores</string>
+    <string name="plan_max_club_km_label">Max road km between clubbed stores</string>
     <string name="plan_club_text_any">Stores of any size share a vehicle when they fit in one and are nearby, or on its way from the DC: %1$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
     <string name="plan_reshuffle">Reshuffle</string>
     <string name="plan_reclub">Refresh</string>
