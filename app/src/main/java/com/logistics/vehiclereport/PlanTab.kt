@@ -1193,22 +1193,22 @@ class PlanTab(private val a: MainActivity, root: View) {
     private fun clubbingSheet(r: PlanResult): XlsxWriter.Sheet {
         fun n(v: Double) = "%.3f".format(Locale.US, v).trimEnd('0').trimEnd('.')
         val all = result?.loads.orEmpty()
-        val rows = mutableListOf(listOf("Vehicle", "Zone", "Region", "Vehicle Type", "Capacity", "Load Volume", "Fill %", "Stops",
-            "Route (ship-to)", "Stores", "Cities", "Store to Store km", "Trip km (DC)", "Extra km", "Boxes", "Total Wght"))
+        val rows = mutableListOf(listOf("Vehicle", "Cities", "Zone", "Region", "Vehicle Type", "Capacity", "Load Volume", "Fill %", "Stops",
+            "Route (ship-to)", "Stores", "Store to Store km", "Trip km (DC)", "Extra km", "Boxes", "Total Wght"))
         r.loads.filter { it.clubbed }.forEach { l ->
             val no = all.indexOf(l).let { if (it >= 0) it + 1 else r.loads.indexOf(l) + 1 }
             val pts = l.codes.map { places[it] }
             val between = if (l.codes.size > 1 && pts.all { it != null }) pts.filterNotNull().let { p -> RoadKm.cached(a, p) ?: RoadKm.straight(p) } else null
             val stores = l.parts.groupBy { it.first.code }.entries.joinToString(" + ") { (c, ps) -> "$c ${ps.first().first.shownName} (${n(ps.sumOf { it.second })})" }
-            rows += listOf(no.toString(), zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
+            rows += listOf(no.toString(), l.parts.map { cityOf(it.first) }.distinct().joinToString(", "), zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
                 l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume), "${Math.round(l.fill * 100)}", l.codes.size.toString(),
-                l.codes.joinToString(" > "), stores, l.parts.map { cityOf(it.first) }.distinct().joinToString(", "),
+                l.codes.joinToString(" > "), stores,
                 between?.let { Math.round(it).toString() }.orEmpty(), l.routeKm?.let { Math.round(it).toString() }.orEmpty(),
                 l.extraKm?.let { Math.round(it).toString() }.orEmpty(),
                 l.parts.distinctBy { it.first.code }.sumOf { it.first.boxes }.toString(),
                 n(l.parts.distinctBy { it.first.code }.sumOf { it.first.weight }))
         }
-        return XlsxWriter.Sheet("Clubbing", rows, listOf(8, 11, 12, 13, 9, 11, 7, 6, 22, 52, 22, 14, 11, 9, 8, 11))
+        return XlsxWriter.Sheet("Clubbing", rows, listOf(8, 22, 11, 12, 13, 9, 11, 7, 6, 22, 52, 14, 11, 9, 8, 11))
     }
 
     /**
@@ -1219,26 +1219,27 @@ class PlanTab(private val a: MainActivity, root: View) {
         fun n(v: Double) = "%.3f".format(Locale.US, v).trimEnd('0').trimEnd('.')
         val plan = PlanData.load(a)
         val all = result?.loads.orEmpty()
-        val summary = mutableListOf(listOf("Vehicle", "Zone", "Region", "Vehicle Type", "Size", "Capacity", "Load Volume", "Fill %", "Free Volume",
-            "Stops", "Stores", "Cities", "Clubbed", "Trip km (DC)", "Extra km", "Store to Store km", "Boxes", "Total Wght"))
+        val summary = mutableListOf(listOf("Vehicle", "Cities", "Zone", "Region", "Vehicle Type", "Size", "Capacity", "Load Volume", "Fill %", "Free Volume",
+            "Stops", "Stores", "Clubbed", "Trip km (DC)", "Extra km", "Store to Store km", "Boxes", "Total Wght"))
         r.loads.forEach { l ->
             val no = all.indexOf(l).let { if (it >= 0) it + 1 else r.loads.indexOf(l) + 1 }
             val pts = l.codes.map { places[it] }
             val between = if (l.codes.size > 1 && pts.all { it != null }) pts.filterNotNull().let { p -> RoadKm.cached(a, p) ?: RoadKm.straight(p) } else null
             val stores = l.parts.groupBy { it.first.code }.entries.joinToString(" + ") { (c, ps) -> "$c ${ps.first().first.shownName} (${n(ps.sumOf { it.second })})" }
-            summary += listOf(no.toString(), zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
+            summary += listOf(no.toString(), l.parts.map { cityOf(it.first) }.distinct().joinToString(", "),
+                zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
                 if (l.codes.any { plan.sizes.containsKey(it) }) "By hand" else "Auto",
                 l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume), "${Math.round(l.fill * 100)}",
                 l.type?.let { n(maxOf(0.0, it.capacity - l.volume)) }.orEmpty(), l.codes.size.toString(), stores,
-                l.parts.map { cityOf(it.first) }.distinct().joinToString(", "), if (l.clubbed) "Yes" else "",
+                if (l.clubbed) "Yes" else "",
                 l.routeKm?.let { Math.round(it).toString() }.orEmpty(), if (l.clubbed) l.extraKm?.let { Math.round(it).toString() }.orEmpty() else "",
                 between?.let { Math.round(it).toString() }.orEmpty(),
                 l.parts.distinctBy { it.first.code }.sumOf { it.first.boxes }.toString(), n(l.parts.distinctBy { it.first.code }.sumOf { it.first.weight }))
         }
         val cap = r.loads.sumOf { it.type?.capacity ?: 0.0 }
         summary += List(18) { "" }
-        summary += listOf("TOTAL", "", "", "", "", n(cap), n(r.totalVolume), "${Math.round(r.fill * 100)}", n(maxOf(0.0, cap - r.totalVolume)),
-            "", "${r.vehicles} vehicles", "", "${r.loads.count { it.clubbed }} clubbed") + List(5) { "" }
+        summary += listOf("TOTAL", "", "", "", "", "", n(cap), n(r.totalVolume), "${Math.round(r.fill * 100)}", n(maxOf(0.0, cap - r.totalVolume)),
+            "", "${r.vehicles} vehicles", "${r.loads.count { it.clubbed }} clubbed") + List(5) { "" }
 
         val bySize = mutableListOf(listOf("Vehicle Type", "Vehicles", "Capacity", "Total Capacity", "Load Volume", "Fill %", "Clubbed"))
         for ((t, c) in r.byType) {
@@ -1266,7 +1267,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
 
         return listOf(
-            XlsxWriter.Sheet("Summary", summary, listOf(8, 11, 12, 13, 9, 9, 11, 7, 10, 6, 48, 22, 8, 11, 9, 14, 8, 11)),
+            XlsxWriter.Sheet("Summary", summary, listOf(8, 22, 11, 12, 13, 9, 9, 11, 7, 10, 6, 48, 8, 11, 9, 14, 8, 11)),
             XlsxWriter.Sheet("Store Lines", VehiclePlanner.exportRows(r) { zoneName(loadZone(it)) }, VehiclePlanner.EXPORT_WIDTHS),
             clubbingSheet(r),
             XlsxWriter.Sheet("By Size", bySize, listOf(16, 10, 10, 14, 13, 8, 9)),

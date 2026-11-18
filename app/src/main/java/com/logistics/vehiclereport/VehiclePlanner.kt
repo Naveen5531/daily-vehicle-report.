@@ -186,7 +186,7 @@ object VehiclePlanner {
 
     private const val EPS = 1e-6
 
-    val EXPORT_WIDTHS = listOf(9, 18, 12, 14, 10, 12, 8, 7, 10, 36, 22, 14, 14, 13, 8, 12, 14, 9, 11, 11)
+    val EXPORT_WIDTHS = listOf(9, 22, 18, 12, 14, 10, 12, 8, 7, 10, 36, 14, 14, 13, 8, 12, 14, 9, 11, 11)
 
     /**
      * The plan as an Excel sheet: one line per store on each vehicle, then the vehicles needed by size. Trip km (DC to all
@@ -194,13 +194,13 @@ object VehiclePlanner {
      */
     fun exportRows(r: PlanResult, zoneOf: (PlanLoad) -> String = { "" }): List<List<String>> {
         fun n(v: Double) = "%.3f".format(java.util.Locale.US, v).trimEnd('0').trimEnd('.')
-        val rows = mutableListOf(listOf("Vehicle", "Region", "Zone", "Vehicle Type", "Capacity", "Load Volume", "Fill %", "Stops",
-            "Ship-To", "Name of the ship-to party", "City", "Circle", "Volume on Vehicle", "Store Volume", "Boxes", "Total Wght", "Remark", "Clubbed",
+        val rows = mutableListOf(listOf("Vehicle", "City", "Region", "Zone", "Vehicle Type", "Capacity", "Load Volume", "Fill %", "Stops",
+            "Ship-To", "Name of the ship-to party", "Circle", "Volume on Vehicle", "Store Volume", "Boxes", "Total Wght", "Remark", "Clubbed",
             "Trip km", "Extra km"))
         r.loads.forEachIndexed { i, l ->
             for ((s, part) in l.parts) {
-                rows += listOf((i + 1).toString(), l.cluster, zoneOf(l), l.type?.name ?: "Too big", l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume),
-                    "${Math.round(l.fill * 100)}", l.codes.size.toString(), s.code, s.shownName, s.city, s.circle, n(part), n(s.volume),
+                rows += listOf((i + 1).toString(), s.city, l.cluster, zoneOf(l), l.type?.name ?: "Too big", l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume),
+                    "${Math.round(l.fill * 100)}", l.codes.size.toString(), s.code, s.shownName, s.circle, n(part), n(s.volume),
                     s.boxes.toString(), n(s.weight), s.remark, if (l.clubbed) "Yes" else "",
                     l.routeKm?.let { Math.round(it).toString() }.orEmpty(),
                     if (l.clubbed) l.extraKm?.let { Math.round(it).toString() }.orEmpty() else "")
