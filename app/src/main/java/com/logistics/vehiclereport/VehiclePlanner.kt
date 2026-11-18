@@ -113,15 +113,18 @@ object VehiclePlanner {
          *  more stores may be clubbed onto it up to that size. */
         val sizeFor: Map<String, VehicleCap> = emptyMap(),
         /** Bigger vehicles Upcountry stores may use besides [upcountryType] (22 ft, 24 ft), whatever is ticked in Sizes. */
-        val upcountryExtra: List<VehicleCap> = emptyList()
+        val upcountryExtra: List<VehicleCap> = emptyList(),
+        /** Buffer volume by store code: what is left of a big store after its full loads is ignored when it is this small or less. */
+        val bufferFor: Map<String, Double> = emptyMap()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
-            sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra
+            sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra,
+            bufferFor: Map<String, Double> = this.bufferFor
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor)
     }
 
     /** Straight-line km between two places. */
@@ -300,6 +303,8 @@ object VehiclePlanner {
                 loads += Load(s.cluster, mutableListOf(s to cap), full = true)
                 left -= cap
             }
+            // Buffer volume: a small leftover of a big store (after its full loads) is ignored, no vehicle for it.
+            if (s.volume > cap + EPS && left <= (o.bufferFor[s.code] ?: 0.0) + EPS) continue
             val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > cap + EPS, rideOnly = s.code in o.rideOnly && s.volume <= cap + EPS)
             loads += l
             rest[s.code] = l

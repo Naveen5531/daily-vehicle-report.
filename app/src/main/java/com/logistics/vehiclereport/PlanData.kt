@@ -175,6 +175,12 @@ object PlanData {
     }).toDouble()
     fun setZoneMin(c: Context, z: Zone, v: Double) = p(c).edit().putFloat(KEY_MIN + z.name, v.coerceAtLeast(0.0).toFloat()).apply()
 
+    private const val KEY_BUFFER = "plan_zone_buffer_"
+
+    /** Buffer volume of a zone (Upcountry, Local): the small leftover of a big store, after its full loads, that is ignored (0 = none). */
+    fun zoneBuffer(c: Context, z: Zone): Double = p(c).getFloat(KEY_BUFFER + z.name, 0f).toDouble()
+    fun setZoneBuffer(c: Context, z: Zone, v: Double) = p(c).edit().putFloat(KEY_BUFFER + z.name, v.coerceAtLeast(0.0).toFloat()).apply()
+
     /** Stores below their zone's minimum that are planned anyway (chosen by hand; cleared with a new plan). */
     fun forced(c: Context): Set<String> = try {
         JSONArray(p(c).getString(KEY_FORCE, null) ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) }.toSet() }

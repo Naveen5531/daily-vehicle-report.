@@ -167,7 +167,9 @@ class PlanTab(private val a: MainActivity, root: View) {
         val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
         val r = VehiclePlanner.plan(stops,
-            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a), upcountryMaxStops = PlanData.upcountryMaxStops(a),
+            opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a),
+                bufferFor = zones.mapNotNull { (code, z) -> PlanData.zoneBuffer(a, z).takeIf { it > 0 && (z == Zone.UPCOUNTRY || z == Zone.LOCAL) }?.let { code to it } }.toMap(),
+                upcountryMaxStops = PlanData.upcountryMaxStops(a),
                 rideOnly = small, shuffle = shuffle))
         return Triple(r, opts, stops)
     }
@@ -1034,6 +1036,8 @@ class PlanTab(private val a: MainActivity, root: View) {
         val minUp = field(R.string.zone_field_min_up, vol(PlanData.zoneMin(a, Zone.UPCOUNTRY)), num)
         val minNon = field(R.string.zone_field_min_non, vol(PlanData.zoneMin(a, Zone.NON_LOCAL)), num)
         val minLocal = field(R.string.zone_field_min_local, vol(PlanData.zoneMin(a, Zone.LOCAL)), num)
+        val bufUp = field(R.string.zone_field_buf_up, vol(PlanData.zoneBuffer(a, Zone.UPCOUNTRY)), num)
+        val bufLocal = field(R.string.zone_field_buf_local, vol(PlanData.zoneBuffer(a, Zone.LOCAL)), num)
         val upStops = field(R.string.zone_field_up_stops, PlanData.upcountryMaxStops(a).toString(), InputType.TYPE_CLASS_NUMBER)
         MaterialAlertDialogBuilder(a)
             .setTitle(R.string.zone_title)
@@ -1049,6 +1053,9 @@ class PlanTab(private val a: MainActivity, root: View) {
                 SheetReader.number(near.text?.toString().orEmpty())?.takeIf { it > 0 }?.let { PlanData.setLocalKm(a, it) }
                 for ((z, f) in listOf(Zone.UPCOUNTRY to minUp, Zone.NON_LOCAL to minNon, Zone.LOCAL to minLocal)) {
                     SheetReader.number(f.text?.toString().orEmpty())?.let { PlanData.setZoneMin(a, z, it) }
+                }
+                for ((z, f) in listOf(Zone.UPCOUNTRY to bufUp, Zone.LOCAL to bufLocal)) {
+                    SheetReader.number(f.text?.toString().orEmpty())?.let { PlanData.setZoneBuffer(a, z, it) }
                 }
                 upStops.text?.toString()?.trim()?.toIntOrNull()?.let { PlanData.setUpcountryMaxStops(a, it) }
                 refresh()

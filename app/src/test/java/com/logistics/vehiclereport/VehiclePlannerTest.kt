@@ -217,6 +217,14 @@ class VehiclePlannerTest {
         assertEquals("loads: $shown", "Pickup", byCode["CHM"])                           // local stores are unchanged
     }
 
+    @Test fun bufferVolumeIgnoresASmallLeftoverOfABigStore() {
+        val none = VehiclePlanner.plan(listOf(s("A", 860.0)), VehiclePlanner.Options(autoClub = false))
+        assertEquals(2, none.vehicles)                                           // 850 + a 10 leftover
+        val buffered = VehiclePlanner.plan(listOf(s("A", 860.0), s("B", 400.0)),
+            VehiclePlanner.Options(autoClub = false, bufferFor = mapOf("A" to 20.0, "B" to 20.0)))
+        assertEquals(listOf(850.0, 400.0), buffered.loads.map { it.volume }.sortedDescending())   // 10 ignored; B (a small store) is kept
+    }
+
     @Test fun storesAboveThreeHundredAreClubbedWhenTheyFitOneVehicle() {
         // Default: any size. Kachiguda + Champapet (5 km apart) and two Vizag stores, all 300+, each pair fits one 20 ft.
         val r = VehiclePlanner.plan(listOf(s("KCG", 450.0), s("CHM", 330.0), s("GJW", 500.0, region = "R2"), s("SHL", 320.0, region = "R2")),
