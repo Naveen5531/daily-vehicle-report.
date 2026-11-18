@@ -103,8 +103,7 @@ object VehicleFormSheet {
             suggest?.let { if (it.number.isNotBlank()) number.setText(it.number) }
         } else {
             title.setText(R.string.edit_vehicle)
-            number.setText(existing.number)
-            number.isEnabled = false
+            number.setText(existing.number)   // can be corrected: saving a new number replaces the old one
             type.setText(existing.type, false)
             transporter.setText(existing.transporter, false)
             driver.setText(existing.driver)
@@ -136,7 +135,7 @@ object VehicleFormSheet {
         }
 
         save.setOnClickListener {
-            val plate = existing?.number ?: VehicleParser.extract(number.text?.toString().orEmpty()).firstOrNull()
+            val plate = VehicleParser.extract(number.text?.toString().orEmpty()).firstOrNull()
             if (plate == null) {
                 numberLayout.error = activity.getString(R.string.no_plate_found)
                 return@setOnClickListener
@@ -157,6 +156,15 @@ object VehicleFormSheet {
                 route = route.text?.toString()?.trim().orEmpty(),
                 dedicated = dedicated.isChecked
             )
+            if (existing != null) {
+                if (!VehicleStore.replaceVehicle(activity, existing.number, v)) {
+                    numberLayout.error = activity.getString(R.string.already_in_list, plate)
+                    return@setOnClickListener
+                }
+                Toast.makeText(activity, activity.getString(R.string.saved), Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                return@setOnClickListener
+            }
             val isNew = VehicleStore.saveVehicle(activity, v)
             Toast.makeText(
                 activity,

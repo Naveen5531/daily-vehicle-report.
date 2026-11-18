@@ -263,6 +263,20 @@ object VehicleStore {
         i < 0
     }
 
+    /**
+     * Saves an edited vehicle whose number was corrected: the old number is replaced (same place in the list), so the
+     * vehicle is not listed twice. Returns false (nothing changed) when the new number already belongs to another vehicle.
+     */
+    fun replaceVehicle(context: Context, oldNumber: String, vehicleIn: DedicatedVehicle): Boolean = synchronized(lock) {
+        val vehicle = vehicleIn.copy(number = canonical(vehicleIn.number))
+        val list = loadVehicles(prefs(context)).toMutableList()
+        val at = list.indexOfFirst { it.number == oldNumber }
+        if (vehicle.number != oldNumber && list.any { it.number == vehicle.number }) return@synchronized false
+        if (at >= 0) list[at] = vehicle else list += vehicle
+        saveDedicatedAndRematch(context, list)
+        true
+    }
+
     /** Imports many vehicles. Existing ones are updated (blank cells keep the old value). Returns how many were new. */
     fun importVehicles(context: Context, vehicles: List<DedicatedVehicle>, replace: Boolean): Int = synchronized(lock) {
         val list = if (replace) mutableListOf<DedicatedVehicle>() else loadVehicles(prefs(context)).toMutableList()
