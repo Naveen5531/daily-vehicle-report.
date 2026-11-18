@@ -37,6 +37,8 @@
     <color name="warn_line">#F5DFA6</color>
     <color name="blue">#2950A8</color>
     <color name="blue_bg">#E6F0FF</color>
+    <color name="city_bg">#6A3BC2</color>
+    <color name="city_text">#FFFFFF</color>
     <color name="wa_green">#128C3E</color>
     <color name="wa_bg">#E7F8EC</color>
 </resources>
