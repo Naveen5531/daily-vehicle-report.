@@ -108,6 +108,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         root.findViewById<View>(R.id.planExcel).setOnClickListener { a.pickPlanExcel() }
         root.findViewById<View>(R.id.planSizes).setOnClickListener { editSizes() }
         root.findViewById<View>(R.id.planExport).setOnClickListener { export() }
+        root.findViewById<View>(R.id.planClubExport).setOnClickListener { exportClubbing() }
         root.findViewById<View>(R.id.planClear).setOnClickListener {
             MaterialAlertDialogBuilder(a)
                 .setTitle(R.string.plan_new_title)
@@ -1160,9 +1161,41 @@ class PlanTab(private val a: MainActivity, root: View) {
         Exporter.deliverSheets(a, "Vehicle_Planning_Report_$day$tag.xlsx", planReport(r), numbers = true)
     }
 
+    /** Exports only the clubbed vehicles (what is on the screen, so the zone filter applies). */
+    private fun exportClubbing() {
+        val r = shownResult() ?: return
+        val sheet = clubbingSheet(r)
+        if (sheet.rows.size <= 1) { Toast.makeText(a, R.string.nothing_to_export, Toast.LENGTH_SHORT).show(); return }
+        val day = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date(PlanData.load(a).created.takeIf { it > 0 } ?: System.currentTimeMillis()))
+        val tag = zoneFilter?.let { "_" + zoneName(it).replace(Regex("[^A-Za-z]"), "") }.orEmpty()
+        Exporter.deliverSheets(a, "Vehicle_Clubbing_Report_$day$tag.xlsx", listOf(sheet), numbers = true)
+    }
+
+    /** One line per clubbed vehicle: its stores in route order, store-to-store road km, trip km from the DC and the extra km clubbing adds. */
+    private fun clubbingSheet(r: PlanResult): XlsxWriter.Sheet {
+        fun n(v: Double) = "%.3f".format(Locale.US, v).trimEnd('0').trimEnd('.')
+        val all = result?.loads.orEmpty()
+        val rows = mutableListOf(listOf("Vehicle", "Zone", "Region", "Vehicle Type", "Capacity", "Load Volume", "Fill %", "Stops",
+            "Route (ship-to)", "Stores", "Cities", "Store to Store km", "Trip km (DC)", "Extra km", "Boxes", "Total Wght"))
+        r.loads.filter { it.clubbed }.forEach { l ->
+            val no = all.indexOf(l).let { if (it >= 0) it + 1 else r.loads.indexOf(l) + 1 }
+            val pts = l.codes.map { places[it] }
+            val between = if (l.codes.size > 1 && pts.all { it != null }) pts.filterNotNull().let { p -> RoadKm.cached(a, p) ?: RoadKm.straight(p) } else null
+            val stores = l.parts.groupBy { it.first.code }.entries.joinToString(" + ") { (c, ps) -> "$c ${ps.first().first.shownName} (${n(ps.sumOf { it.second })})" }
+            rows += listOf(no.toString(), zoneName(loadZone(l)), l.cluster, l.type?.name ?: "Too big",
+                l.type?.let { n(it.capacity) }.orEmpty(), n(l.volume), "${Math.round(l.fill * 100)}", l.codes.size.toString(),
+                l.codes.joinToString(" > "), stores, l.parts.map { cityOf(it.first) }.distinct().joinToString(", "),
+                between?.let { Math.round(it).toString() }.orEmpty(), l.routeKm?.let { Math.round(it).toString() }.orEmpty(),
+                l.extraKm?.let { Math.round(it).toString() }.orEmpty(),
+                l.parts.distinctBy { it.first.code }.sumOf { it.first.boxes }.toString(),
+                n(l.parts.distinctBy { it.first.code }.sumOf { it.first.weight }))
+        }
+        return XlsxWriter.Sheet("Clubbing", rows, listOf(8, 11, 12, 13, 9, 11, 7, 6, 22, 52, 22, 14, 11, 9, 8, 11))
+    }
+
     /**
      * The vehicle planning report: Summary (one line per vehicle), Store Lines (one line per store on each vehicle),
-     * By Size, By City, and Held stores.
+     * Clubbing (clubbed vehicles only), By Size, By City, and Held stores.
      */
     private fun planReport(r: PlanResult): List<XlsxWriter.Sheet> {
         fun n(v: Double) = "%.3f".format(Locale.US, v).trimEnd('0').trimEnd('.')
@@ -1217,6 +1250,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         return listOf(
             XlsxWriter.Sheet("Summary", summary, listOf(8, 11, 12, 13, 9, 9, 11, 7, 10, 6, 48, 22, 8, 11, 9, 14, 8, 11)),
             XlsxWriter.Sheet("Store Lines", VehiclePlanner.exportRows(r) { zoneName(loadZone(it)) }, VehiclePlanner.EXPORT_WIDTHS),
+            clubbingSheet(r),
             XlsxWriter.Sheet("By Size", bySize, listOf(16, 10, 10, 14, 13, 8, 9)),
             XlsxWriter.Sheet("By City", byCity, listOf(20, 14, 14, 8, 11, 10, 8, 9)),
             XlsxWriter.Sheet("Held", held, listOf(10, 30, 16, 14, 12, 10, 40))

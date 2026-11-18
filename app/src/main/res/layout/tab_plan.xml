@@ -248,6 +248,19 @@
                         android:textSize="13sp"
                         app:icon="@drawable/ic_route"
                         app:iconSize="18dp" />
+
+                    <!-- Export only the clubbed vehicles (stores, store-to-store km, extra km, fill). -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/planClubExport"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:minHeight="40dp"
+                        android:text="@string/plan_club_export"
+                        android:textSize="13sp"
+                        app:icon="@drawable/ic_download"
+                        app:iconSize="18dp" />
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
