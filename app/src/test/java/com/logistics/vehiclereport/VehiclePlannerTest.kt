@@ -217,12 +217,13 @@ class VehiclePlannerTest {
         assertEquals("loads: $shown", "Pickup", byCode["CHM"])                           // local stores are unchanged
     }
 
-    @Test fun bufferVolumeIgnoresASmallLeftoverOfABigStore() {
-        val none = VehiclePlanner.plan(listOf(s("A", 860.0)), VehiclePlanner.Options(autoClub = false))
-        assertEquals(2, none.vehicles)                                           // 850 + a 10 leftover
-        val buffered = VehiclePlanner.plan(listOf(s("A", 860.0), s("B", 400.0)),
-            VehiclePlanner.Options(autoClub = false, bufferFor = mapOf("A" to 20.0, "B" to 20.0)))
-        assertEquals(listOf(850.0, 400.0), buffered.loads.map { it.volume }.sortedDescending())   // 10 ignored; B (a small store) is kept
+    @Test fun loadsBelowTheBufferVolumeAreNotClubbed() {
+        val stops = listOf(s("KCG", 150.0), s("CHM", 120.0))      // Kachiguda and Champapet are ~5 km apart: they club
+        val plain = VehiclePlanner.plan(stops, geo(clubBelow = 0.0))
+        assertEquals(1, plain.vehicles)
+        val buffered = VehiclePlanner.plan(stops, geo(clubBelow = 0.0).copy(bufferFor = mapOf("KCG" to 130.0, "CHM" to 130.0)))
+        assertEquals(2, buffered.vehicles)                          // both below the buffer: no clubbing
+        assertTrue(buffered.loads.none { it.clubbed })
     }
 
     @Test fun storesAboveThreeHundredAreClubbedWhenTheyFitOneVehicle() {

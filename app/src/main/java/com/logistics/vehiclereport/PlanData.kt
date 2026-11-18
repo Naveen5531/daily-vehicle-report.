@@ -177,7 +177,7 @@ object PlanData {
 
     private const val KEY_BUFFER = "plan_zone_buffer_"
 
-    /** Buffer volume of a zone (Upcountry, Local): the small leftover of a big store, after its full loads, that is ignored (0 = none). */
+    /** Buffer volume of a zone (Upcountry, Local): a load below it is left out of clubbing and keeps its own vehicle (0 = none). */
     fun zoneBuffer(c: Context, z: Zone): Double = p(c).getFloat(KEY_BUFFER + z.name, 0f).toDouble()
     fun setZoneBuffer(c: Context, z: Zone, v: Double) = p(c).edit().putFloat(KEY_BUFFER + z.name, v.coerceAtLeast(0.0).toFloat()).apply()
 

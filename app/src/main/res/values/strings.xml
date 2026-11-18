@@ -765,8 +765,8 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="held_club_done">%1$s clubbed (vehicle numbers may change)</string>
     <string name="zone_field_min_up">Upcountry: skip stores below (volume)</string>
     <string name="zone_field_min_non">Non-local: skip stores below (volume)</string>
-    <string name="zone_field_buf_up">Upcountry buffer: ignore a leftover up to (volume)</string>
-    <string name="zone_field_buf_local">Local buffer: ignore a leftover up to (volume)</string>
+    <string name="zone_field_buf_up">Upcountry buffer: no clubbing for loads below (volume)</string>
+    <string name="zone_field_buf_local">Local buffer: no clubbing for loads below (volume)</string>
     <string name="zone_field_min_local">Local: skip stores below (volume)</string>
     <string name="zone_field_up_stops">Upcountry: most stores per 20 ft vehicle</string>
     <!-- Drishti gate: live reporting and mapping to the day's vehicle data -->

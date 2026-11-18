@@ -114,7 +114,7 @@ object VehiclePlanner {
         val sizeFor: Map<String, VehicleCap> = emptyMap(),
         /** Bigger vehicles Upcountry stores may use besides [upcountryType] (22 ft, 24 ft), whatever is ticked in Sizes. */
         val upcountryExtra: List<VehicleCap> = emptyList(),
-        /** Buffer volume by store code: what is left of a big store after its full loads is ignored when it is this small or less. */
+        /** Buffer volume by store code: a load below it is left out of clubbing (it keeps its own vehicle). */
         val bufferFor: Map<String, Double> = emptyMap()
     ) {
         fun copy(
@@ -303,8 +303,6 @@ object VehiclePlanner {
                 loads += Load(s.cluster, mutableListOf(s to cap), full = true)
                 left -= cap
             }
-            // Buffer volume: a small leftover of a big store (after its full loads) is ignored, no vehicle for it.
-            if (s.volume > cap + EPS && left <= (o.bufferFor[s.code] ?: 0.0) + EPS) continue
             val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > cap + EPS, rideOnly = s.code in o.rideOnly && s.volume <= cap + EPS)
             loads += l
             rest[s.code] = l
@@ -328,7 +326,9 @@ object VehiclePlanner {
         if (o.autoClub) {
             fun capOf(v: Double, codes: Collection<String> = emptyList()) = chosen(codes)?.capacity ?: fit(v, types)?.capacity ?: Double.MAX_VALUE
             // A load that may take part in auto clubbing: not a big store's full load, not split or clubbed by hand.
-            fun free(l: Load) = !l.full && l.codes.none { it in o.noClub } && l.codes.none { it in inHandClub }
+            // A load below its zone's buffer volume (Upcountry / Local) is not clubbed either.
+            fun free(l: Load) = !l.full && l.codes.none { it in o.noClub } && l.codes.none { it in inHandClub } &&
+                l.codes.none { l.volume < (o.bufferFor[it] ?: 0.0) - EPS }
             // Below "Club below" (0 = any size), the rest of a big store, or a ride-only store.
             fun small(l: Load) = o.clubBelow <= 0 || l.volume < o.clubBelow - EPS || l.parts.any { p -> rest[p.first.code]?.let { it.splitRest || it.rideOnly } == true }
             // How far out of its way the bigger load's vehicle goes for the other (0 when a place is not on the map).
