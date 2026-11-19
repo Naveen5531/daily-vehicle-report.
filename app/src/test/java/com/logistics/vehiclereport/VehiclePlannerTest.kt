@@ -106,6 +106,23 @@ class VehiclePlannerTest {
         assertEquals(1, VehiclePlanner.plan(partial, VehiclePlanner.followSheet(partial, geo(clubBelow = 0.0), big)).vehicles)
     }
 
+    @Test fun clubbingOnlyInOneCityWhenSwitchedOn() {
+        val o = geo(clubBelow = 300.0).copy(sameCityOnly = true)
+        // Kodad is on the way to Vijayawada (~100 km): clubbed normally, not when only one city may club.
+        assertEquals(1, VehiclePlanner.plan(listOf(s("VJA", 800.0), s("KDD", 23.58)), geo()).vehicles)
+        assertEquals(2, VehiclePlanner.plan(listOf(s("VJA", 800.0), s("KDD", 23.58)), o).vehicles)
+        // Champapet and Kachiguda are ~5 km apart (one city and its outskirts): still club.
+        assertEquals(1, VehiclePlanner.plan(listOf(s("CHM", 600.0), s("KCG", 100.0)), o).vehicles)
+    }
+
+    @Test fun townOfReadsTheSameTownFromDifferentSpellings() {
+        assertEquals(DispatchZone.townOf("Gajuwaka Vizag DMart"), DispatchZone.townOf("MVP Colony, Visakhapatnam"))
+        assertEquals(DispatchZone.townOf("Benz Circle Vijaywada DMart"), DispatchZone.townOf("Gollapudi Vijayawada DMart"))
+        assertEquals(DispatchZone.townOf("Hukumpeta Rajahmundry AP DMart"), DispatchZone.townOf("Ramadaspeta Rajahmundry AP DMart"))
+        assertTrue(DispatchZone.townOf("Kakinada DMart") != DispatchZone.townOf("Eluru West Godavari AP DMart"))
+        assertEquals(null, DispatchZone.townOf("Ganguru Krishna District AP"))
+    }
+
     @Test fun smallStoreRidesOnAVehicleGoingItsWayElseIsHeld() {
         // Kachiguda (100, below the minimum) rides with the Champapet vehicle nearby; Warangal (100) has none: held.
         val o = VehiclePlanner.Options(places = at, dc = dc, rideOnly = setOf("KCG", "WGL"))

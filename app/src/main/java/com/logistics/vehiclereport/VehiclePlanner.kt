@@ -119,7 +119,9 @@ object VehiclePlanner {
         /** Stores that unload at night: two of them are never clubbed on one vehicle. */
         val nightStores: Set<String> = emptySet(),
         /** Stores the sheet gives a vehicle of their own: two of them are never clubbed (a ride-only store may still ride on one). */
-        val ownVehicle: Set<String> = emptySet()
+        val ownVehicle: Set<String> = emptySet(),
+        /** Auto clubbing only between stores of one city (or its outskirts, within [nearKm]); hand clubs are not held to it. */
+        val sameCityOnly: Boolean = false
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
@@ -127,9 +129,9 @@ object VehiclePlanner {
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
             sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra,
             bufferFor: Map<String, Double> = this.bufferFor, nightStores: Set<String> = this.nightStores,
-            ownVehicle: Set<String> = this.ownVehicle
+            ownVehicle: Set<String> = this.ownVehicle, sameCityOnly: Boolean = this.sameCityOnly
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores, ownVehicle)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores, ownVehicle, sameCityOnly)
     }
 
     /** Straight-line km between two places. */
@@ -162,6 +164,8 @@ object VehiclePlanner {
     fun fitsOnRoute(host: List<PlanStop>, add: List<PlanStop>, o: Options): Boolean {
         val all = host + add
         if (all.map { it.code }.distinct().size <= 1) return true
+        // Same city only: each added store is in the city of a store on the vehicle, or on its outskirts (within nearKm).
+        if (o.sameCityOnly && add.any { x -> host.none { y -> sameCity(x, y, o) } }) return false
         // Two night-unloading stores are never clubbed together.
         if (host.any { it.code in o.nightStores } && add.any { it.code in o.nightStores }) return false
         val hp = host.map { o.places[it.code] }
@@ -217,6 +221,15 @@ object VehiclePlanner {
         val bigOn = big.map { it.copy(on = true) }
         val types = o.types.filter { t -> bigOn.none { it.name == t.name } } + bigOn
         return o.copy(types = types, rideOnly = (o.rideOnly - own) + ride, upcountryExtra = bigOn, ownVehicle = own)
+    }
+
+    /** One city: the same town by name, else close together on the map (the outskirts of a city, within [Options.nearKm]). */
+    fun sameCity(a: PlanStop, b: PlanStop, o: Options): Boolean {
+        if (a.code == b.code) return true
+        val ta = DispatchZone.townOf(a.city, a.shownName, a.name, a.listName)
+        if (ta != null && ta == DispatchZone.townOf(b.city, b.shownName, b.name, b.listName)) return true
+        val pa = o.places[a.code]; val pb = o.places[b.code]
+        return pa != null && pb != null && km(pa, pb) <= o.nearKm + EPS
     }
 
     /** Typical road length over the straight line between two towns. */

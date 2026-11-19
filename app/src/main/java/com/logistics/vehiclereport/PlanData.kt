@@ -140,6 +140,11 @@ object PlanData {
     fun maxClubKm(c: Context): Double = p(c).getFloat(KEY_MAX_CLUB_KM, 70f).toDouble()
     fun setMaxClubKm(c: Context, v: Double) = p(c).edit().putFloat(KEY_MAX_CLUB_KM, v.coerceAtLeast(0.0).toFloat()).apply()
 
+    private const val KEY_SAME_CITY = "plan_same_city_only"
+    /** Clubbing only between stores of one city (or its outskirts): on unless switched off in Sizes. */
+    fun sameCityOnly(c: Context): Boolean = p(c).getBoolean(KEY_SAME_CITY, true)
+    fun setSameCityOnly(c: Context, on: Boolean) = p(c).edit().putBoolean(KEY_SAME_CITY, on).apply()
+
     /** Most stores on one vehicle when clubbing. */
     fun maxStops(c: Context): Int = p(c).getInt(KEY_MAX_STOPS, 2).coerceAtLeast(1)
     fun setMaxStops(c: Context, n: Int) = p(c).edit().putInt(KEY_MAX_STOPS, n.coerceIn(1, 6)).apply()

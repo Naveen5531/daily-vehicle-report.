@@ -75,6 +75,25 @@ object DispatchZone {
         "Pune" to listOf("pune", "pimpri", "chinchwad")
     )
 
+    /** Other spellings of the same town, as written on store lists. */
+    private val TOWN_ALIAS = mapOf("vijaywada" to "vijayawada", "bezawada" to "vijayawada", "vishakhapatnam" to "visakhapatnam",
+        "vishakapatnam" to "visakhapatnam", "rajamahendravaram" to "rajahmundry", "rajamundry" to "rajahmundry",
+        "rajahmahendravaram" to "rajahmundry", "narasaraopeta" to "narasaraopet", "bengaluru" to "bangalore")
+
+    /**
+     * The town a store belongs to, from the first known town named in the given texts (store list city, store name ...):
+     * "Gajuwaka Vizag" and "MVP Colony, Visakhapatnam" are both "visakhapatnam"; "Benz Circle Vijaywada" is "vijayawada".
+     * Suburbs of a metro (Hyderabad, Visakhapatnam ...) give the metro. Null when no known town is named.
+     */
+    fun townOf(vararg texts: String): String? {
+        for (t in texts) for (w in words(t)) {
+            val k = TOWN_ALIAS[w] ?: w
+            if (k !in CITY_STATE) continue
+            return METRO.entries.firstOrNull { e -> e.value.any { it == k } }?.key?.lowercase() ?: (if (k == "bangalore") "bengaluru" else k)
+        }
+        return null
+    }
+
     private fun norm(s: String) = " " + s.lowercase().replace("d-mart", " ").replace(Regex("[^a-z]+"), " ").trim() + " "
     private fun words(s: String) = norm(s).split(' ').filter { it.isNotEmpty() }
 

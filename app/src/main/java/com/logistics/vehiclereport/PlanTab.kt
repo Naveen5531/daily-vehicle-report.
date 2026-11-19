@@ -172,6 +172,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 bufferFor = zones.mapNotNull { (code, z) -> PlanData.zoneBuffer(a, z).takeIf { it > 0 && (z == Zone.UPCOUNTRY || z == Zone.LOCAL) }?.let { code to it } }.toMap(),
                 upcountryMaxStops = PlanData.upcountryMaxStops(a),
                 nightStores = stops.map { it.code }.filter { StoreShift.isNight(a, it) }.toSet(),
+                sameCityOnly = PlanData.sameCityOnly(a),
                 rideOnly = small, shuffle = shuffle), PlanData.bigSizes(a)))
         return Triple(r, opts, stops)
     }
@@ -287,7 +288,8 @@ class PlanTab(private val a: MainActivity, root: View) {
         typeChips.visibility = if (r.byType.isEmpty()) View.GONE else View.VISIBLE
         clubText.text = (PlanData.clubBelow(a).takeIf { it > 0 }?.let { a.getString(R.string.plan_club_text, vol(it), PlanData.maxStops(a)) }
             ?: a.getString(R.string.plan_club_text_any, PlanData.maxStops(a))) +
-            PlanData.maxClubKm(a).takeIf { it > 0 }?.let { " " + a.getString(R.string.plan_club_km_text, km(it)) }.orEmpty()
+            PlanData.maxClubKm(a).takeIf { it > 0 }?.let { " " + a.getString(R.string.plan_club_km_text, km(it)) }.orEmpty() +
+            (if (PlanData.sameCityOnly(a)) " " + a.getString(R.string.plan_club_city_text, km(PlanData.nearKm(a))) else "")
         showZones(r)
         showGeo(stops)
         showMap(r, stops)
@@ -924,6 +926,11 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
         kmRow.addView(maxClubKm, LinearLayout.LayoutParams((96 * d).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
         box.addView(kmRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val sameCity = android.widget.CheckBox(a).apply {
+            setText(R.string.plan_same_city_label); isChecked = PlanData.sameCityOnly(a)
+            textSize = 14.5f; setTextColor(Ui.color(a, R.color.ink))
+        }
+        box.addView(sameCity, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         MaterialAlertDialogBuilder(a)
             .setTitle(R.string.plan_sizes_title)
             .setMessage(R.string.plan_sizes_message)
@@ -935,6 +942,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 PlanData.setClubBelow(a, SheetReader.number(clubBelow.text?.toString().orEmpty()) ?: 0.0)
                 maxStops.text?.toString()?.trim()?.toIntOrNull()?.let { PlanData.setMaxStops(a, it) }
                 PlanData.setMaxClubKm(a, SheetReader.number(maxClubKm.text?.toString().orEmpty()) ?: 0.0)
+                PlanData.setSameCityOnly(a, sameCity.isChecked)
                 refresh()
             }
             .setNeutralButton(R.string.plan_sizes_reset) { _, _ ->

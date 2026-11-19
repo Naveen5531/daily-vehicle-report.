@@ -226,6 +226,8 @@
     <string name="day_note_none">No data saved for %1$s.</string>
     <string name="day_back_marked">Mark saved for %1$s</string>
     <string name="plan_no_limit">No limit</string>
+    <string name="plan_club_city_text">Only stores of one city, or its outskirts (within %1$s km).</string>
+    <string name="plan_same_city_label">Club only stores of the same city (or its outskirts)</string>
     <string name="plan_club_km_text">Clubbed stores at most %1$s km apart.</string>
     <string name="plan_hero_max">Biggest vehicle %1$s · change in Sizes</string>
     <string name="plan_too_many_stores">%1$d stores picked: one vehicle takes %2$d at most (change it in Sizes)</string>
