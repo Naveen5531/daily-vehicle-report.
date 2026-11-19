@@ -117,16 +117,19 @@ object VehiclePlanner {
         /** Buffer volume by store code: a load below it is left out of clubbing (it keeps its own vehicle). */
         val bufferFor: Map<String, Double> = emptyMap(),
         /** Stores that unload at night: two of them are never clubbed on one vehicle. */
-        val nightStores: Set<String> = emptySet()
+        val nightStores: Set<String> = emptySet(),
+        /** Stores the sheet gives a vehicle of their own: two of them are never clubbed (a ride-only store may still ride on one). */
+        val ownVehicle: Set<String> = emptySet()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
             upcountry: Set<String> = this.upcountry, upcountryType: VehicleCap? = this.upcountryType,
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
             sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra,
-            bufferFor: Map<String, Double> = this.bufferFor, nightStores: Set<String> = this.nightStores
+            bufferFor: Map<String, Double> = this.bufferFor, nightStores: Set<String> = this.nightStores,
+            ownVehicle: Set<String> = this.ownVehicle
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores, ownVehicle)
     }
 
     /** Straight-line km between two places. */
@@ -195,6 +198,26 @@ object VehiclePlanner {
     }
 
     private const val EPS = 1e-6
+
+    /** A store the sheet gives 0 vehicles rides on another vehicle only when it is below this volume (a 0 on a big store is a misread). */
+    const val SHEET_RIDE_BELOW = 300.0
+
+    /** True when the sheet's own Vehicle count was read for every store. */
+    fun sheetCounts(stops: List<PlanStop>) = stops.isNotEmpty() && stops.all { it.sheetVehicles != null }
+
+    /**
+     * Makes the plan follow the sheet's own Vehicle column (when it was read for every store): a store with a vehicle on
+     * the sheet keeps its own vehicle (22 ft / 24 ft, from [big], where it needs one); a store with 0 only rides on
+     * another vehicle going its way (else held). Without the counts, [o] is returned as it is.
+     */
+    fun followSheet(stops: List<PlanStop>, o: Options, big: List<VehicleCap>): Options {
+        if (!sheetCounts(stops)) return o
+        val own = stops.filter { (it.sheetVehicles ?: 0) >= 1 || it.volume >= SHEET_RIDE_BELOW }.map { it.code }.toSet()
+        val ride = stops.filter { (it.sheetVehicles ?: 0) == 0 && it.volume < SHEET_RIDE_BELOW }.map { it.code }.toSet()
+        val bigOn = big.map { it.copy(on = true) }
+        val types = o.types.filter { t -> bigOn.none { it.name == t.name } } + bigOn
+        return o.copy(types = types, rideOnly = (o.rideOnly - own) + ride, upcountryExtra = bigOn, ownVehicle = own)
+    }
 
     /** Typical road length over the straight line between two towns. */
     const val ROAD_FACTOR = 1.4
@@ -359,6 +382,8 @@ object VehiclePlanner {
                     // The bigger load hosts (each pair once); two ride-only stores alone do not make a vehicle.
                     if (host.volume < add.volume - EPS || (host.volume - add.volume).let { abs(it) <= EPS } && i > j) continue
                     if (host.rideOnly && add.rideOnly && host.parts.size == 1 && add.parts.size == 1) continue
+                    // The sheet gives each of these stores its own vehicle: they are not clubbed with each other.
+                    if (host.codes.any { it in o.ownVehicle } && add.codes.any { it in o.ownVehicle }) continue
                     if (!small(add) && !small(host) && o.clubBelow > 0) continue
                     if ((host.codes + add.codes).size > o.maxStops || host.volume + add.volume > capCodes(host.codes + add.codes) + EPS) continue
                     if (!fitsOnRoute(host.parts.map { it.first }, add.parts.map { it.first }, o)) continue

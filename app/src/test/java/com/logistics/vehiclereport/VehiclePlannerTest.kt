@@ -86,6 +86,26 @@ class VehiclePlannerTest {
         assertEquals(1, VehiclePlanner.plan(stops, geo(clubBelow = 0.0).copy(nightStores = setOf("CHM"))).vehicles)   // night + day is fine
     }
 
+    @Test fun followSheetGivesEachSheetVehicleItsOwnAndLetsZeroStoresRide() {
+        val big = VehiclePlanner.DEFAULT_TYPES.filter { it.name == "22 ft" || it.name == "24 ft" }
+        // CHM has a vehicle on the sheet (953: needs a 22 ft), KCG (100, 5 km away) has 0: it rides on CHM's vehicle.
+        val stops = listOf(s("CHM", 953.0).copy(sheetVehicles = 1), s("KCG", 100.0).copy(sheetVehicles = 0))
+        val r = VehiclePlanner.plan(stops, VehiclePlanner.followSheet(stops, geo(clubBelow = 0.0), big))
+        assertEquals(1, r.vehicles)
+        assertEquals(setOf("CHM", "KCG"), r.loads.single().codes.toSet())
+        assertEquals("24 ft", r.loads.single().type?.name)                      // 953 + 100 = 1053
+        // Two stores that both have a vehicle on the sheet are not clubbed, even when they could be.
+        val two = listOf(s("CHM", 300.0).copy(sheetVehicles = 1), s("KCG", 200.0).copy(sheetVehicles = 1))
+        assertEquals(1, VehiclePlanner.plan(two, geo(clubBelow = 0.0)).vehicles)
+        assertEquals(2, VehiclePlanner.plan(two, VehiclePlanner.followSheet(two, geo(clubBelow = 0.0), big)).vehicles)
+        // A store alone on one vehicle: 953 goes on a 22 ft.
+        val one = listOf(s("CHM", 953.0).copy(sheetVehicles = 1))
+        assertEquals("22 ft", VehiclePlanner.plan(one, VehiclePlanner.followSheet(one, geo(), big)).loads.single().type?.name)
+        // Sheet counts not read for every store: nothing changes.
+        val partial = listOf(s("CHM", 300.0).copy(sheetVehicles = 1), s("KCG", 200.0))
+        assertEquals(1, VehiclePlanner.plan(partial, VehiclePlanner.followSheet(partial, geo(clubBelow = 0.0), big)).vehicles)
+    }
+
     @Test fun smallStoreRidesOnAVehicleGoingItsWayElseIsHeld() {
         // Kachiguda (100, below the minimum) rides with the Champapet vehicle nearby; Warangal (100) has none: held.
         val o = VehiclePlanner.Options(places = at, dc = dc, rideOnly = setOf("KCG", "WGL"))
