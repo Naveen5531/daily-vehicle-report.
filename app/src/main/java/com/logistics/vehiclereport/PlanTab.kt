@@ -264,10 +264,16 @@ class PlanTab(private val a: MainActivity, root: View) {
 
         heroLabel.text = a.getString(R.string.plan_hero_label, PlanData.dayLabel(plan.created))
         vehiclesText.text = r.vehicles.toString()
-        // The sheet's own vehicle count, only when it was read for every store (a partial sum would mislead).
+        // The sheet's own vehicle count: its total when it was read for every store; else how many stores it was read for
+        // (the plan follows the sheet only for those).
         val onSheet = plan.stops.map { it.sheetVehicles }
-        sheetText.text = if (onSheet.isEmpty() || onSheet.any { it == null }) a.getString(R.string.plan_vehicles_word)
-            else a.getString(R.string.plan_vs_sheet, onSheet.sumOf { it ?: 0 })
+        val read = onSheet.count { it != null }
+        sheetText.text = when {
+            onSheet.isEmpty() -> a.getString(R.string.plan_vehicles_word)
+            read == onSheet.size -> a.getString(R.string.plan_vs_sheet, onSheet.sumOf { it ?: 0 })
+            read == 0 -> a.getString(R.string.plan_sheet_none)
+            else -> a.getString(R.string.plan_sheet_part, read, onSheet.size)
+        }
         val inUse = PlanData.types(a).filter { it.on && it.capacity > 0 }.maxByOrNull { it.capacity }
         heroText.text = if (r.vehicles == 0) a.getString(R.string.plan_hero_empty)
             else a.getString(R.string.plan_hero_text, vol(r.totalVolume), pct(r.fill), plan.stops.size) +

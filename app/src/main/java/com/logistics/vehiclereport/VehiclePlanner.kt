@@ -206,18 +206,16 @@ object VehiclePlanner {
     /** A store the sheet gives 0 vehicles rides on another vehicle only when it is below this volume (a 0 on a big store is a misread). */
     const val SHEET_RIDE_BELOW = 300.0
 
-    /** True when the sheet's own Vehicle count was read for every store. */
-    fun sheetCounts(stops: List<PlanStop>) = stops.isNotEmpty() && stops.all { it.sheetVehicles != null }
-
     /**
-     * Makes the plan follow the sheet's own Vehicle column (when it was read for every store): a store with a vehicle on
+     * Makes the plan follow the sheet's own Vehicle column for the stores whose count was read: a store with a vehicle on
      * the sheet keeps its own vehicle (22 ft / 24 ft, from [big], where it needs one); a store with 0 only rides on
-     * another vehicle going its way (else held). Without the counts, [o] is returned as it is.
+     * another vehicle going its way (else held). A store whose count was not read is planned as usual. With no counts
+     * read at all, [o] is returned as it is.
      */
     fun followSheet(stops: List<PlanStop>, o: Options, big: List<VehicleCap>): Options {
-        if (!sheetCounts(stops)) return o
-        val own = stops.filter { (it.sheetVehicles ?: 0) >= 1 || it.volume >= SHEET_RIDE_BELOW }.map { it.code }.toSet()
-        val ride = stops.filter { (it.sheetVehicles ?: 0) == 0 && it.volume < SHEET_RIDE_BELOW }.map { it.code }.toSet()
+        if (stops.none { it.sheetVehicles != null }) return o
+        val own = stops.filter { s -> s.sheetVehicles?.let { it >= 1 || s.volume >= SHEET_RIDE_BELOW } == true }.map { it.code }.toSet()
+        val ride = stops.filter { s -> s.sheetVehicles == 0 && s.volume < SHEET_RIDE_BELOW }.map { it.code }.toSet()
         val bigOn = big.map { it.copy(on = true) }
         val types = o.types.filter { t -> bigOn.none { it.name == t.name } } + bigOn
         return o.copy(types = types, rideOnly = (o.rideOnly - own) + ride, upcountryExtra = bigOn, ownVehicle = own)

@@ -101,9 +101,16 @@ class VehiclePlannerTest {
         // A store alone on one vehicle: 953 goes on a 22 ft.
         val one = listOf(s("CHM", 953.0).copy(sheetVehicles = 1))
         assertEquals("22 ft", VehiclePlanner.plan(one, VehiclePlanner.followSheet(one, geo(), big)).loads.single().type?.name)
-        // Sheet counts not read for every store: nothing changes.
+        // A count not read for some stores: those are planned as usual (they may club), the others still follow the sheet.
         val partial = listOf(s("CHM", 300.0).copy(sheetVehicles = 1), s("KCG", 200.0))
         assertEquals(1, VehiclePlanner.plan(partial, VehiclePlanner.followSheet(partial, geo(clubBelow = 0.0), big)).vehicles)
+        // 890 with 1 vehicle on the sheet is one 22 ft, not 850 + 40, even when another store's count was not read.
+        val mixed = listOf(s("CHM", 890.0).copy(sheetVehicles = 1), s("WGL", 300.0))
+        val m = VehiclePlanner.plan(mixed, VehiclePlanner.followSheet(mixed, geo(), big))
+        assertEquals(listOf("22 ft"), m.loads.filter { "CHM" in it.codes }.map { it.type?.name })
+        // No counts read at all: nothing changes (850 + 40 on 20 ft).
+        val none = listOf(s("CHM", 890.0))
+        assertEquals(2, VehiclePlanner.plan(none, VehiclePlanner.followSheet(none, geo(), big)).vehicles)
     }
 
     @Test fun clubbingOnlyInOneCityWhenSwitchedOn() {
