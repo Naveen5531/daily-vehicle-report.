@@ -274,6 +274,9 @@
     <string name="plan_search_hint">Search store code, name or city</string>
     <string name="pv_tag_main">MAIN</string>
     <string name="pv_tag_club">CLUB</string>
+    <string name="plan_shift_day">☀ Day store</string>
+    <string name="plan_shift_night">🌙 Night store</string>
+    <string name="plan_shift_mixed">☀ Day + 🌙 Night</string>
     <string name="pv_store_total">store total</string>
     <string name="pv_club_total">Club total %1$s</string>
     <string name="pv_direct">%1$d Direct</string>

@@ -375,6 +375,22 @@ class PlanTab(private val a: MainActivity, root: View) {
         v.findViewById<TextView>(R.id.pvType).text = main?.let { "${it.code} · ${it.shownName}" } ?: (l.type?.name ?: a.getString(R.string.plan_no_type))
         // The main store's whole volume today (all its vehicles), big and bold above the fill %.
         v.findViewById<TextView>(R.id.pvStoreVol).text = main?.let { vol(it.volume) }.orEmpty()
+        // Day / Night tag above the volume: the main store's shift, or "Day + Night" when clubbed stores differ.
+        v.findViewById<TextView>(R.id.pvShift).apply {
+            if (main == null) { visibility = View.GONE } else {
+                val nights = l.codes.map { StoreShift.isNight(a, it) }
+                val mainNight = StoreShift.isNight(a, main.code)
+                val mixed = nights.distinct().size > 1
+                text = a.getString(when { mixed -> R.string.plan_shift_mixed; mainNight -> R.string.plan_shift_night; else -> R.string.plan_shift_day })
+                val night = mainNight || mixed
+                setTextColor(if (night) 0xFFFFFFFF.toInt() else 0xFF7A4B00.toInt())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 40f
+                    setColor(if (night) 0xFF2B2F6B.toInt() else 0xFFFFE9B0.toInt())
+                }
+                visibility = View.VISIBLE
+            }
+        }
         v.findViewById<View>(R.id.pvStoreVolLabel).visibility = if (main != null) View.VISIBLE else View.GONE
         v.findViewById<TextView>(R.id.pvClubTotal).apply {
             visibility = if (l.codes.size > 1) View.VISIBLE else View.GONE
