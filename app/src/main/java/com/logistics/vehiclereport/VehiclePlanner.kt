@@ -121,7 +121,10 @@ object VehiclePlanner {
         /** Stores the sheet gives a vehicle of their own: two of them are never clubbed (a ride-only store may still ride on one). */
         val ownVehicle: Set<String> = emptySet(),
         /** Auto clubbing only between stores of one city (or its outskirts, within [nearKm]); hand clubs are not held to it. */
-        val sameCityOnly: Boolean = false
+        val sameCityOnly: Boolean = false,
+        /** Minimum by store code: what is left of a big store after its full loads gets no vehicle of its own below this
+         *  (it only rides on another vehicle going its way, else it is held). */
+        val restBelow: Map<String, Double> = emptyMap()
     ) {
         fun copy(
             types: List<VehicleCap> = this.types, clubBelow: Double = this.clubBelow, maxStops: Int = this.maxStops,
@@ -129,9 +132,10 @@ object VehiclePlanner {
             upcountryMaxStops: Int = this.upcountryMaxStops, rideOnly: Set<String> = this.rideOnly, shuffle: Int = this.shuffle,
             sizeFor: Map<String, VehicleCap> = this.sizeFor, upcountryExtra: List<VehicleCap> = this.upcountryExtra,
             bufferFor: Map<String, Double> = this.bufferFor, nightStores: Set<String> = this.nightStores,
-            ownVehicle: Set<String> = this.ownVehicle, sameCityOnly: Boolean = this.sameCityOnly
+            ownVehicle: Set<String> = this.ownVehicle, sameCityOnly: Boolean = this.sameCityOnly,
+            restBelow: Map<String, Double> = this.restBelow
         ) = Options(types, clubBelow, autoClub, maxStops, noClub, clubs, places, dc, nearKm, detourShare, maxDetourKm,
-            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores, ownVehicle, sameCityOnly)
+            upcountry, upcountryType, upcountryMaxStops, maxClubKm, rideOnly, shuffle, sizeFor, upcountryExtra, bufferFor, nightStores, ownVehicle, sameCityOnly, restBelow)
     }
 
     /** Straight-line km between two places. */
@@ -208,17 +212,15 @@ object VehiclePlanner {
 
     /**
      * Makes the plan follow the sheet's own Vehicle column for the stores whose count was read: a store with a vehicle on
-     * the sheet keeps its own vehicle (22 ft / 24 ft, from [big], where it needs one); a store with 0 only rides on
-     * another vehicle going its way (else held). A store whose count was not read is planned as usual. With no counts
-     * read at all, [o] is returned as it is.
+     * the sheet keeps its own vehicle (it is not clubbed with another such store); a store with 0 only rides on another
+     * vehicle going its way (else held). Vehicle sizes stay as set in Sizes. A store whose count was not read is planned
+     * as usual; with no counts read at all, [o] is returned as it is.
      */
-    fun followSheet(stops: List<PlanStop>, o: Options, big: List<VehicleCap>): Options {
+    fun followSheet(stops: List<PlanStop>, o: Options): Options {
         if (stops.none { it.sheetVehicles != null }) return o
         val own = stops.filter { s -> s.sheetVehicles?.let { it >= 1 || s.volume >= SHEET_RIDE_BELOW } == true }.map { it.code }.toSet()
         val ride = stops.filter { s -> s.sheetVehicles == 0 && s.volume < SHEET_RIDE_BELOW }.map { it.code }.toSet()
-        val bigOn = big.map { it.copy(on = true) }
-        val types = o.types.filter { t -> bigOn.none { it.name == t.name } } + bigOn
-        return o.copy(types = types, rideOnly = (o.rideOnly - own) + ride, upcountryExtra = bigOn, ownVehicle = own)
+        return o.copy(rideOnly = (o.rideOnly - own) + ride, ownVehicle = own)
     }
 
     /** One city: the same town by name, else close together on the map (the outskirts of a city, within [Options.nearKm]). */
@@ -345,7 +347,10 @@ object VehiclePlanner {
                 loads += Load(s.cluster, mutableListOf(s to cap), full = true)
                 left -= cap
             }
-            val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > cap + EPS, rideOnly = s.code in o.rideOnly && s.volume <= cap + EPS)
+            // The leftover of a big store below its zone's minimum has no vehicle of its own: it rides along or is held.
+            val smallRest = s.volume > cap + EPS && left < (o.restBelow[s.code] ?: 0.0) - EPS
+            val l = Load(s.cluster, mutableListOf(s to left), splitRest = s.volume > cap + EPS,
+                rideOnly = (s.code in o.rideOnly && s.volume <= cap + EPS) || smallRest)
             loads += l
             rest[s.code] = l
         }
@@ -416,7 +421,7 @@ object VehiclePlanner {
         }
 
         // Ride-only stores that found no vehicle going their way: held (no vehicle of their own today).
-        val held = loads.filter { it.rideOnly && it.parts.size == 1 && !it.clubbed }.map { it.parts[0].first }
+        val held = loads.filter { it.rideOnly && it.parts.size == 1 && !it.clubbed }.map { it.parts[0].first.copy(volume = it.parts[0].second) }
         loads.removeAll { it.rideOnly && it.parts.size == 1 && !it.clubbed }
 
         // Clusters in the order their first store comes on the sheet; inside one, the fullest loads first.

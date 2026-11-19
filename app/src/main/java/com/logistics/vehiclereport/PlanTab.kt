@@ -166,14 +166,18 @@ class PlanTab(private val a: MainActivity, root: View) {
         // another vehicle going their way when one fits, else they are held back today.
         val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
-        // When the sheet's own Vehicle column was read for every store, the plan follows it (own vehicles, 0 = rides along).
+        // When the sheet's own Vehicle column was read for every store, the plan follows it (own vehicles, 0 = rides along); a big store's small leftover is held.
         val r = VehiclePlanner.plan(stops, VehiclePlanner.followSheet(stops,
             opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a),
                 bufferFor = zones.mapNotNull { (code, z) -> PlanData.zoneBuffer(a, z).takeIf { it > 0 && (z == Zone.UPCOUNTRY || z == Zone.LOCAL) }?.let { code to it } }.toMap(),
                 upcountryMaxStops = PlanData.upcountryMaxStops(a),
                 nightStores = stops.map { it.code }.filter { StoreShift.isNight(a, it) }.toSet(),
                 sameCityOnly = PlanData.sameCityOnly(a),
-                rideOnly = small, shuffle = shuffle), PlanData.bigSizes(a)))
+                restBelow = stops.mapNotNull { s ->
+                    if (s.code in PlanData.forced(a)) null
+                    else zones[s.code]?.let { z -> PlanData.zoneMin(a, z).takeIf { it > 0 }?.let { s.code to it } }
+                }.toMap(),
+                rideOnly = small, shuffle = shuffle)))
         return Triple(r, opts, stops)
     }
 

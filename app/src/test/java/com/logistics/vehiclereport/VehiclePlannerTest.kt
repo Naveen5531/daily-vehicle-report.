@@ -87,30 +87,37 @@ class VehiclePlannerTest {
     }
 
     @Test fun followSheetGivesEachSheetVehicleItsOwnAndLetsZeroStoresRide() {
-        val big = VehiclePlanner.DEFAULT_TYPES.filter { it.name == "22 ft" || it.name == "24 ft" }
-        // CHM has a vehicle on the sheet (953: needs a 22 ft), KCG (100, 5 km away) has 0: it rides on CHM's vehicle.
-        val stops = listOf(s("CHM", 953.0).copy(sheetVehicles = 1), s("KCG", 100.0).copy(sheetVehicles = 0))
-        val r = VehiclePlanner.plan(stops, VehiclePlanner.followSheet(stops, geo(clubBelow = 0.0), big))
+        // CHM has a vehicle on the sheet (600), KCG (100, 5 km away) has 0: it rides on CHM's vehicle.
+        val stops = listOf(s("CHM", 600.0).copy(sheetVehicles = 1), s("KCG", 100.0).copy(sheetVehicles = 0))
+        val r = VehiclePlanner.plan(stops, VehiclePlanner.followSheet(stops, geo(clubBelow = 0.0)))
         assertEquals(1, r.vehicles)
         assertEquals(setOf("CHM", "KCG"), r.loads.single().codes.toSet())
-        assertEquals("24 ft", r.loads.single().type?.name)                      // 953 + 100 = 1053
         // Two stores that both have a vehicle on the sheet are not clubbed, even when they could be.
         val two = listOf(s("CHM", 300.0).copy(sheetVehicles = 1), s("KCG", 200.0).copy(sheetVehicles = 1))
         assertEquals(1, VehiclePlanner.plan(two, geo(clubBelow = 0.0)).vehicles)
-        assertEquals(2, VehiclePlanner.plan(two, VehiclePlanner.followSheet(two, geo(clubBelow = 0.0), big)).vehicles)
-        // A store alone on one vehicle: 953 goes on a 22 ft.
-        val one = listOf(s("CHM", 953.0).copy(sheetVehicles = 1))
-        assertEquals("22 ft", VehiclePlanner.plan(one, VehiclePlanner.followSheet(one, geo(), big)).loads.single().type?.name)
-        // A count not read for some stores: those are planned as usual (they may club), the others still follow the sheet.
+        assertEquals(2, VehiclePlanner.plan(two, VehiclePlanner.followSheet(two, geo(clubBelow = 0.0))).vehicles)
+        // A count not read for some stores: those are planned as usual (they may club).
         val partial = listOf(s("CHM", 300.0).copy(sheetVehicles = 1), s("KCG", 200.0))
-        assertEquals(1, VehiclePlanner.plan(partial, VehiclePlanner.followSheet(partial, geo(clubBelow = 0.0), big)).vehicles)
-        // 890 with 1 vehicle on the sheet is one 22 ft, not 850 + 40, even when another store's count was not read.
-        val mixed = listOf(s("CHM", 890.0).copy(sheetVehicles = 1), s("WGL", 300.0))
-        val m = VehiclePlanner.plan(mixed, VehiclePlanner.followSheet(mixed, geo(), big))
-        assertEquals(listOf("22 ft"), m.loads.filter { "CHM" in it.codes }.map { it.type?.name })
-        // No counts read at all: nothing changes (850 + 40 on 20 ft).
-        val none = listOf(s("CHM", 890.0))
-        assertEquals(2, VehiclePlanner.plan(none, VehiclePlanner.followSheet(none, geo(), big)).vehicles)
+        assertEquals(1, VehiclePlanner.plan(partial, VehiclePlanner.followSheet(partial, geo(clubBelow = 0.0))).vehicles)
+        // No counts read at all: nothing changes.
+        val o = geo()
+        assertTrue(VehiclePlanner.followSheet(listOf(s("CHM", 300.0)), o) === o)
+    }
+
+    @Test fun smallLeftoverOfABigStoreIsHeldNotGivenAVehicle() {
+        val o = geo(clubBelow = 0.0).copy(restBelow = mapOf("CHM" to 200.0))
+        // 890 on the 20 ft (850): the 40 left over is below the minimum, so no vehicle for it; it is held.
+        val r = VehiclePlanner.plan(listOf(s("CHM", 890.0)), o)
+        assertEquals(1, r.vehicles)
+        assertEquals(850.0, r.loads.single().volume, 0.001)
+        assertEquals(listOf("CHM"), r.held.map { it.code })
+        assertEquals(40.0, r.held.single().volume, 0.001)
+        // A leftover above the minimum still gets its vehicle.
+        assertEquals(2, VehiclePlanner.plan(listOf(s("CHM", 1100.0)), o).vehicles)
+        // With a vehicle going the same way (Kachiguda is 5 km away) the 40 rides on it instead of being held.
+        val near = VehiclePlanner.plan(listOf(s("CHM", 890.0), s("KCG", 600.0)), o)
+        assertEquals(2, near.vehicles)
+        assertTrue(near.held.isEmpty())
     }
 
     @Test fun clubbingOnlyInOneCityWhenSwitchedOn() {
