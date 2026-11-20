@@ -188,6 +188,13 @@ class MessageParserTest {
         assertEquals(listOf("Indosai Transport", "Indosai Transport"), r.map { it.vendor })
     }
 
+    @Test fun replacementForShortCodeWithNewVehicleBelow() {
+        val r = MessageParser.parse("Replacement for 1620\n\nTG12U1813\n8374443911\nGuntur at dc\n\nSyndi",
+            mapOf("1620" to listOf("TS12UD1620")), setOf("TS12UD1620")).captures
+        assertEquals("TG12U1813", r.first { it.typed == "1620" }.replacement)
+        assertEquals("Guntur", r.first { it.typed == "TG12U1813" }.city)
+    }
+
     @Test fun clubbedPlacesWithSpacesKeepBoth() {
         assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet\n2201").captures.map { it.city })
         assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet 2201").captures.map { it.city })

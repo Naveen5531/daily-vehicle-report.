@@ -115,7 +115,7 @@ object VehicleStore {
      *  8 = driver mobile written as "+91…" straight after the place ("VIZAG+919908764329"),
      *  9 = vendor written on the vehicle's own line ("1234 Hyderabad Sri Sai Transport", "… - Vendor: Navata"),
      *  10 = "9275 Hafeezpeth\n\n9573 Replacement": the vehicle above joins 9573's entry as its replacement. */
-    private const val RECORDS_VERSION = 11   // 11: "A + B" clubbed posts keep both places
+    private const val RECORDS_VERSION = 12   // 11: "A + B" clubbed posts keep both places
     private var rememberSeenVehiclesLater = false
     const val KEY_DEDICATED = "dedicated_json"
     const val KEY_UNMATCHED = "unmatched_json"

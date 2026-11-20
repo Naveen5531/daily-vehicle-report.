@@ -220,6 +220,19 @@ object MessageParser {
         }
         if (anchors.isEmpty()) return ParseResult(emptyList(), unmatched.distinct())
 
+        // "Replacement for 1620" on its own line, then the new vehicle in the next block: that vehicle replaces 1620.
+        for ((k, a) in anchors.withIndex()) {
+            if (a.capture < 0) continue
+            val ln = lines[a.line].masked
+            if (!REPL.containsMatchIn(ln) || VehicleParser.refs(ln).size != 1) continue
+            val c = captures[a.capture]
+            if (c.replacement.isNotBlank()) continue
+            val next = anchors.getOrNull(k + 1)?.takeIf { it.capture >= 0 } ?: continue
+            val n = captures[next.capture]
+            if (!n.full || n.typed in dedicated || n.typed == c.typed) continue
+            captures[a.capture] = c.copy(replacement = n.typed)
+        }
+
         // 3. Lines between vehicles: a blank line splits them (before -> previous vehicle, after -> next).
         //    Without a blank line they go to the previous vehicle, unless the message writes the
         //    place first ("Rcpuram\n9578\nNarsingi\n9573").
