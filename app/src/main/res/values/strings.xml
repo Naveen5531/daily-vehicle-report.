@@ -234,6 +234,8 @@
     <string name="plan_empty">Add photos of the vehicle request sheet, or its Excel file. Each store gets the vehicle its volume needs, small stores are clubbed only with nearby or on-the-way stores, and you can change any of it.</string>
     <string name="plan_hero_label">Vehicle plan · %1$s</string>
     <string name="plan_vehicles_word">vehicles</string>
+    <string name="plan_totals">Sheet volume %1$s · planned on vehicles %2$s</string>
+    <string name="plan_totals_held">held %1$s</string>
     <string name="plan_sheet_none">vehicles · sheet vehicle counts not read</string>
     <string name="plan_sheet_part">vehicles · sheet counts read for %1$d of %2$d stores</string>
     <string name="plan_vs_sheet">vehicles · %1$d on the sheet</string>

@@ -178,7 +178,11 @@ class PlanTab(private val a: MainActivity, root: View) {
                     else zones[s.code]?.let { z -> PlanData.zoneMin(a, z).takeIf { it > 0 }?.let { s.code to it } }
                 }.toMap(),
                 rideOnly = small, shuffle = shuffle)))
-        return Triple(r, opts, stops)
+        // Order of the cards: regions with the most volume first; in each, clubbed vehicles first, then the higher volume on top.
+        val regionVol = r.loads.groupBy { it.cluster }.mapValues { e -> e.value.sumOf { it.volume } }
+        val ordered = r.loads.sortedWith(compareByDescending<PlanLoad> { regionVol[it.cluster] ?: 0.0 }.thenBy { it.cluster }
+            .thenByDescending { it.clubbed }.thenByDescending { it.volume })
+        return Triple(r.copy(loads = ordered), opts, stops)
     }
 
     /** Which stores share each vehicle (to tell one clubbing mix from another). */
@@ -278,10 +282,14 @@ class PlanTab(private val a: MainActivity, root: View) {
             read == 0 -> a.getString(R.string.plan_sheet_none)
             else -> a.getString(R.string.plan_sheet_part, read, onSheet.size)
         }
+        // Total volume on the sheet(s) against the volume the plan has put on vehicles.
+        val sheetVol = if (plan.sources.isNotEmpty() && plan.sources.all { it.sheetTotal != null }) plan.sources.sumOf { it.sheetTotal ?: 0.0 } else plan.stops.sumOf { it.volume }
+        val totalsLine = a.getString(R.string.plan_totals, vol(sheetVol), vol(r.totalVolume)) +
+            (if (held.isNotEmpty()) " · " + a.getString(R.string.plan_totals_held, vol(held.sumOf { it.volume })) else "")
         val inUse = PlanData.types(a).filter { it.on && it.capacity > 0 }.maxByOrNull { it.capacity }
         heroText.text = if (r.vehicles == 0) a.getString(R.string.plan_hero_empty)
             else a.getString(R.string.plan_hero_text, vol(r.totalVolume), pct(r.fill), plan.stops.size) +
-                (inUse?.let { "\n" + a.getString(R.string.plan_hero_max, it.name) } ?: "")
+                (inUse?.let { "\n" + a.getString(R.string.plan_hero_max, it.name) } ?: "") + "\n" + totalsLine
         typeChips.removeAllViews()
         val d = a.resources.displayMetrics.density
         for ((t, n) in r.byType) {
