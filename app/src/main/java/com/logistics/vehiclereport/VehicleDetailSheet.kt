@@ -247,7 +247,7 @@ object VehicleDetailSheet {
         }
         val add = a.getString(R.string.det_add)
         val day = SimpleDateFormat("d MMM", Locale.getDefault())
-        val store = m.matchStore(shown.route)
+        val store = if (shown.route.contains("+")) null else m.matchStore(shown.route)
         val rate = store?.let { st -> RateCard.get(a).lookup(st.store.code, shown.type) }
         for (f in fields) {
             // The store / route is the current trip: the latest WhatsApp post wins over what is saved in the list.
@@ -258,7 +258,7 @@ object VehicleDetailSheet {
             val extra = when (f.label) {
                 R.string.field_transporter -> if (value.isBlank()) "" else
                     m.resolveVendor(value, "", "", value)?.code?.takeIf { it.isNotBlank() }?.let { a.getString(R.string.opt_code, it) }.orEmpty()
-                R.string.field_route -> m.matchStore(value)?.let { st ->
+                R.string.field_route -> if (value.contains("+")) "" else m.matchStore(value)?.let { st ->
                     val full = "${st.store.code} ${st.store.name}"
                     if (value.equals(full, true)) st.store.region else Ui.joinNonBlank(full, st.store.region)
                 }.orEmpty()

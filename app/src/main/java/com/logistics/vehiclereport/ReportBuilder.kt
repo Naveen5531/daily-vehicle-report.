@@ -235,13 +235,19 @@ object ReportBuilder {
         chat: String = "", message: String = "", transporter: String = "", size: String = "", listType: String = "",
         driver: String = ""
     ): Array<String> {
-        val st = lk?.masters?.matchStore(city)
+        val stops = city.split("+").map { it.trim() }.filter { it.isNotEmpty() }
+        val club = stops.size > 1
+        val sts = if (club) stops.mapNotNull { lk?.masters?.matchStore(it) } else emptyList()
+        val st = if (club) sts.firstOrNull() else lk?.masters?.matchStore(city)
         val vd = lk?.masters?.resolveVendor(vendor, message, chat, transporter)
-        val storeName = st?.let { if (it.others > 0) "${it.store.name} (+${it.others} more – check)" else it.store.name }.orEmpty()
+        val storeName = if (club) sts.joinToString(" + ") { it.store.name }
+            else st?.let { if (it.others > 0) "${it.store.name} (+${it.others} more – check)" else it.store.name }.orEmpty()
         // Vehicle type: as written in the message ("22 FT"), else the vehicle list's type.
         val type = size.ifBlank { listType }
-        val rate = st?.let { lk.rates?.lookup(it.store.code, type) }
-        return arrayOf(Masters.DISPATCH_FROM, city, st?.store?.code.orEmpty(), storeName, st?.store?.region.orEmpty(),
+        val rate = if (club) null else st?.let { lk.rates?.lookup(it.store.code, type) }
+        val codes = if (club) sts.joinToString(" + ") { it.store.code } else st?.store?.code.orEmpty()
+        val regions = if (club) sts.map { it.store.region }.filter { it.isNotBlank() }.distinct().joinToString(" + ") else st?.store?.region.orEmpty()
+        return arrayOf(Masters.DISPATCH_FROM, city, codes, storeName, regions,
             mobile, driver, vendor, vd?.name.orEmpty(), vd?.code.orEmpty(), type, if (rate == null) "" else rate.vehicleType, rate?.amount.orEmpty(),
             Masters.matchedLabel(st != null, vd != null))
     }

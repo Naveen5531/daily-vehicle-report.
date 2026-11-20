@@ -188,6 +188,11 @@ class MessageParserTest {
         assertEquals(listOf("Indosai Transport", "Indosai Transport"), r.map { it.vendor })
     }
 
+    @Test fun clubbedPlacesWithSpacesKeepBoth() {
+        assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet\n2201").captures.map { it.city })
+        assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet 2201").captures.map { it.city })
+    }
+
     @Test fun placeBeforeCodeWithBlankLinesAndSize() {
         val r = any4("Uppalbag+uppalranga 909\n2201\n\n My home \n1987\n\nBalanagar \n6381\nSai Kiran transport").captures
         assertEquals(listOf("Uppalbag + Uppalranga", "My Home", "Balanagar"), r.map { it.city })

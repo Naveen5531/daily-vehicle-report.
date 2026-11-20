@@ -259,7 +259,8 @@ class FeedAdapter(private val onOpen: (VehicleRecord) -> Unit = {}) : RecyclerVi
 
         // Route: your DC → matched store (or the place as written)
         val m = MasterData.get(ctx)
-        val st = m.matchStore(r.city)
+        val clubbed = r.city.contains("+")
+        val st = if (clubbed) null else m.matchStore(r.city)
         val vd = m.resolveVendor(r.vendor, r.message, r.chat, transporter)
         h.from.text = Masters.DISPATCH_FROM
         h.to.text = android.text.SpannableStringBuilder().apply {
@@ -274,6 +275,7 @@ class FeedAdapter(private val onOpen: (VehicleRecord) -> Unit = {}) : RecyclerVi
                         regular(ctx)?.let { setSpan(FontSpan(it), i, length, 0) }
                     }
                 }
+                clubbed -> append(PostedDetails.routeOf(ctx, r.city))   // "5528 Kachiguda + 5003 Amberpet D-Mart"
                 r.city.isNotBlank() -> append(r.city)
                 else -> {
                     append(ctx.getString(R.string.location_unknown))
