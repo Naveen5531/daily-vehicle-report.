@@ -100,4 +100,29 @@ class SheetReaderTest {
         assertEquals(2, r.stops[0].sheetVehicles)
         assertEquals("Only Cons.", r.stops[1].remark)
     }
+
+    @Test fun storeVolumeBoxesSheetWithoutShipToIsRead() {
+        val rows = listOf(
+            listOf("22", "", "10210", "4286", "", ""),
+            listOf("Store", "D_mart Name", "Volume (CFT)", "Boxes 1041", "circle", "Integration Remark 1041 DC"),
+            listOf("5102", "Kurnool D-Mart", "280", "110", "AP", "Run AS Per ARS"),
+            listOf("5110", "Adoni", "409", "166", "AP", "Run AS Per ARS")
+        )
+        val r = SheetReader.fromRows(listOf(rows))
+        assertEquals(listOf("5102", "5110"), r.stops.map { it.code })
+        assertEquals("Kurnool D-Mart", r.stops[0].name)
+        assertEquals(280.0, r.stops[0].volume, 1e-9)
+        assertEquals(10210.0, r.sheetTotal!!, 1e-9)
+        val t = listOf(
+            listOf("Store", "D_mart Name", "Tomorrow Projected Volume (CFT)", "Tomorrow Projected Boxes 1041", "Integration Remark 1041 DC", "Circle"),
+            listOf("5232", "Chirala", "294", "124", "Run AS Per ARS", "AP")
+        )
+        assertEquals(294.0, SheetReader.fromRows(listOf(t)).stops.single().volume, 1e-9)
+    }
+
+    @Test fun photoLineWithVolumeBoxesCircleRemark() {
+        val s = SheetReader.parseRow(SheetReader.tokens(listOf("5102", "Kurnool", "D-Mart", "280", "110", "AP", "Run", "AS", "Per", "ARS")))!!
+        assertEquals("5102", s.code); assertEquals("Kurnool D-Mart", s.name)
+        assertEquals(280.0, s.volume, 1e-9); assertEquals(110, s.boxes); assertEquals("AP", s.circle)
+    }
 }

@@ -27,6 +27,7 @@ object SheetReader {
     }
 
     private val CODE = Regex("^[A-Za-z|!]{0,2}(\\d{2,6})([oO](?=[A-Z|]|$))?[|!]?(.*)$")
+    private val REMARK_START = setOf("Run", "Drop", "MDBT", "Audit", "RUN", "DROP")
     private val NUMBER = Regex("^[0-9][0-9,]*([.][0-9]+)?$")
     private val CIRCLE_START = Regex("^([0-9oO])?([|/J!lI1])?([A-Z][A-Za-z]+.*)$")
 
@@ -197,16 +198,18 @@ object SheetReader {
                 tail[0] = c.groupValues[3]
             }
         }
-        val remarkAt = tail.indexOfFirst { it.equals("only", true) || it.startsWith("cons", true) }
+        val remarkAt = tail.indexOfFirst { it.equals("only", true) || it.startsWith("cons", true) || it in REMARK_START }
         val circle = (if (remarkAt >= 0) tail.take(remarkAt) else tail).joinToString(" ")
         val remark = if (remarkAt >= 0) tail.drop(remarkAt).joinToString(" ").trim() else ""
         // Volume and weight get a lost decimal point back.
-        val boxes = nums.getOrNull(2)?.takeIf { decimals(it.first) == 0 && it.second < 100000 }?.second?.toInt()
-        var weight = nums.getOrNull(1)?.second
+        // Sheets with only Volume and Boxes (no weight): the second whole number is the boxes.
+        val noWeight = nums.size == 2 && decimals(nums[1].first) == 0 && nums[1].second < 100000
+        val boxes = if (noWeight) nums[1].second.toInt() else nums.getOrNull(2)?.takeIf { decimals(it.first) == 0 && it.second < 100000 }?.second?.toInt()
+        var weight = if (noWeight) null else nums.getOrNull(1)?.second
         var volume = nums[0].second
-        if (decimals(nums[0].first) == 0 && volume >= 1000) volume = repair(volume, weight?.takeIf { decimals(nums[1].first) > 0 }, boxes, 1.5, 40.0)
+        if (decimals(nums[0].first) == 0 && volume >= 1000) volume = repair(volume, weight?.takeIf { nums.size > 1 && decimals(nums[1].first) > 0 }, boxes, 1.5, 40.0)
         val w0 = weight
-        if (w0 != null && decimals(nums[1].first) == 0 && w0 > volume * 40)
+        if (w0 != null && !noWeight && decimals(nums[1].first) == 0 && w0 > volume * 40)
             weight = listOf(w0 / 1000, w0 / 100, w0 / 10).minByOrNull { abs(ln((it / volume) / 4.0)) }
         return PlanStop(code, cleanName(name), volume, weight ?: 0.0, boxes ?: 0, vehicles, cleanCircle(circle), remark)
     }
@@ -271,12 +274,12 @@ object SheetReader {
         val out = mutableListOf<PlanStop>()
         var total: Double? = null
         for (rows in sheets) {
-            val hi = rows.indexOfFirst { r -> r.any { it.lowercase().contains("vol") } && r.any { c -> c.lowercase().let { it.contains("ship") || it.contains("code") } } }
+            val hi = rows.indexOfFirst { r -> r.any { it.lowercase().contains("vol") } && r.any { c -> c.lowercase().let { it.contains("ship") || it.contains("code") || it.contains("store") || it.contains("site") } } }
             if (hi < 0) continue
             val h = rows[hi].map { it.lowercase().trim() }
             fun col(vararg keys: String, not: String? = null) = h.indexOfFirst { c -> keys.any { c.contains(it) } && (not == null || !c.contains(not)) }
-            val cCode = col("ship-to", "ship to", "code", "site", not = "name").let { if (it >= 0) it else col("ship") }
-            val cName = col("name", "party", "store")
+            val cCode = col("ship-to", "ship to", "code", "site", "store", not = "name").let { if (it >= 0) it else col("ship") }
+            val cName = col("name", "party").let { if (it >= 0) it else h.indices.firstOrNull { i -> i != cCode && (h[i].contains("store") || h[i].contains("mart")) } ?: -1 }
             val cVol = col("vol")
             val cWt = col("wght", "weight", "wgt")
             val cBox = col("box")
