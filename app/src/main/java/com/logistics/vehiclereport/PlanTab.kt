@@ -285,7 +285,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         // Total volume on the sheet(s) against the volume the plan has put on vehicles.
         val sheetVol = if (plan.sources.isNotEmpty() && plan.sources.all { it.sheetTotal != null }) plan.sources.sumOf { it.sheetTotal ?: 0.0 } else plan.stops.sumOf { it.volume }
         val totalsLine = a.getString(R.string.plan_totals, vol(sheetVol), vol(r.totalVolume)) +
-            (if (held.isNotEmpty()) " · " + a.getString(R.string.plan_totals_held, vol(held.sumOf { it.volume })) else "")
+            (sheetVol - r.totalVolume).takeIf { it > 0.5 }?.let { " · " + a.getString(R.string.plan_totals_held, vol(it)) }.orEmpty()
         val inUse = PlanData.types(a).filter { it.on && it.capacity > 0 }.maxByOrNull { it.capacity }
         heroText.text = if (r.vehicles == 0) a.getString(R.string.plan_hero_empty)
             else a.getString(R.string.plan_hero_text, vol(r.totalVolume), pct(r.fill), plan.stops.size) +
