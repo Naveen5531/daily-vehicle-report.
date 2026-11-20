@@ -64,7 +64,9 @@ data class DedicatedVehicle(
      * false = record only: seen in the group (added automatically) – used to match last 4 digits,
      * fill details and cost, never shown as Not Reported.
      */
-    val dedicated: Boolean = true
+    val dedicated: Boolean = true,
+    /** When the latest WhatsApp post that named a store was sent (not saved; only for [route] read from posts). */
+    val routeAt: Long = 0L
 ) {
     fun mergedWith(newer: DedicatedVehicle) = DedicatedVehicle(
         number = number,
@@ -122,6 +124,7 @@ object VehicleStore {
     private const val KEY_CHATS = "known_chats_json"
     private const val KEY_SENDERS = "known_senders_json"
     private const val KEY_ALLOWED_SENDERS = "allowed_senders"
+    private const val KEY_ROUTE_EDITED = "route_edited_json"   // {"AP39WP7778": millis} – when the store was set by hand
     private const val MAX_CHATS = 60
 
     private const val MAX_RECORDS = 5000
@@ -254,10 +257,24 @@ object VehicleStore {
         getVehicles(context).firstOrNull { it.number == number }
 
     /** Adds or updates one vehicle. Returns true if it was new. */
+    /** When the store / route of a vehicle was last set by hand (0 = never): a later WhatsApp post then replaces it, an earlier one does not. */
+    fun routeEditedAt(context: Context, number: String): Long = try {
+        JSONObject(prefs(context).getString(KEY_ROUTE_EDITED, null) ?: "{}").optLong(number, 0L)
+    } catch (e: Exception) { 0L }
+
+    private fun noteRouteEdit(context: Context, number: String, oldRoute: String?, newRoute: String) {
+        if (newRoute.isBlank() || newRoute == oldRoute) return
+        val p = prefs(context)
+        val o = try { JSONObject(p.getString(KEY_ROUTE_EDITED, null) ?: "{}") } catch (e: Exception) { JSONObject() }
+        o.put(number, System.currentTimeMillis())
+        p.edit().putString(KEY_ROUTE_EDITED, o.toString()).apply()
+    }
+
     fun saveVehicle(context: Context, vehicleIn: DedicatedVehicle): Boolean = synchronized(lock) {
         val vehicle = vehicleIn.copy(number = canonical(vehicleIn.number))
         val list = loadVehicles(prefs(context)).toMutableList()
         val i = list.indexOfFirst { it.number == vehicle.number }
+        noteRouteEdit(context, vehicle.number, list.getOrNull(i)?.route, vehicle.route)
         if (i >= 0) list[i] = vehicle else list += vehicle
         saveDedicatedAndRematch(context, list)
         i < 0
@@ -272,6 +289,7 @@ object VehicleStore {
         val list = loadVehicles(prefs(context)).toMutableList()
         val at = list.indexOfFirst { it.number == oldNumber }
         if (vehicle.number != oldNumber && list.any { it.number == vehicle.number }) return@synchronized false
+        noteRouteEdit(context, vehicle.number, list.getOrNull(at)?.route, vehicle.route)
         if (at >= 0) list[at] = vehicle else list += vehicle
         saveDedicatedAndRematch(context, list)
         true
@@ -323,9 +341,10 @@ object VehicleStore {
         var changed = 0
         val out = list.map { v ->
             val seen = posted[v.number] ?: return@map v
-            (if (v.dedicated) PostedDetails.fillBlanks(v, seen) else v.copy(
+            (if (v.dedicated) PostedDetails.fillBlanks(v, seen, routeEditedAt(context, v.number)) else v.copy(
                 type = seen.type.ifBlank { v.type }, driver = seen.driver.ifBlank { v.driver }, mobile = seen.mobile.ifBlank { v.mobile },
-                transporter = seen.transporter.ifBlank { v.transporter }, route = seen.route.ifBlank { v.route }
+                transporter = seen.transporter.ifBlank { v.transporter },
+                route = if (seen.route.isNotBlank() && seen.routeAt > routeEditedAt(context, v.number)) seen.route else v.route.ifBlank { seen.route }
             )).also { if (it != v) changed++ }
         }
         if (changed > 0) p.edit().putString(KEY_DEDICATED, vehiclesJson(out).toString()).apply()

@@ -251,7 +251,9 @@ object VehicleDetailSheet {
         val rate = store?.let { st -> RateCard.get(a).lookup(st.store.code, shown.type) }
         for (f in fields) {
             // The store / route is the current trip: the latest WhatsApp post wins over what is saved in the list.
-            val postedWins = f.label == R.string.field_route && f.posted.isNotBlank()
+            // A post only replaces the store you set by hand when it was sent after that edit.
+            val postedWins = f.label == R.string.field_route && f.posted.isNotBlank() &&
+                (f.postedAt ?: 0L) > VehicleStore.routeEditedAt(a, number)
             val useList = f.inList.isNotBlank() && !postedWins
             val value = if (postedWins) f.posted else f.inList.ifBlank { f.posted }
             // Extra line: vendor code, or the store's code and region.

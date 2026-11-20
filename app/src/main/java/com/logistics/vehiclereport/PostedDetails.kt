@@ -25,7 +25,8 @@ object PostedDetails {
             driver = pick { it.driver },
             mobile = pick { it.mobile },
             transporter = vendor,
-            route = route
+            route = route,
+            routeAt = sure.firstOrNull { it.city.isNotBlank() }?.time ?: 0L
         )
     }
 
@@ -53,12 +54,13 @@ object PostedDetails {
      * Fills the empty details of [v] with [p]; type, driver, mobile and vendor you typed or imported are never replaced.
      * The store / route is different: it is the vehicle's current trip, so it always follows the latest WhatsApp post.
      */
-    fun fillBlanks(v: DedicatedVehicle, p: DedicatedVehicle) = v.copy(
+    fun fillBlanks(v: DedicatedVehicle, p: DedicatedVehicle, routeEditedAt: Long = 0L) = v.copy(
         type = v.type.ifBlank { p.type },
         driver = v.driver.ifBlank { p.driver },
         mobile = v.mobile.ifBlank { p.mobile },
         transporter = v.transporter.ifBlank { p.transporter },
-        route = p.route.ifBlank { v.route }
+        // The store you set by hand stays until a newer post names another one.
+        route = if (p.route.isNotBlank() && p.routeAt > routeEditedAt) p.route else v.route.ifBlank { p.route }
     )
 
     /** True for every vehicle, so each one is checked against its latest post and the store / route stays current. */
