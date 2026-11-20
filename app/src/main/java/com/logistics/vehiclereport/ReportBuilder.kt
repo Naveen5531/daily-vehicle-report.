@@ -244,7 +244,7 @@ object ReportBuilder {
             else st?.let { if (it.others > 0) "${it.store.name} (+${it.others} more – check)" else it.store.name }.orEmpty()
         // Vehicle type: as written in the message ("22 FT"), else the vehicle list's type.
         val type = size.ifBlank { listType }
-        val rate = if (club) null else st?.let { lk.rates?.lookup(it.store.code, type) }
+        val rate = if (club) null else st?.let { lk?.rates?.lookup(it.store.code, type) }
         val codes = if (club) sts.joinToString(" + ") { it.store.code } else st?.store?.code.orEmpty()
         val regions = if (club) sts.map { it.store.region }.filter { it.isNotBlank() }.distinct().joinToString(" + ") else st?.store?.region.orEmpty()
         return arrayOf(Masters.DISPATCH_FROM, city, codes, storeName, regions,
