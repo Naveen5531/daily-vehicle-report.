@@ -34,6 +34,7 @@
     <color name="sky">#CFE0FF</color>
     <color name="gray_bg">#EEF2F0</color>
     <color name="warn_bg">#FFF6E0</color>
+    <color name="warn_text">#8A5A00</color>
     <color name="warn_line">#F5DFA6</color>
     <color name="blue">#2950A8</color>
     <color name="blue_bg">#E6F0FF</color>

@@ -769,6 +769,9 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="held_club">🔗 Club with a vehicle</string>
     <string name="held_club_title">Club %1$s (%2$s) with:</string>
     <string name="held_club_item">Vehicle %1$d · %2$s · load %3$s · %4$s</string>
+    <string name="held_suggest">Can club with (nearest first, road km)</string>
+    <string name="held_suggest_none">No vehicle can take it within %1$s road km and capacity. Tap "Club with a vehicle" to choose one anyway.</string>
+    <string name="held_suggest_item">Vehicle %1$d · %2$s · %3$s</string>
     <string name="held_club_km">%1$s km away</string>
     <string name="held_club_none">No vehicles on the plan yet</string>
     <string name="held_club_done">%1$s clubbed (vehicle numbers may change)</string>

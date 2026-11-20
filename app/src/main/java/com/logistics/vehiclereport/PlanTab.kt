@@ -313,7 +313,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         showMap(r, stops)
 
         // Where the stores came from, and whether each sheet's total matches what was read.
-        source.text = if (plan.sources.isEmpty()) "" else buildString {
+        val sourceText = if (plan.sources.isEmpty()) "" else buildString {
             append(a.getString(R.string.plan_source, plan.stops.size, plan.sources.size))
             for (s in plan.sources) {
                 val t = s.sheetTotal
@@ -323,6 +323,12 @@ class PlanTab(private val a: MainActivity, root: View) {
                     else append(" · ").append(a.getString(R.string.plan_total_bad, vol(t), vol(s.readTotal)))
                 }
             }
+        }
+        // Box design: the headline in bold ink, the sheets under it in muted text.
+        source.text = android.text.SpannableString(sourceText).apply {
+            val nl = sourceText.indexOf('\n').let { if (it < 0) sourceText.length else it }
+            setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, nl, 0)
+            setSpan(android.text.style.ForegroundColorSpan(Ui.color(a, R.color.ink)), 0, nl, 0)
         }
         source.visibility = if (plan.sources.isEmpty()) View.GONE else View.VISIBLE
         empty.visibility = if (r.loads.isEmpty()) View.VISIBLE else View.GONE
@@ -660,32 +666,56 @@ class PlanTab(private val a: MainActivity, root: View) {
         }.toTypedArray()
         MaterialAlertDialogBuilder(a)
             .setTitle(a.getString(R.string.held_club_title, s.shownName, vol(s.volume)))
-            .setItems(labels) { _, which ->
-                val l = options[which].value
-                val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
-                // The part of the vehicle that can take more (a big store's rest, not its full loads).
-                val st = l.parts.first().first
-                val room = if (l.codes.size == 1 && st.volume > max + 1e-6 && max > 0)
-                    st.volume - Math.floor((st.volume - 1e-6) / max) * max else l.volume
-                if (room + s.volume > max + 1e-6) {
-                    Toast.makeText(a, a.getString(R.string.plan_too_much, vol(room + s.volume), vol(max)), Toast.LENGTH_LONG).show(); return@setItems
-                }
-                val codes = l.codes.toSet() + s.code
-                val most = maxOf(PlanData.maxStops(a), if (zones[s.code] == Zone.UPCOUNTRY) PlanData.upcountryMaxStops(a) else 0)
-                if (codes.size > most) {
-                    Toast.makeText(a, a.getString(R.string.plan_too_many_stores, codes.size, most), Toast.LENGTH_LONG).show(); return@setItems
-                }
-                val plan = PlanData.load(a)
-                PlanData.save(a, plan.copy(
-                    clubs = plan.clubs.filter { it.intersect(codes).isEmpty() } + listOf(codes),
-                    noClub = plan.noClub - codes
-                ))
-                PlanData.setForced(a, PlanData.forced(a) + s.code)
-                refresh()
-                Toast.makeText(a, a.getString(R.string.held_club_done, s.shownName, options[which].index + 1), Toast.LENGTH_SHORT).show()
-            }
+            .setItems(labels) { _, which -> clubHeldOnto(s, options[which].index) }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    /** The room left on a vehicle for a held store: a big store's rest (not its full loads), else the whole load. */
+    private fun roomOn(l: PlanLoad, max: Double): Double {
+        val st = l.parts.first().first
+        return if (l.codes.size == 1 && st.volume > max + 1e-6 && max > 0)
+            st.volume - Math.floor((st.volume - 1e-6) / max) * max else l.volume
+    }
+
+    /** A vehicle a held store could ride on: its number, the load, the road km to its nearest store, and whether it fits. */
+    private class HeldFit(val index: Int, val load: PlanLoad, val roadKm: Double?, val fits: Boolean)
+
+    private fun heldFits(s: PlanStop): List<HeldFit> {
+        val r = result ?: return emptyList()
+        val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
+        val most = maxOf(PlanData.maxStops(a), if (zones[s.code] == Zone.UPCOUNTRY) PlanData.upcountryMaxStops(a) else 0)
+        val limit = PlanData.maxClubKm(a)
+        val at = places[s.code]
+        return r.loads.withIndex().map { (i, l) ->
+            val road = at?.let { p -> l.codes.mapNotNull { places[it] }.minOfOrNull { VehiclePlanner.km(p, it) * VehiclePlanner.ROAD_FACTOR } }
+            val fits = roomOn(l, max) + s.volume <= max + 1e-6 && l.codes.toSet().plus(s.code).size <= most &&
+                (limit <= 0 || road == null || road <= limit + 1e-6)
+            HeldFit(i, l, road, fits)
+        }.sortedWith(compareByDescending<HeldFit> { it.fits }.thenBy { it.roadKm ?: Double.MAX_VALUE })
+    }
+
+    private fun clubHeldOnto(s: PlanStop, index: Int) {
+        val r = result ?: return
+        val l = r.loads.getOrNull(index) ?: return
+        val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
+        val room = roomOn(l, max)
+        if (room + s.volume > max + 1e-6) {
+            Toast.makeText(a, a.getString(R.string.plan_too_much, vol(room + s.volume), vol(max)), Toast.LENGTH_LONG).show(); return
+        }
+        val codes = l.codes.toSet() + s.code
+        val most = maxOf(PlanData.maxStops(a), if (zones[s.code] == Zone.UPCOUNTRY) PlanData.upcountryMaxStops(a) else 0)
+        if (codes.size > most) {
+            Toast.makeText(a, a.getString(R.string.plan_too_many_stores, codes.size, most), Toast.LENGTH_LONG).show(); return
+        }
+        val plan = PlanData.load(a)
+        PlanData.save(a, plan.copy(
+            clubs = plan.clubs.filter { it.intersect(codes).isEmpty() } + listOf(codes),
+            noClub = plan.noClub - codes
+        ))
+        PlanData.setForced(a, PlanData.forced(a) + s.code)
+        refresh()
+        Toast.makeText(a, a.getString(R.string.held_club_done, s.shownName, index + 1), Toast.LENGTH_SHORT).show()
     }
 
     private fun clubSelected() {
@@ -1037,28 +1067,72 @@ class PlanTab(private val a: MainActivity, root: View) {
             setTextColor(Ui.color(a, R.color.muted)); textSize = 12.5f
             setPadding((20 * d).toInt(), 0, (20 * d).toInt(), (6 * d).toInt())
         })
-        for (s in held.sortedBy { it.volume }) {
-            list.addView(TextView(a).apply {
-                text = "${s.code} · ${s.shownName}\n" + Ui.joinNonBlank(zones[s.code]?.let { zoneName(it) }.orEmpty(), s.city,
-                    a.getString(R.string.held_volume, vol(s.volume)))
-                setTextColor(Ui.color(a, R.color.ink)); textSize = 13.5f
-                setBackgroundResource(android.R.drawable.list_selector_background)
-                setPadding((20 * d).toInt(), (8 * d).toInt(), (20 * d).toInt(), (8 * d).toInt())
-                setOnClickListener {
-                    MaterialAlertDialogBuilder(a)
-                        .setTitle(a.getString(R.string.held_plan_title, s.code) + " · " + s.shownName + " · " + vol(s.volume))
-                        .setItems(arrayOf(a.getString(R.string.held_club), a.getString(R.string.held_plan_yes), a.getString(R.string.plan_remove_store))) { _, which ->
-                            when (which) {
-                                0 -> clubHeld(s)
-                                1 -> { PlanData.setForced(a, PlanData.forced(a) + s.code); refresh() }
-                                else -> { val p = PlanData.load(a); PlanData.save(a, p.copy(stops = p.stops.filter { it.code != s.code })); refresh() }
-                            }
-                        }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show()
-                }
-            })
+        for (s in held.sortedByDescending { it.volume }) list.addView(heldCard(s, d))
+    }
+
+    /** One held-back store as a card: name, zone, volume, and the vehicles it could club with (nearest first) with the distance. */
+    private fun heldCard(s: PlanStop, d: Float): View {
+        fun dp(x: Int) = (x * d).toInt()
+        val card = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = 18 * d; setColor(Ui.color(a, R.color.surface)); setStroke(dp(1), Ui.color(a, R.color.line))
+            }
+            setPadding(dp(16), dp(14), dp(16), dp(12))
         }
+        val head = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+        val names = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
+        names.addView(TextView(a).apply {
+            text = "${s.code} · ${s.shownName}"; setTextColor(Ui.color(a, R.color.ink)); textSize = 15f
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.jakarta_bold)
+        })
+        names.addView(TextView(a).apply {
+            text = Ui.joinNonBlank(zones[s.code]?.let { zoneName(it) }.orEmpty(), s.city)
+            setTextColor(Ui.color(a, R.color.muted)); textSize = 12.5f
+        })
+        head.addView(names, LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(TextView(a).apply {
+            text = vol(s.volume); setTextColor(Ui.color(a, R.color.ink)); textSize = 22f
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.bricolage_extrabold)
+        })
+        card.addView(head)
+        card.addView(TextView(a).apply {
+            text = a.getString(R.string.held_suggest)
+            setTextColor(Ui.color(a, R.color.muted)); textSize = 11.5f
+            typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.jakarta_semibold)
+            setPadding(0, dp(10), 0, dp(4))
+        })
+        val fits = heldFits(s)
+        val good = fits.filter { it.fits }.take(3)
+        if (good.isEmpty()) {
+            card.addView(TextView(a).apply {
+                text = a.getString(R.string.held_suggest_none, km(PlanData.maxClubKm(a)))
+                setTextColor(Ui.color(a, R.color.warn_text)); textSize = 12.5f
+            })
+        } else {
+            val group = com.google.android.material.chip.ChipGroup(a).apply { chipSpacingHorizontal = dp(6); chipSpacingVertical = dp(2) }
+            for (f in good) {
+                val main = f.load.parts.groupBy { it.first.code }.maxByOrNull { (_, ps) -> ps.sumOf { it.second } }?.value?.first()?.first
+                group.addView(com.google.android.material.chip.Chip(a).apply {
+                    text = a.getString(R.string.held_suggest_item, f.index + 1, main?.shownName.orEmpty(), vol(f.load.volume + s.volume)) +
+                        (f.roadKm?.let { " · ≈" + km(it) + " km" } ?: "")
+                    textSize = 12f
+                    chipBackgroundColor = ColorStateList.valueOf(Ui.color(a, R.color.wait_bg))
+                    setTextColor(Ui.color(a, R.color.wait)); chipStrokeWidth = 0f
+                    setOnClickListener { clubHeldOnto(s, f.index) }
+                })
+            }
+            card.addView(group)
+        }
+        val actions = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.END }
+        fun action(t: Int, run: () -> Unit) = actions.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            setText(t); textSize = 12f; setOnClickListener { run() }
+        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6) })
+        action(R.string.held_club) { clubHeld(s) }
+        action(R.string.held_plan_yes) { PlanData.setForced(a, PlanData.forced(a) + s.code); refresh() }
+        card.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(16), dp(6), dp(16), dp(6)) }
+        return card
     }
 
     /** The DC's local city and state, and how near a store with no city must be to count as local. */
