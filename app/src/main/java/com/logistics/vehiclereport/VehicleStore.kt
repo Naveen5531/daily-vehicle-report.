@@ -115,7 +115,7 @@ object VehicleStore {
      *  8 = driver mobile written as "+91…" straight after the place ("VIZAG+919908764329"),
      *  9 = vendor written on the vehicle's own line ("1234 Hyderabad Sri Sai Transport", "… - Vendor: Navata"),
      *  10 = "9275 Hafeezpeth\n\n9573 Replacement": the vehicle above joins 9573's entry as its replacement. */
-    private const val RECORDS_VERSION = 13   // 11: "A + B" clubbed posts keep both places
+    private const val RECORDS_VERSION = 14   // 11: "A + B" clubbed posts keep both places
     private var rememberSeenVehiclesLater = false
     const val KEY_DEDICATED = "dedicated_json"
     const val KEY_UNMATCHED = "unmatched_json"
@@ -787,7 +787,9 @@ object VehicleStore {
             val unique = JSONArray()
             val idx = HashMap<String, Int>()
             for (o in sorted) addOrMerge(unique, idx, o)
-            p.edit().putString(KEY_RECORDS, unique.toString()).putInt(KEY_RECORDS_VERSION, RECORDS_VERSION).apply()
+            // Messages read again later (open the chat): a day's entry keeps only its first message, so a later post
+            // (such as "Replacement for 1620") is only understood when it is read again. Forget what was seen.
+            p.edit().putString(KEY_RECORDS, unique.toString()).putString(KEY_SEEN, "{}").putInt(KEY_RECORDS_VERSION, RECORDS_VERSION).apply()
             if (rememberSeenVehiclesLater) rememberSeenVehicles(context, p)
         }
     }
