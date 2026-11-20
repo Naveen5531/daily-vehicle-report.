@@ -199,6 +199,12 @@ class MessageParserTest {
         assertEquals("TG12U1813", r2.first { it.typed == "1620" }.replacement)
     }
 
+    @Test fun replacementGivenAsLast4OfListedVehicle() {
+        val r = MessageParser.parse("Replacement of 2587\n\n3635 - miyalaguda",
+            mapOf("2587" to listOf("TS08UK2587"), "3635" to listOf("TS09XX3635")), setOf("TS08UK2587", "TS09XX3635")).captures
+        assertEquals("TS09XX3635", r.first { it.typed == "2587" }.replacement)
+    }
+
     @Test fun clubbedPlacesWithSpacesKeepBoth() {
         assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet\n2201").captures.map { it.city })
         assertEquals(listOf("Kachiguda + Amberpet"), any4("Kachiguda + Amberpet 2201").captures.map { it.city })

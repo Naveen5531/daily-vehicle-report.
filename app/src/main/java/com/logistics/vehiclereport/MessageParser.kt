@@ -229,8 +229,10 @@ object MessageParser {
             if (c.replacement.isNotBlank()) continue
             val next = anchors.getOrNull(k + 1)?.takeIf { it.capture >= 0 } ?: continue
             val n = captures[next.capture]
-            if (!n.full || n.typed == c.typed) continue   // the new vehicle may already be in the list (seen before): the word "Replacement" decides
-            captures[a.capture] = c.copy(replacement = n.typed)
+            if (n.typed == c.typed) continue   // the new vehicle may already be in the list (seen before): the word "Replacement" decides
+            // The new vehicle written in full, or by its last 4 digits ("3635 - miyalaguda") that fit one listed vehicle.
+            val plate = if (n.full) n.typed else n.candidates.singleOrNull() ?: continue
+            captures[a.capture] = c.copy(replacement = plate)
         }
 
         // 3. Lines between vehicles: a blank line splits them (before -> previous vehicle, after -> next).
