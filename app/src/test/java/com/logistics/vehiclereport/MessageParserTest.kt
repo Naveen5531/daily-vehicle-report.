@@ -193,6 +193,10 @@ class MessageParserTest {
             mapOf("1620" to listOf("TS12UD1620")), setOf("TS12UD1620")).captures
         assertEquals("TG12U1813", r.first { it.typed == "1620" }.replacement)
         assertEquals("Guntur", r.first { it.typed == "TG12U1813" }.city)
+        // The new vehicle was already seen in the group (so it is in the list as a record-only vehicle): same result.
+        val r2 = MessageParser.parse("Replacement for 1620\n\nTG12U1813\n8374443911\nGuntur at dc\n\nSyndi",
+            mapOf("1620" to listOf("TS12UD1620")), setOf("TS12UD1620", "TG12U1813")).captures
+        assertEquals("TG12U1813", r2.first { it.typed == "1620" }.replacement)
     }
 
     @Test fun clubbedPlacesWithSpacesKeepBoth() {

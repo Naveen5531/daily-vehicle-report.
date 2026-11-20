@@ -229,7 +229,7 @@ object MessageParser {
             if (c.replacement.isNotBlank()) continue
             val next = anchors.getOrNull(k + 1)?.takeIf { it.capture >= 0 } ?: continue
             val n = captures[next.capture]
-            if (!n.full || n.typed in dedicated || n.typed == c.typed) continue
+            if (!n.full || n.typed == c.typed) continue   // the new vehicle may already be in the list (seen before): the word "Replacement" decides
             captures[a.capture] = c.copy(replacement = n.typed)
         }
 
