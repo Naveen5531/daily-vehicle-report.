@@ -32,6 +32,7 @@ class PlanTab(private val a: MainActivity, root: View) {
     private val heroLabel: TextView = root.findViewById(R.id.planHeroLabel)
     private val vehiclesText: TextView = root.findViewById(R.id.planVehicles)
     private val sheetText: TextView = root.findViewById(R.id.planSheet)
+    private val tilesBox: LinearLayout = root.findViewById(R.id.planTiles)
     private val heroText: TextView = root.findViewById(R.id.planHeroText)
     private val typeChips: ChipGroup = root.findViewById(R.id.planTypes)
     private val clubSwitch: MaterialSwitch = root.findViewById(R.id.planClubSwitch)
@@ -284,12 +285,31 @@ class PlanTab(private val a: MainActivity, root: View) {
         }
         // Total volume on the sheet(s) against the volume the plan has put on vehicles.
         val sheetVol = if (plan.sources.isNotEmpty() && plan.sources.all { it.sheetTotal != null }) plan.sources.sumOf { it.sheetTotal ?: 0.0 } else plan.stops.sumOf { it.volume }
-        val totalsLine = a.getString(R.string.plan_totals, vol(sheetVol), vol(r.totalVolume)) +
-            (sheetVol - r.totalVolume).takeIf { it > 0.5 }?.let { " · " + a.getString(R.string.plan_totals_held, vol(it)) }.orEmpty()
+        val heldVol = (sheetVol - r.totalVolume).coerceAtLeast(0.0)
+        val tiles = tilesBox
+        tiles.removeAllViews()
+        val dpx = a.resources.displayMetrics.density
+        fun tile(label: Int, value: String, warn: Boolean) {
+            val t = LinearLayout(a).apply {
+                orientation = LinearLayout.VERTICAL
+                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 14 * dpx; setColor(if (warn) 0x33FFC24B else 0x24FFFFFF) }
+                setPadding((12 * dpx).toInt(), (8 * dpx).toInt(), (12 * dpx).toInt(), (8 * dpx).toInt())
+            }
+            t.addView(TextView(a).apply {
+                text = value; setTextColor(0xFFFFFFFF.toInt()); textSize = 17f
+                typeface = androidx.core.content.res.ResourcesCompat.getFont(a, R.font.bricolage_extrabold)
+            })
+            t.addView(TextView(a).apply { setText(label); setTextColor(0xB3FFFFFF.toInt()); textSize = 11f })
+            tiles.addView(t, LinearLayout.LayoutParams(0, -2, 1f).apply { if (tiles.childCount > 0) marginStart = (8 * dpx).toInt() })
+        }
+        tiles.visibility = if (r.vehicles == 0) View.GONE else View.VISIBLE
+        tile(R.string.tile_sheet, vol(sheetVol), false)
+        tile(R.string.tile_planned, vol(r.totalVolume), false)
+        tile(R.string.tile_held, vol(heldVol), heldVol > 0.5)
         val inUse = PlanData.types(a).filter { it.on && it.capacity > 0 }.maxByOrNull { it.capacity }
         heroText.text = if (r.vehicles == 0) a.getString(R.string.plan_hero_empty)
             else a.getString(R.string.plan_hero_text, vol(r.totalVolume), pct(r.fill), plan.stops.size) +
-                (inUse?.let { "\n" + a.getString(R.string.plan_hero_max, it.name) } ?: "") + "\n" + totalsLine
+                (inUse?.let { "\n" + a.getString(R.string.plan_hero_max, it.name) } ?: "")
         typeChips.removeAllViews()
         val d = a.resources.displayMetrics.density
         for ((t, n) in r.byType) {
@@ -497,6 +517,10 @@ class PlanTab(private val a: MainActivity, root: View) {
             l.fill >= 0.85 -> R.color.ok to R.color.ok_bg
             l.fill >= 0.6 -> R.color.chk to R.color.chk_bg
             else -> R.color.no to R.color.no_bg
+        }
+        // A vehicle under 70% full: the whole card is tinted amber so it stands out.
+        if (l.type != null && !over && l.fill < 0.7) {
+            v.setCardBackgroundColor(Ui.color(a, R.color.warn_bg)); v.strokeColor = Ui.color(a, R.color.warn_line)
         }
         fill.setTextColor(Ui.color(a, fg))
         fill.backgroundTintList = ColorStateList.valueOf(Ui.color(a, bg))
@@ -1067,7 +1091,35 @@ class PlanTab(private val a: MainActivity, root: View) {
             setTextColor(Ui.color(a, R.color.muted)); textSize = 12.5f
             setPadding((20 * d).toInt(), 0, (20 * d).toInt(), (6 * d).toInt())
         })
+        if (held.size > 1) list.addView(MaterialButton(a).apply {
+            setText(R.string.held_all); setOnClickListener { clubAllHeld(held) }
+        }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * d).toInt(), (4 * d).toInt(), (16 * d).toInt(), (4 * d).toInt()) })
         for (s in held.sortedByDescending { it.volume }) list.addView(heldCard(s, d))
+    }
+
+    /** Every held store goes on its nearest fitting vehicle (biggest first); a vehicle's room is used up as stores are added. */
+    private fun clubAllHeld(held: List<PlanStop>) {
+        val r = result ?: return
+        val max = PlanData.types(a).filter { it.on }.maxOfOrNull { it.capacity } ?: 0.0
+        val added = HashMap<Int, MutableList<PlanStop>>()
+        for (s in held.sortedByDescending { it.volume }) {
+            val pick = heldFits(s).firstOrNull { f ->
+                val extra = added[f.index].orEmpty()
+                f.fits && roomOn(f.load, max) + extra.sumOf { it.volume } + s.volume <= max + 1e-6 &&
+                    f.load.codes.size + extra.size + 1 <= maxOf(PlanData.maxStops(a), if (zones[s.code] == Zone.UPCOUNTRY) PlanData.upcountryMaxStops(a) else 0)
+            } ?: continue
+            added.getOrPut(pick.index) { mutableListOf() } += s
+        }
+        if (added.isEmpty()) { Toast.makeText(a, R.string.held_all_none, Toast.LENGTH_SHORT).show(); return }
+        var plan = PlanData.load(a)
+        for ((i, ss) in added) {
+            val codes = r.loads[i].codes.toSet() + ss.map { it.code }
+            plan = plan.copy(clubs = plan.clubs.filter { it.intersect(codes).isEmpty() } + listOf(codes), noClub = plan.noClub - codes)
+        }
+        PlanData.save(a, plan)
+        PlanData.setForced(a, PlanData.forced(a) + added.values.flatten().map { it.code })
+        refresh()
+        Toast.makeText(a, a.getString(R.string.held_all_done, added.values.sumOf { it.size }), Toast.LENGTH_SHORT).show()
     }
 
     /** One held-back store as a card: name, zone, volume, and the vehicles it could club with (nearest first) with the distance. */

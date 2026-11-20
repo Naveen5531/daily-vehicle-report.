@@ -256,7 +256,7 @@
     </plurals>
     <string name="plan_clubbed">Clubbed</string>
     <string name="plan_clubbed_km">Clubbed · +%1$s km</string>
-    <string name="plan_clubbed_road">Clubbed · stores %1$s km apart by road</string>
+    <string name="plan_clubbed_road">🔗 %1$s km apart</string>
     <string name="plan_clubbed_straight">Clubbed · stores ~%1$s km apart (straight line, road km loading)</string>
     <plurals name="plan_shots_taken">
         <item quantity="one">%1$d photo taken</item>
@@ -772,6 +772,12 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="held_suggest">Can club with (nearest first, road km)</string>
     <string name="held_suggest_none">No vehicle can take it within %1$s road km and capacity. Tap "Club with a vehicle" to choose one anyway.</string>
     <string name="held_suggest_item">Vehicle %1$d · %2$s · %3$s</string>
+    <string name="tile_sheet">Sheet</string>
+    <string name="tile_planned">Planned</string>
+    <string name="tile_held">Held</string>
+    <string name="held_all">Club all suggestions</string>
+    <string name="held_all_done">%1$d held stores clubbed (vehicle numbers may change)</string>
+    <string name="held_all_none">No held store fits a vehicle</string>
     <string name="held_club_km">%1$s km away</string>
     <string name="held_club_none">No vehicles on the plan yet</string>
     <string name="held_club_done">%1$s clubbed (vehicle numbers may change)</string>

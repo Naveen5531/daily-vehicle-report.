@@ -62,6 +62,13 @@
                 android:textColor="#FFFFFF"
                 android:textSize="13.5sp" />
 
+            <LinearLayout
+                android:id="@+id/planTiles"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal" />
+
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/planTypes"
                 android:layout_width="match_parent"
