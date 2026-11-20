@@ -73,6 +73,7 @@ class StatusAdapter(
         lateinit var replPill: TextView
         lateinit var replTime: TextView
         lateinit var replGate: android.view.ViewGroup
+        lateinit var replCall: MaterialButton
 
         /** The replacement block is built only when a row needs it (most rows have none). */
         fun ensureRepl() {
@@ -85,6 +86,7 @@ class StatusAdapter(
             replPill = replBlock.findViewById(R.id.replPill)
             replTime = replBlock.findViewById(R.id.replTime)
             replGate = replBlock.findViewById(R.id.replGate)
+            replCall = replBlock.findViewById(R.id.replCall)
             replInflated = true
         }
     }
@@ -173,6 +175,7 @@ class StatusAdapter(
         if (replPlate == null && !cancelledOnly) {
             if (h.replInflated) h.replBlock.visibility = View.GONE
             h.gate.visibility = View.VISIBLE
+            h.meta1.visibility = View.VISIBLE
             return
         }
         // Original: struck through, Cancelled; the live status moves to the replacement.
@@ -186,6 +189,14 @@ class StatusAdapter(
         h.pill.backgroundTintList = android.content.res.ColorStateList.valueOf(Ui.color(ctx, R.color.no_bg))
         h.timeText.visibility = View.GONE
         h.gate.visibility = View.GONE
+        // After a replacement only the new vehicle's details show: the old vehicle's type / driver / vendor / call go.
+        val info = withRepl?.replInfo
+        h.meta1.visibility = View.GONE
+        h.call.visibility = View.GONE
+        val newCity = (info?.city?.takeIf { it.isNotBlank() } ?: withRepl?.city?.takeIf { it.isNotBlank() } ?: d.gate?.destination).orEmpty().trim()
+        h.city.text = newCity
+        h.city.visibility = if (newCity.isBlank()) View.GONE else View.VISIBLE
+        Ui.avatar(h.avatar, info?.vendor.orEmpty().ifBlank { withRepl?.vendor.orEmpty() }, replPlate ?: d.vehicle.number)
         // Replacement block.
         h.ensureRepl()
         h.replBlock.visibility = View.VISIBLE
@@ -194,10 +205,13 @@ class StatusAdapter(
             else ctx.getString(R.string.replacement_waiting)
         h.replPlate.text = replPlate ?: "—"
         h.replMeta.text = Ui.joinNonBlank(
-            withRepl?.size.orEmpty().ifBlank { d.gate?.type.orEmpty() },
-            withRepl?.driver.orEmpty().ifBlank { d.gate?.driver.orEmpty() },
-            withRepl?.vendor.orEmpty()
+            info?.size.orEmpty().ifBlank { d.gate?.type.orEmpty() },
+            info?.driver.orEmpty().ifBlank { d.gate?.driver.orEmpty() },
+            info?.vendor.orEmpty()
         )
+        val newMobile = info?.mobile.orEmpty().ifBlank { gateRepl?.mobile.orEmpty() }
+        h.replCall.visibility = if (newMobile.isBlank()) View.GONE else View.VISIBLE
+        h.replCall.setOnClickListener { Ui.dial(ctx, newMobile) }
         h.replMeta.visibility = if (h.replMeta.text.isNullOrBlank()) View.GONE else View.VISIBLE
         Ui.styleState(h.replPill, d.state)
         h.replTime.text = h.timeText.text

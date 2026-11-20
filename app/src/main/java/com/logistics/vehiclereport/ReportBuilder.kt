@@ -193,7 +193,7 @@ object ReportBuilder {
             for (x in merged.toList()) {
                 if (x !in merged || x.replacement.isNotBlank()) continue
                 val owner = merged.firstOrNull { it !== x && (it.replacement == x.vehicle || (it.replacement.length <= 4 && it.replacement == VehicleParser.last4(x.vehicle))) } ?: continue
-                merged[merged.indexOf(owner)] = fold(owner, x); merged.remove(x)
+                merged[merged.indexOf(owner)] = fold(owner, x).copy(replInfo = owner.replInfo ?: x); merged.remove(x)
             }
             out += merged
         }

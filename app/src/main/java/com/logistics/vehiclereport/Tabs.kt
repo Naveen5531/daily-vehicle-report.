@@ -58,7 +58,8 @@ class TodayTab(private val a: MainActivity, root: View) {
     )
     private val empty: TextView = root.findViewById(R.id.todayEmpty)
     private val adapter = StatusAdapter(
-        onOpen = { VehicleDetailSheet.show(a, it.vehicle.number) },
+        // A replaced vehicle opens the replacement's details (the old vehicle's no longer matter that day).
+        onOpen = { d -> VehicleDetailSheet.show(a, d.hits.firstOrNull { it.replacement.isNotBlank() }?.replacement ?: d.vehicle.number) },
         // Marks are saved in the account's storage; the change refreshes every tab.
         onGate = { d, gate ->
             // A back day read from the cloud copy is read only; on this phone's back days a mark can still be corrected.

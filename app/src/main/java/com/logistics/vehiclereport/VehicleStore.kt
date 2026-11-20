@@ -48,7 +48,9 @@ data class VehicleRecord(
     /** Time of the latest of those messages. */
     val lastTime: Long = time,
     /** > 0: posted with only the last 4 digits; the full number was read from the number plate by the camera at this time. */
-    val scannedAt: Long = 0
+    val scannedAt: Long = 0,
+    /** The replacement vehicle's own post (its driver, vendor, mobile, size, place), folded into this entry; not saved. */
+    val replInfo: VehicleRecord? = null
 )
 
 /** A dedicated vehicle with its details. Only [number] is required. */
