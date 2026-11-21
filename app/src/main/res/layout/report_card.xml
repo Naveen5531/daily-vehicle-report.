@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One export option. Controls are added from code into reportControls. -->
+<!-- One export option: a small icon with its title on one row, the short description under it, then the controls.
+     Controls are added from code into reportControls. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     style="@style/Card"
@@ -12,53 +13,55 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="12dp">
 
-        <FrameLayout
-            android:id="@+id/reportIconBox"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:background="@drawable/box_bg">
-
-            <ImageView
-                android:id="@+id/reportIcon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_gravity="center"
-                android:contentDescription="@null" />
-        </FrameLayout>
-
+        <!-- Icon and title share one row -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/reportIconBox"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/box_bg">
+
+                <ImageView
+                    android:id="@+id/reportIcon"
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/reportTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
                 android:textColor="@color/ink"
                 android:textSize="15sp"
                 android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/reportDesc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:lineSpacingExtra="2dp"
-                android:textColor="@color/muted"
-                android:textSize="12.5sp" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/reportControls"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                app:chipSpacingHorizontal="6dp" />
         </LinearLayout>
+
+        <!-- Full width, so the description uses the whole card -->
+        <TextView
+            android:id="@+id/reportDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/muted"
+            android:textSize="12.5sp" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/reportControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:chipSpacingHorizontal="6dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
