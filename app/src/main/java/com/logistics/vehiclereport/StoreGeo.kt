@@ -18,6 +18,7 @@ import java.util.Locale
  */
 object StoreGeo {
     private const val KEY = "store_geo_json"   // {"5043": [lat, lon, "query", at, "State"], "5999": [0, 0, "query", triedAt]}
+    private const val KEY_TOWN_CHECK = "geo_town_check_v1"   // auto pins re-searched once with the town check
     private const val KEY_DC = "dc_geo_json"   // [lat, lon, "query", "State"]
     private const val RETRY_MS = 24L * 60 * 60 * 1000
 
@@ -258,12 +259,27 @@ object StoreGeo {
         if (!Geocoder.isPresent()) null else stateAt(Geocoder(c, Locale("en", "IN")), at.lat, at.lon)
 
     /**
+     * Once per town-check change: the rough auto pins saved before it (some were in the wrong town) are dropped and
+     * searched again with the town check. Exact pins (from Google Maps links) are kept.
+     */
+    @Synchronized private fun resetAutoPinsOnce(c: Context) {
+        if (p(c).getBoolean(KEY_TOWN_CHECK, false)) return
+        val o = read(c)
+        for (k in o.keys().asSequence().toList()) {
+            val a = o.optJSONArray(k) ?: continue
+            if (!a.optString(2).startsWith(EXACT)) o.remove(k)
+        }
+        p(c).edit().putString(KEY, o.toString()).putBoolean(KEY_TOWN_CHECK, true).apply()
+    }
+
+    /**
      * Looks up, in the background, the stores that have no place yet (and the DC); [done] runs on the main thread with
      * how many stores now have a place. Stores not found are tried again after a day.
      */
     fun fill(c: Context, stops: List<PlanStop>, done: (Int) -> Unit) {
         if (busy) return
         val app = c.applicationContext
+        resetAutoPinsOnce(app)
         val known = read(app)
         val now = System.currentTimeMillis()
         val todo = stops.filter { s ->
