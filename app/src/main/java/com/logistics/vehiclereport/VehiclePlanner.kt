@@ -59,7 +59,7 @@ data class PlanResult(val loads: List<PlanLoad>, val byType: List<Pair<VehicleCa
  *  1. every store gets full loads of the biggest vehicle while its volume is more than that vehicle carries,
  *     and one more load for the rest;
  *  2. stores chosen by hand to share a vehicle go together;
- *  3. with clubbing on, a small load (below [Options.clubBelow]) rides with another load only when the stores are near each
+ *  3. with clubbing on, a load above [Options.clubBelow] (0 = any size) rides with another load only when the stores are near each
  *     other or on the way of the other's vehicle from the DC (it adds little to that trip, see [fitsOnRoute]), and they
  *     fit in one vehicle, with at most [Options.maxStops] stores on it: the partner with the least extra km is taken, then
  *     the least bigger vehicle, then the fuller one.
@@ -318,7 +318,7 @@ object VehiclePlanner {
         val upTypes = (listOf(upType) + o.upcountryExtra.filter { it.capacity > 0 }.map { it.copy(on = true) }).distinctBy { it.name }
         val near = planGroup(stops.filter { it.code !in o.upcountry }, o.copy(upcountry = emptySet(), upcountryType = null))
         val far = planGroup(stops.filter { it.code in o.upcountry },
-            o.copy(types = upTypes, clubBelow = upTypes.maxOf { it.capacity } + 1.0, maxStops = o.upcountryMaxStops,
+            o.copy(types = upTypes, clubBelow = 0.0, maxStops = o.upcountryMaxStops,
                 upcountry = emptySet(), upcountryType = null))
         val order = stops.filter { it.volume > EPS }.map { it.cluster }.distinct().withIndex().associate { it.value to it.index }
         val loads = chain((near.loads + far.loads).sortedWith(compareBy<PlanLoad> { order[it.cluster] ?: Int.MAX_VALUE }.thenByDescending { it.volume }))
@@ -376,8 +376,8 @@ object VehiclePlanner {
             // A load below its zone's buffer volume (Upcountry / Local) is not clubbed either.
             fun free(l: Load) = !l.full && l.codes.none { it in o.noClub } && l.codes.none { it in inHandClub } &&
                 l.codes.none { l.volume < (o.bufferFor[it] ?: 0.0) - EPS }
-            // Below "Club below" (0 = any size), the rest of a big store, or a ride-only store.
-            fun small(l: Load) = o.clubBelow <= 0 || l.volume < o.clubBelow - EPS || l.parts.any { p -> rest[p.first.code]?.let { it.splitRest || it.rideOnly } == true }
+            // Above "Club stores above" (0 = any size), the rest of a big store, or a ride-only store.
+            fun small(l: Load) = o.clubBelow <= 0 || l.volume > o.clubBelow + EPS || l.parts.any { p -> rest[p.first.code]?.let { it.splitRest || it.rideOnly } == true }
             // How far out of its way the bigger load's vehicle goes for the other (0 when a place is not on the map).
             fun cost(host: Load, add: Load): Double {
                 val dc = o.dc ?: return 0.0

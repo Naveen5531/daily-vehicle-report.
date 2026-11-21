@@ -18,7 +18,7 @@ import java.util.Locale
 object PlanData {
     private const val KEY = "plan_json"
     private const val KEY_TYPES = "plan_types_json"
-    private const val KEY_CLUB_BELOW = "plan_club_below_v2"   // 0 = any size (old key held 300, which stopped all clubbing)
+    private const val KEY_CLUB_BELOW = "plan_club_below_v2"   // clubbing applies to stores above this volume; 0 = any size (old key held 300, which stopped all clubbing)
     private const val KEY_AUTO = "plan_auto_club"
     private const val KEY_NEAR = "plan_near_km"
     private const val KEY_MAX_CLUB_KM = "plan_max_club_km_v2"   // v2: default 70 km; an older saved "no limit" no longer applies
