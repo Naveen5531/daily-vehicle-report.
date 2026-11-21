@@ -415,6 +415,15 @@ class PlanTab(private val a: MainActivity, root: View) {
         updateSelectBar()
     }
 
+    /** Route through a vehicle's stores in order (no DC), by pin or by name; warns when the stores are far apart. */
+    private fun openClubRoute(a: android.content.Context, l: PlanLoad) {
+        val stops = l.codes.mapNotNull { code -> l.parts.firstOrNull { it.first.code == code }?.first }
+        if (stops.size < 2) return
+        val widest = PlanMap.widestKm(stops.mapNotNull { places[it.code] })
+        if (widest > PlanMap.CLUB_SPREAD_KM) Toast.makeText(a, a.getString(R.string.plan_club_spread, km(widest)), Toast.LENGTH_LONG).show()
+        PlanMap.openRouteInMaps(a, stops.map { PlanMap.routePoint(a, it, places[it.code]) })
+    }
+
     private fun card(inflater: LayoutInflater, index: Int, l: PlanLoad): View {
         val v = inflater.inflate(R.layout.item_plan_vehicle, list, false) as MaterialCardView
         v.findViewById<TextView>(R.id.pvNo).text = (index + 1).toString()
@@ -593,11 +602,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         v.findViewById<MaterialButton>(R.id.pvRoute).apply {
             // A vehicle with more than one store: store → store in order (no DC), as directions in Google Maps.
             visibility = if (l.codes.size > 1) View.VISIBLE else View.GONE
-            setOnClickListener {
-                val pts = l.codes.mapNotNull { places[it] }
-                if (pts.size < l.codes.size) Toast.makeText(a, R.string.plan_route_no_place, Toast.LENGTH_LONG).show()
-                if (pts.size >= 2) PlanMap.openRouteInMaps(a, pts)
-            }
+            setOnClickListener { openClubRoute(a, l) }
         }
         v.findViewById<MaterialButton>(R.id.pvSplit).setOnClickListener { split(l) }
         val on = index in selected
@@ -899,7 +904,7 @@ class PlanTab(private val a: MainActivity, root: View) {
             setOnClickListener { dialog.dismiss(); go() }
         })
         val pts = l.codes.mapNotNull { places[it] }
-        if (pts.size >= 2) btn(R.string.plan_route_maps) { PlanMap.openRouteInMaps(a, pts) }
+        if (l.codes.size >= 2) btn(R.string.plan_route_maps) { openClubRoute(a, l) }
         else if (pts.size == 1 && main != null) btn(R.string.pd_open_maps) { PlanMap.openInMaps(a, pts[0], PlanMap.dmartName(main)) }
         btn(R.string.pd_change_size) { vehicleMenu(index) }
         if (main != null) btn(R.string.pd_edit_store) {
@@ -1117,7 +1122,7 @@ class PlanTab(private val a: MainActivity, root: View) {
             setPadding((20 * d).toInt(), (22 * d).toInt(), (20 * d).toInt(), (2 * d).toInt())
         })
         list.addView(TextView(a).apply {
-            text = a.getString(R.string.held_hint, vol(PlanData.zoneMin(a, Zone.UPCOUNTRY)), vol(PlanData.zoneMin(a, Zone.LOCAL)))
+            text = a.getString(R.string.held_hint, vol(PlanData.clubBelow(a)))
             setTextColor(Ui.color(a, R.color.muted)); textSize = 12.5f
             setPadding((20 * d).toInt(), 0, (20 * d).toInt(), (6 * d).toInt())
         })

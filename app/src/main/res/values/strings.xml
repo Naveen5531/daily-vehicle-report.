@@ -742,6 +742,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="plan_map_expand">Full map</string>
     <string name="plan_map_close">Close map</string>
     <string name="plan_route_maps">Route in Maps</string>
+    <string name="plan_club_spread">These stores are %1$s km apart. If that looks wrong, pin each store exactly (its Google Maps link in the store\'s place box).</string>
     <string name="plan_route_no_place">Some stores of this vehicle are not on the map yet</string>
     <string name="plan_map_text">%1$d of %2$d stores pinned · tap a pin for details</string>
     <string name="plan_map_none">Store places are being found… pins appear once found</string>
@@ -766,7 +767,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="zone_field_km">Local within (km), for stores with no city</string>
     <string name="zone_showing">Showing %1$s: %2$d vehicles · %3$s volume</string>
     <string name="held_title">Held back · %1$d stores · %2$s volume</string>
-    <string name="held_hint">Below the minimum volume (Upcountry %1$s, Local %2$s) and no vehicle is going their way today. Tap a store to send it anyway.</string>
+    <string name="held_hint">Stores below the club volume (%1$s) are held today, and stores of a cancelled vehicle. No vehicle is going their way. Tap a store to send it anyway.</string>
     <string name="held_volume">volume %1$s</string>
     <string name="held_plan_title">Send %1$s today?</string>
     <string name="held_plan_message">%1$s has only %2$s volume, below the minimum for its zone. Plan a vehicle for it anyway?</string>

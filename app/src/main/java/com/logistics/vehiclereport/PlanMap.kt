@@ -229,13 +229,30 @@ object PlanMap {
      * Opens Google Maps with directions for a clubbed vehicle between its stores only (first store → … → last store),
      * so Maps shows the distance from store to store, not from the DC.
      */
-    fun openRouteInMaps(c: Context, stops: List<LatLon>) {
-        if (stops.size < 2) return
-        fun f(p: LatLon) = String.format(Locale.US, "%.6f,%.6f", p.lat, p.lon)
+    /** Clubs whose stores are further apart than this (straight km) get a warning: a wrong pin shows up as a long route. */
+    const val CLUB_SPREAD_KM = 60.0
+
+    /** Widest straight distance (km) between the given places; 0 when fewer than two. */
+    fun widestKm(places: List<LatLon>): Double = places.flatMap { p -> places.map { VehiclePlanner.km(p, it) } }.maxOrNull() ?: 0.0
+
+    /**
+     * A stop in a Google Maps route: its exact pin when it has one, otherwise its DMart name, so Maps finds the
+     * store the same way the individual "Find in Maps" check does (a rough auto pin never sends the route astray).
+     */
+    fun routePoint(c: Context, s: PlanStop, at: LatLon?): String {
+        val name = dmartName(s)
+        return if (at != null && (StoreGeo.kind(c, s.code) == StoreGeo.Kind.EXACT || name.length < 9))
+            String.format(Locale.US, "%.6f,%.6f", at.lat, at.lon)
+        else "$name, India"
+    }
+
+    /** Opens Google Maps directions through the given points in order: each a "lat,lon" or a place name. */
+    fun openRouteInMaps(c: Context, points: List<String>) {
+        if (points.size < 2) return
         val url = StringBuilder("https://www.google.com/maps/dir/?api=1&travelmode=driving")
-        url.append("&origin=").append(f(stops.first()))
-        url.append("&destination=").append(f(stops.last()))
-        if (stops.size > 2) url.append("&waypoints=").append(Uri.encode(stops.subList(1, stops.size - 1).joinToString("|") { f(it) }))
+        url.append("&origin=").append(Uri.encode(points.first()))
+        url.append("&destination=").append(Uri.encode(points.last()))
+        if (points.size > 2) url.append("&waypoints=").append(Uri.encode(points.subList(1, points.size - 1).joinToString("|")))
         val uri = Uri.parse(url.toString())
         try {
             c.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.apps.maps"))

@@ -220,16 +220,29 @@ object StoreGeo {
         return null
     }
 
-    /** Map search, kept within about 900 km of the DC when the DC is known (a same-named place far away is skipped). */
+    /**
+     * Map search, kept within about 900 km of the DC when the DC is known (a same-named place far away is skipped).
+     * With [city], only a result whose address names that town is taken: a same-named place in another town is not.
+     */
     @Suppress("DEPRECATION")
-    private fun lookup(c: Context, query: String, near: LatLon?): Found? {
+    private fun lookup(c: Context, query: String, near: LatLon?, city: String? = null): Found? {
         if (!Geocoder.isPresent()) return null
         return try {
             val g = Geocoder(c, Locale("en", "IN"))
-            val list = if (near == null) g.getFromLocationName(query, 1).orEmpty()
-                else g.getFromLocationName(query, 1, near.lat - 8, near.lon - 8, near.lat + 8, near.lon + 8).orEmpty()
-            list.firstOrNull()?.let { Found(LatLon(it.latitude, it.longitude), it.adminArea ?: stateAt(g, it.latitude, it.longitude)) }
+            val list = if (near == null) g.getFromLocationName(query, 5).orEmpty()
+                else g.getFromLocationName(query, 5, near.lat - 8, near.lon - 8, near.lat + 8, near.lon + 8).orEmpty()
+            val hit = list.firstOrNull { city.isNullOrBlank() || inTown(it, city) } ?: return null
+            Found(LatLon(hit.latitude, hit.longitude), hit.adminArea ?: stateAt(g, hit.latitude, hit.longitude))
         } catch (e: Exception) { null }
+    }
+
+    /** Whether the address of a found place names the town (locality, district or address line). */
+    private fun inTown(a: android.location.Address, city: String): Boolean {
+        val want = city.trim().lowercase(Locale.ROOT)
+        if (want.isBlank()) return true
+        val lines = (0..a.maxAddressLineIndex.coerceAtLeast(-1)).mapNotNull { a.getAddressLine(it) }
+        val text = (lines + listOfNotNull(a.locality, a.subLocality, a.subAdminArea, a.featureName)).joinToString(" ").lowercase(Locale.ROOT)
+        return text.contains(want)
     }
 
     private class Found(val at: LatLon, val state: String?)
@@ -288,12 +301,12 @@ object StoreGeo {
                     val typed = known.optJSONArray(s.code)?.optString(2)?.takeIf { it.isNotBlank() }
                     val handTyped = typed != null && !typed.endsWith(", India")
                     if (handTyped) { found = lookup(app, "$typed, India", dc); used = typed.orEmpty() }
-                    else for (q in queries(s)) { found = lookup(app, q, dc); used = q; if (found != null) break }
+                    else for (q in queries(s)) { found = lookup(app, q, dc, clean(s.city)); used = q; if (found != null) break }
                     // The DMart store itself, only when the map search finds it in the store's own town.
                     val area = found
                     if (!handTyped && area != null) {
                         for (dq in dmartQueries(s)) {
-                            val store = lookup(app, dq, dc) ?: continue
+                            val store = lookup(app, dq, dc, clean(s.city)) ?: continue
                             if (VehiclePlanner.km(area.at, store.at) <= DMART_NEAR_KM) {
                                 found = Found(store.at, store.state ?: area.state); used = dq; break
                             }
