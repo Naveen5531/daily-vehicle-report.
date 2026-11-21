@@ -46,17 +46,16 @@
                     android:textColor="#FFFFFF"
                     android:textSize="46sp" />
 
-                <TextView
-                    android:id="@+id/planSheet"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginBottom="6dp"
-                    android:lineSpacingMultiplier="1.1"
-                    android:textColor="@color/on_emerald_muted"
-                    android:textSize="14sp" />
             </LinearLayout>
+
+            <!-- Sheet count: its own full-width line under the number, so it can wrap freely -->
+            <TextView
+                android:id="@+id/planSheet"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/on_emerald_muted"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/planHeroText"
