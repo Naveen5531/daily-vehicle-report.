@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Royal green and gold: deep green headers, gold accents, cream page, white cards. Design D "Emerald card": soft green-grey page, white cards, one deep emerald card for the day's headline. -->
+<!-- Teal 3 palette (#1F8A8A): deep teal headers, teal accents, pale teal page, white cards. Design D "Emerald card": soft green-grey page, white cards, one deep emerald card for the day's headline. -->
 <resources>
-    <color name="brand_primary">#0B3D2E</color>
-    <color name="brand_deep">#082E22</color>
-    <color name="brand_dark">#06261C</color>
-    <color name="brand_light">#F6EDD2</color>
-    <color name="emerald">#0B3D2E</color>
-    <color name="mint">#E9D7A0</color>
-    <color name="peach">#F3D9B1</color>
-    <color name="on_emerald_muted">#D9CB9B</color>
-    <color name="asphalt">#0B3D2E</color>
-    <color name="accent_orange">#B8860B</color>
-    <color name="plate_yellow">#F6E7B5</color>
-    <color name="bg_light">#FBF7EE</color>
+    <color name="brand_primary">#0F5C5C</color>
+    <color name="brand_deep">#0B4A4A</color>
+    <color name="brand_dark">#063B3B</color>
+    <color name="brand_light">#E8F7F7</color>
+    <color name="emerald">#0F5C5C</color>
+    <color name="mint">#8FD3D3</color>
+    <color name="peach">#BDE9E9</color>
+    <color name="on_emerald_muted">#CFEAEA</color>
+    <color name="asphalt">#0F5C5C</color>
+    <color name="accent_orange">#1F8A8A</color>
+    <color name="plate_yellow">#BDE9E9</color>
+    <color name="bg_light">#F4FAFA</color>
     <color name="surface">#FFFFFF</color>
-    <color name="soft">#F6F0DF</color>
-    <color name="line">#E8DDBF</color>
-    <color name="ink">#14201B</color>
-    <color name="muted">#5F6B5E</color>
-    <color name="faint">#8E8A76</color>
+    <color name="soft">#EAF6F6</color>
+    <color name="line">#D3E9E9</color>
+    <color name="ink">#0E2222</color>
+    <color name="muted">#5A6E6E</color>
+    <color name="faint">#8AA3A3</color>
 
     <color name="ok">#0B6B44</color>
     <color name="ok_bg">#DDF6E8</color>
@@ -32,7 +32,7 @@
     <color name="gone">#3B4A57</color>
     <color name="gone_bg">#EAEFF3</color>
     <color name="sky">#CFE0FF</color>
-    <color name="gray_bg">#F3EEDD</color>
+    <color name="gray_bg">#EEF6F6</color>
     <color name="warn_bg">#FFF6E0</color>
     <color name="warn_text">#8A5A00</color>
     <color name="warn_line">#F5DFA6</color>
@@ -42,7 +42,7 @@
     <color name="city_text">#FFFFFF</color>
     <color name="wa_green">#128C3E</color>
     <color name="wa_bg">#E7F8EC</color>
-    <color name="gold">#B8860B</color>
-    <color name="gold_light">#F6E7B5</color>
-    <color name="royal_green">#0B3D2E</color>
+    <color name="gold">#1F8A8A</color>
+    <color name="gold_light">#8FD3D3</color>
+    <color name="royal_green">#0F5C5C</color>
 </resources>
