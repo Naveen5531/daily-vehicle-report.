@@ -165,15 +165,20 @@ class PlanTab(private val a: MainActivity, root: View) {
         zones = PlanData.zones(a, stops, opts.places, opts.dc)
         // Small Upcountry / Local stores (below the zone's minimum volume) get no vehicle of their own: they ride on
         // another vehicle going their way when one fits, else they are held back today.
-        val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
+        val minClub = PlanData.clubBelow(a)
+        val forcedCodes = PlanData.forced(a)
+        // Only stores below the "Club stores above" volume are held (the club volume decides; the zone minimums and the
+        // sheet's 0 do not hold a store at or above it).
+        fun belowClub(code: String) = minClub <= 0 || stops.any { it.code == code && it.volume < minClub - 1e-6 }
+        val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, forcedCodes).filter { belowClub(it) }.toSet()
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
         // Stores below the "Club stores above" volume are held today: no vehicle of their own, and no clubbing.
         // Stores you forced to a vehicle are not held.
-        val minClub = PlanData.clubBelow(a)
-        val forcedCodes = PlanData.forced(a)
         val heldByClub = if (minClub <= 0) emptyList() else stops.filter { it.volume < minClub - 1e-6 && it.code !in forcedCodes }
         val heldCodes = heldByClub.map { it.code }.toSet()
+        // At or above the club volume a sheet 0 is not a reason to ride along or be held: the store gets its own vehicle.
         val planStops = stops.filter { it.code !in heldCodes }
+            .map { if (minClub > 0 && it.volume >= minClub - 1e-6 && it.sheetVehicles == 0) it.copy(sheetVehicles = null) else it }
         // When the sheet's own Vehicle column was read for every store, the plan follows it (own vehicles, 0 = rides along); a big store's small leftover is held.
         val r = VehiclePlanner.plan(planStops, VehiclePlanner.followSheet(planStops,
             opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a),
@@ -182,7 +187,7 @@ class PlanTab(private val a: MainActivity, root: View) {
                 nightStores = stops.map { it.code }.filter { StoreShift.isNight(a, it) }.toSet(),
                 sameCityOnly = PlanData.sameCityOnly(a),
                 restBelow = stops.mapNotNull { s ->
-                    if (s.code in PlanData.forced(a)) null
+                    if (s.code in PlanData.forced(a) || !belowClub(s.code)) null
                     else zones[s.code]?.let { z -> PlanData.zoneMin(a, z).takeIf { it > 0 }?.let { s.code to it } }
                 }.toMap(),
                 rideOnly = small, shuffle = shuffle)))
