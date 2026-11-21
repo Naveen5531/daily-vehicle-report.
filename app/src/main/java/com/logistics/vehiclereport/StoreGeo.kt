@@ -110,6 +110,16 @@ object StoreGeo {
     /** Pins a store exactly (from the store location master); kept for good, never searched again. */
     fun setExact(c: Context, code: String, at: LatLon) = save(c.applicationContext, code.trim(), EXACT, at, null)
 
+    /** Marker for a location cleared by hand: the store is not searched again on its own until a location is set. */
+    const val CLEARED = "Cleared by hand"
+
+    /** Clears a store's saved location (by hand); a new pin, link or coordinates sets it again. */
+    @Synchronized fun clearPin(c: Context, code: String) {
+        val o = read(c)
+        o.put(code.trim(), JSONArray().put(0.0).put(0.0).put(CLEARED).put(System.currentTimeMillis()).put("").put(true).put(true))
+        p(c).edit().putString(KEY, o.toString()).apply()
+    }
+
     /** Takes a store's pin off (it is searched again on the Plan tab). */
     @Synchronized fun clear(c: Context, code: String) {
         val o = read(c); o.remove(code.trim())
@@ -267,7 +277,7 @@ object StoreGeo {
         val o = read(c)
         for (k in o.keys().asSequence().toList()) {
             val a = o.optJSONArray(k) ?: continue
-            if (!a.optString(2).startsWith(EXACT)) o.remove(k)
+            if (!a.optString(2).startsWith(EXACT) && a.optString(2) != CLEARED) o.remove(k)
         }
         p(c).edit().putString(KEY, o.toString()).putBoolean(KEY_TOWN_CHECK, true).apply()
     }
@@ -284,9 +294,9 @@ object StoreGeo {
         val now = System.currentTimeMillis()
         val todo = stops.filter { s ->
             val a = known.optJSONArray(s.code)
-            a == null || (a.optDouble(0, 0.0) == 0.0 && a.optDouble(1, 0.0) == 0.0 && now - a.optLong(3, 0L) > RETRY_MS) ||
+            a?.optString(2) != CLEARED && (a == null || (a.optDouble(0, 0.0) == 0.0 && a.optDouble(1, 0.0) == 0.0 && now - a.optLong(3, 0L) > RETRY_MS) ||
                 // Found earlier from the area name only: checked once more for the DMart store itself.
-                (!a.optBoolean(6, false) && a.optString(2).endsWith(", India") && (a.optDouble(0, 0.0) != 0.0 || a.optDouble(1, 0.0) != 0.0))
+                (!a.optBoolean(6, false) && a.optString(2).endsWith(", India") && (a.optDouble(0, 0.0) != 0.0 || a.optDouble(1, 0.0) != 0.0)))
         }.distinctBy { it.code }
         // Stores found before states were kept: their state is looked up once from their place.
         val noState = stops.map { it.code }.distinct().filter { code ->

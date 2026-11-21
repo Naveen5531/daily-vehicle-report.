@@ -202,6 +202,15 @@ object StoreLocations {
         box.addView(TextView(a).apply {
             setText(R.string.plan_find_in_maps_help); textSize = 12f; setTextColor(Ui.color(a, R.color.muted)); setPadding(px(4), px(2), px(4), 0)
         })
+        var closeDialog: () -> Unit = {}
+        if (s != null && kind != StoreGeo.Kind.NONE) box.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = a.getString(R.string.sm_clear_location)
+            setOnClickListener {
+                StoreGeo.clearPin(a, s.code)
+                Toast.makeText(a, a.getString(R.string.sm_cleared, s.code), Toast.LENGTH_LONG).show()
+                closeDialog(); done(true)
+            }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(8) })
         val loc = field(R.string.sm_location, "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         fun paste() {
             try {
@@ -222,6 +231,7 @@ object StoreLocations {
                 .setNegativeButton(android.R.string.cancel, null).show()
         }
         val dlg = b.create()
+        closeDialog = { dlg.dismiss() }
         dlg.setOnShowListener {
             paste()
             dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
