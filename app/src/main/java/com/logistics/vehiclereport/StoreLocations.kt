@@ -348,7 +348,7 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
         }, LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(btns)
         col.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            setText(R.string.sm_clear_all); setIconResource(R.drawable.ic_delete)
+            setText(R.string.sm_clear_all); setIconResource(R.drawable.ic_close)
             setOnClickListener {
                 val n = MasterData.get(a).stores.size
                 MaterialAlertDialogBuilder(a).setMessage(a.getString(R.string.sm_clear_all_ask, n))
