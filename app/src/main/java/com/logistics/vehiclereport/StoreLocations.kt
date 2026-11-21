@@ -38,7 +38,10 @@ object StoreLocations {
 
     /** Rows in a workbook: a sheet with a Store Code column and Latitude + Longitude, or a map link column. */
     fun rowsFromWorkbook(bytes: ByteArray): List<Row> {
-        for (rows in VehicleListImporter.xlsxSheets(bytes)) {
+        // A zipped workbook (.xlsx) or a plain text file (tab or comma separated, as saved from a sheet).
+        val zip = bytes.size > 1 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()
+        val sheets = if (zip) VehicleListImporter.xlsxSheets(bytes) else listOf(VehicleListImporter.textRows(bytes))
+        for (rows in sheets) {
             val hi = rows.take(10).indexOfFirst { r -> r.any { it.lowercase().replace(" ", "").let { h -> h == "storecode" || h == "sitecode" || h == "code" } } }
             if (hi < 0) continue
             val out = rowsFrom(rows.drop(hi), rows[hi])
@@ -61,8 +64,11 @@ object StoreLocations {
         return withHeader.drop(1).mapNotNull { r ->
             val code = cell(r, cCode).removeSuffix(".0")
             if (code.isBlank()) return@mapNotNull null
-            val lat = cell(r, cLat).toDoubleOrNull()
-            val lon = cell(r, cLon).toDoubleOrNull()
+            // "16.30, 80.41" in the latitude cell with the longitude cell blank: split into the two numbers.
+            val latCell = cell(r, cLat)
+            val pair = if (cLon >= 0 && cell(r, cLon).isBlank() && latCell.contains(',')) latCell.split(',') else null
+            val lat = (pair?.getOrNull(0) ?: latCell).trim().toDoubleOrNull()
+            val lon = (pair?.getOrNull(1) ?: cell(r, cLon)).trim().toDoubleOrNull()
             val at = if (lat != null && lon != null && lat in 5.0..38.0 && lon in 66.0..99.0) LatLon(lat, lon) else null
             val link = cell(r, cLink)
             if (at == null && link.isBlank()) null else Row(code, at, link, cell(r, cName), cell(r, cCity), cell(r, cRegion))
@@ -341,6 +347,19 @@ class StoresTab(private val a: MainActivity, root: FrameLayout) {
             setOnClickListener { StoreLocations.export(a) }
         }, LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(btns)
+        col.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            setText(R.string.sm_clear_all); setIconResource(R.drawable.ic_delete)
+            setOnClickListener {
+                val n = MasterData.get(a).stores.size
+                MaterialAlertDialogBuilder(a).setMessage(a.getString(R.string.sm_clear_all_ask, n))
+                    .setPositiveButton(R.string.sm_clear_all) { _, _ ->
+                        StoreGeo.clearAll(a, MasterData.get(a).stores.map { it.code })
+                        Toast.makeText(a, R.string.sm_clear_all_done, Toast.LENGTH_LONG).show()
+                        refresh()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            }
+        })
         col.addView(MaterialButton(a, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             setText(R.string.sm_template_dl); setIconResource(R.drawable.ic_download)
             setOnClickListener { StoreLocations.template(a) }

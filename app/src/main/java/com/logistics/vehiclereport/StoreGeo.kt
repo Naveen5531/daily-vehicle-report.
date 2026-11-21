@@ -113,6 +113,15 @@ object StoreGeo {
     /** Marker for a location cleared by hand: the store is not searched again on its own until a location is set. */
     const val CLEARED = "Cleared by hand"
 
+    /** Clears every store's saved location (all stores, by hand); an import or a pin sets them again. */
+    @Synchronized fun clearAll(c: Context, codes: List<String>) {
+        val o = read(c)
+        for (code in codes.map { it.trim() }.distinct()) {
+            o.put(code, JSONArray().put(0.0).put(0.0).put(CLEARED).put(System.currentTimeMillis()).put("").put(true).put(true))
+        }
+        p(c).edit().putString(KEY, o.toString()).apply()
+    }
+
     /** Clears a store's saved location (by hand); a new pin, link or coordinates sets it again. */
     @Synchronized fun clearPin(c: Context, code: String) {
         val o = read(c)

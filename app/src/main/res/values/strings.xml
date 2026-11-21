@@ -742,6 +742,9 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="plan_map_expand">Full map</string>
     <string name="plan_map_close">Close map</string>
     <string name="plan_route_maps">Route in Maps</string>
+    <string name="sm_clear_all">Clear all locations</string>
+    <string name="sm_clear_all_ask">Remove the saved location of all %1$d stores? Then import the new file to set them again.</string>
+    <string name="sm_clear_all_done">All saved locations cleared. Import the file now.</string>
     <string name="sm_clear_location">Clear saved location</string>
     <string name="sm_cleared">Location of %1$s cleared. Set it again with a link or coordinates.</string>
     <string name="plan_club_spread">These stores are %1$s km apart. If that looks wrong, pin each store exactly (its Google Maps link in the store\'s place box).</string>
