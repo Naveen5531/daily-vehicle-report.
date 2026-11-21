@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Export tab, in the order the work is done: reports and mail first, then the account, tools, security and data. -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -10,7 +11,29 @@
         android:orientation="vertical"
         android:paddingBottom="16dp">
 
-        <!-- Signed-in account and DC name -->
+        <!-- 1. Reports -->
+        <TextView
+            style="@style/SectionLabel"
+            android:text="@string/excel_reports" />
+
+        <include android:id="@+id/repDaily" layout="@layout/report_card" />
+        <include android:id="@+id/repDetails" layout="@layout/report_card" />
+        <include android:id="@+id/repSummary" layout="@layout/report_card" />
+        <include android:id="@+id/repLog" layout="@layout/report_card" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exportMail"
+            style="@style/DButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:text="@string/export_mail_button"
+            app:icon="@drawable/ic_mail" />
+
+        <!-- 2. Account and backup -->
         <TextView
             style="@style/SectionLabel"
             android:text="@string/account_section" />
@@ -45,6 +68,7 @@
                     android:textColor="@color/muted"
                     android:textSize="12.5sp" />
 
+                <!-- DC name on its own row, with Change beside it -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -68,30 +92,22 @@
                         android:text="@string/change" />
                 </LinearLayout>
 
-                <LinearLayout
+                <!-- Backup and restore: one full-width button each, so the labels never wrap -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/backupButton"
+                    style="@style/DTonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
+                    android:layout_marginTop="12dp"
+                    android:text="@string/backup_now" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/backupButton"
-                        style="@style/DTonal"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="6dp"
-                        android:layout_weight="1"
-                        android:text="@string/backup_now" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/restoreButton"
-                        style="@style/DTonal"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:layout_weight="1"
-                        android:text="@string/restore_now" />
-                </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/restoreButton"
+                    style="@style/DTonal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/restore_now" />
 
                 <TextView
                     android:id="@+id/backupStatus"
@@ -101,10 +117,17 @@
                     android:textColor="@color/muted"
                     android:textSize="12.5sp" />
 
+                <!-- Sign out and delete: kept apart from the everyday buttons -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@color/line" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
@@ -129,34 +152,24 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- 3. Tools -->
         <TextView
             style="@style/SectionLabel"
-            android:text="@string/excel_reports" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/exportMail"
-            style="@style/DButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="10dp"
-            android:text="@string/export_mail_button"
-            app:icon="@drawable/ic_mail" />
+            android:text="@string/tools_section" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/exportUpdate"
-            style="@style/DButton"
+            style="@style/DOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="10dp"
+            android:layout_marginBottom="8dp"
             android:text="Check for app update" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/exportSpeed"
-            style="@style/DButton"
+            style="@style/DOutlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
@@ -164,11 +177,7 @@
             android:layout_marginBottom="10dp"
             android:text="Speed report (what is slow)" />
 
-        <include android:id="@+id/repDaily" layout="@layout/report_card" />
-        <include android:id="@+id/repDetails" layout="@layout/report_card" />
-        <include android:id="@+id/repSummary" layout="@layout/report_card" />
-        <include android:id="@+id/repLog" layout="@layout/report_card" />
-
+        <!-- 4. Security -->
         <TextView
             style="@style/SectionLabel"
             android:text="@string/security" />
@@ -211,6 +220,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- 5. Data (last, and the only destructive action on this tab) -->
         <TextView
             style="@style/SectionLabel"
             android:text="@string/data" />

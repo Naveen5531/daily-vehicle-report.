@@ -548,6 +548,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
 
     <!-- Export -->
     <string name="excel_reports">Excel reports</string>
+    <string name="tools_section">Tools</string>
     <string name="data">Data</string>
     <string name="security">Security</string>
     <string name="lock_switch">Lock app with fingerprint / phone PIN</string>
