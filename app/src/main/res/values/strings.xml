@@ -559,13 +559,13 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="lock_unavailable">Set a screen lock (PIN, pattern or fingerprint) in phone Settings to use the app lock.</string>
     <string name="export">Export</string>
     <string name="rep_daily_title">Daily dedicated report</string>
-    <string name="rep_daily_desc">Pick a date range. Driver details in the DC format: transport, vehicle, store, city, DC in/out, store in/out, driver, vehicle type, dispatch from, destination, pulled from, posted by, dispatched date.</string>
+    <string name="rep_daily_desc">Pick a date range. Rows in the DC format.</string>
     <string name="rep_details_title">Vehicle details</string>
-    <string name="rep_details_desc">The full dedicated vehicle list: number, type, driver, mobile, transporter and route.</string>
+    <string name="rep_details_desc">The full dedicated vehicle list.</string>
     <string name="rep_summary_title">Vehicle-wise summary</string>
-    <string name="rep_summary_desc">For a date range: days reported, days missed and the % for each vehicle, with its details.</string>
+    <string name="rep_summary_desc">Days reported and missed per vehicle.</string>
     <string name="rep_log_title">WhatsApp message log</string>
-    <string name="rep_log_desc">Pick a date range. Every captured message with store, vendor, vehicle type, rate and a total.</string>
+    <string name="rep_log_desc">Pick a date range. Every captured message.</string>
     <string name="from_date">From %1$s</string>
     <string name="to_date">To %1$s</string>
     <string name="quick_today">Today</string>
