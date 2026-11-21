@@ -174,7 +174,9 @@ class PlanTab(private val a: MainActivity, root: View) {
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
         // Stores below the "Club stores above" volume are held today: no vehicle of their own, and no clubbing.
         // Stores you forced to a vehicle are not held.
-        val heldByClub = if (minClub <= 0) emptyList() else stops.filter { it.volume < minClub - 1e-6 && it.code !in forcedCodes }
+        // Held back: below the club volume (not forced), or whose vehicle was cancelled today (not forced either).
+        val cancelled = PlanData.cancelled(a) - forcedCodes
+        val heldByClub = stops.filter { s -> s.code in cancelled || (minClub > 0 && s.volume < minClub - 1e-6 && s.code !in forcedCodes) }
         val heldCodes = heldByClub.map { it.code }.toSet()
         // At or above the club volume a sheet 0 is not a reason to ride along or be held: the store gets its own vehicle.
         val planStops = stops.filter { it.code !in heldCodes }
@@ -789,6 +791,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         for (t in big) items += (a.getString(R.string.pv_size_item, t.name, vol(t.capacity)) + if (now == t.name) "  ✓" else "") to { setSize(l, t.name) }
         if (now != null) items += a.getString(R.string.pv_size_auto) to { setSize(l, null) }
         items += a.getString(R.string.pv_details) to { details(index) }
+        items += a.getString(R.string.pv_cancel) to { confirmCancel(l) }
         items += a.getString(R.string.pv_pick_club) to {
             if (!selectMode) { selectMode = true }
             if (index !in selected) toggle(index) else refresh()
@@ -797,6 +800,21 @@ class PlanTab(private val a: MainActivity, root: View) {
         MaterialAlertDialogBuilder(a)
             .setTitle(a.getString(R.string.pv_menu_title, index + 1, main?.let { "${it.code} ${it.shownName}" }.orEmpty(), vol(l.volume)))
             .setItems(items.map { it.first }.toTypedArray()) { _, w -> items[w].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** "Cancel plan": this vehicle's stores are held back for today (their own vehicle is not sent). */
+    private fun confirmCancel(l: PlanLoad) {
+        val codes = l.codes.toSet()
+        MaterialAlertDialogBuilder(a)
+            .setTitle(a.getString(R.string.pv_cancel_title, codes.size, vol(l.volume)))
+            .setMessage(a.getString(R.string.pv_cancel_msg))
+            .setPositiveButton(R.string.pv_cancel_yes) { _, _ ->
+                PlanData.setCancelled(a, PlanData.cancelled(a) + codes)
+                selected.clear(); refresh()
+                Toast.makeText(a, a.getString(R.string.pv_cancel_done, codes.size), Toast.LENGTH_SHORT).show()
+            }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

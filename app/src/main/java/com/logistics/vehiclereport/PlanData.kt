@@ -173,6 +173,7 @@ object PlanData {
 
     private const val KEY_MIN = "plan_zone_min_"
     private const val KEY_FORCE = "plan_force_json"
+    private const val KEY_CANCEL = "plan_cancel_json"
 
     /** Stores of a zone with less volume than this get no vehicle that day (Upcountry 200, Local 80 by default; 0 = none). */
     fun zoneMin(c: Context, z: Zone): Double = p(c).getFloat(KEY_MIN + z.name, when (z) {
@@ -190,6 +191,11 @@ object PlanData {
     fun forced(c: Context): Set<String> = try {
         JSONArray(p(c).getString(KEY_FORCE, null) ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) }.toSet() }
     } catch (e: Exception) { emptySet() }
+    /** Stores whose vehicle was cancelled for the day ("Cancel plan"): held back, like low-volume stores. */
+    fun cancelled(c: Context): Set<String> = try {
+        JSONArray(p(c).getString(KEY_CANCEL, null) ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) }.toSet() }
+    } catch (e: Exception) { emptySet() }
+    fun setCancelled(c: Context, codes: Set<String>) = p(c).edit().putString(KEY_CANCEL, JSONArray(codes.toList()).toString()).apply()
     fun setForced(c: Context, codes: Set<String>) = p(c).edit().putString(KEY_FORCE, JSONArray(codes.toList()).toString()).apply()
 
     private const val KEY_UP_STOPS = "plan_up_max_stops_v2"   // v2: an older saved 3 no longer applies

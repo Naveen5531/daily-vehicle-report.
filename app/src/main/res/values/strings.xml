@@ -190,6 +190,11 @@
     <string name="pv_size_auto">Auto size (normal)</string>
     <string name="pv_details">All details</string>
     <string name="pv_pick_club">Pick to club</string>
+    <string name="pv_cancel">Cancel plan (hold stores back)</string>
+    <string name="pv_cancel_title">Cancel this vehicle? %1$d store(s), %2$s</string>
+    <string name="pv_cancel_msg">Its stores are held back today and show in the held list. Tap a held store to plan it again (own vehicle).</string>
+    <string name="pv_cancel_yes">Cancel plan</string>
+    <string name="pv_cancel_done">Plan cancelled: %1$d store(s) held back</string>
     <string name="pv_menu_title">Vehicle %1$d · %2$s · %3$s</string>
     <string name="pv_size_done">%1$s set – volume re-filled and re-clubbed: %2$d → %3$d vehicles</string>
     <string name="pv_size_auto_done">Back to auto size: %1$d → %2$d vehicles</string>
