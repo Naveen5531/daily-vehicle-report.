@@ -182,7 +182,7 @@
                         android:layout_height="match_parent"
                         android:layout_gravity="center"
                         android:max="100"
-                        app:indicatorColor="@color/mint"
+                        app:indicatorColor="@color/gold_light"
                         app:indicatorInset="0dp"
                         app:indicatorSize="78dp"
                         app:trackColor="#1FFFFFFF"
