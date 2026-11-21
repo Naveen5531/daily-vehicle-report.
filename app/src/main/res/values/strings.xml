@@ -161,7 +161,7 @@
     <string name="plan_export">Export</string>
     <string name="plan_new">New</string>
     <string name="plan_club_title">Club stores</string>
-    <string name="plan_club_text">Stores above %1$s ride with a vehicle going nearby, or passing them on its way from the DC: %2$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>
+    <string name="plan_club_text">Stores above %1$s ride with a vehicle going nearby, or passing them on its way from the DC: %2$d stores per vehicle at most. Stores below %1$s are held today. Long-press vehicles to club them yourself.</string>
     <string name="plan_max_stops_label">Most stores per vehicle</string>
     <string name="plan_max_club_km_label">Max road km between clubbed stores</string>
     <string name="plan_club_text_any">Stores of any size share a vehicle when they fit in one and are nearby, or on its way from the DC: %1$d stores per vehicle at most. Long-press vehicles to club them yourself.</string>

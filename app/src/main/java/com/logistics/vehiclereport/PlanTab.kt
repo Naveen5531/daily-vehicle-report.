@@ -167,8 +167,15 @@ class PlanTab(private val a: MainActivity, root: View) {
         // another vehicle going their way when one fits, else they are held back today.
         val small = DispatchZone.held(stops, zones, { PlanData.zoneMin(a, it) }, PlanData.forced(a))
         val upcountry = zones.filterValues { it == Zone.UPCOUNTRY }.keys
+        // Stores below the "Club stores above" volume are held today: no vehicle of their own, and no clubbing.
+        // Stores you forced to a vehicle are not held.
+        val minClub = PlanData.clubBelow(a)
+        val forcedCodes = PlanData.forced(a)
+        val heldByClub = if (minClub <= 0) emptyList() else stops.filter { it.volume < minClub - 1e-6 && it.code !in forcedCodes }
+        val heldCodes = heldByClub.map { it.code }.toSet()
+        val planStops = stops.filter { it.code !in heldCodes }
         // When the sheet's own Vehicle column was read for every store, the plan follows it (own vehicles, 0 = rides along); a big store's small leftover is held.
-        val r = VehiclePlanner.plan(stops, VehiclePlanner.followSheet(stops,
+        val r = VehiclePlanner.plan(planStops, VehiclePlanner.followSheet(planStops,
             opts.copy(upcountry = upcountry, upcountryType = PlanData.upcountryType(a), upcountryExtra = PlanData.upcountryExtra(a),
                 bufferFor = zones.mapNotNull { (code, z) -> PlanData.zoneBuffer(a, z).takeIf { it > 0 && (z == Zone.UPCOUNTRY || z == Zone.LOCAL) }?.let { code to it } }.toMap(),
                 upcountryMaxStops = PlanData.upcountryMaxStops(a),
@@ -183,7 +190,7 @@ class PlanTab(private val a: MainActivity, root: View) {
         val regionVol = r.loads.groupBy { it.cluster }.mapValues { e -> e.value.sumOf { it.volume } }
         val ordered = r.loads.sortedWith(compareByDescending<PlanLoad> { regionVol[it.cluster] ?: 0.0 }.thenBy { it.cluster }
             .thenByDescending { it.clubbed }.thenByDescending { it.volume })
-        return Triple(r.copy(loads = ordered), opts, stops)
+        return Triple(r.copy(loads = ordered, held = r.held + heldByClub), opts, stops)
     }
 
     /** Which stores share each vehicle (to tell one clubbing mix from another). */
