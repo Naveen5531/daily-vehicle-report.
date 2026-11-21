@@ -553,7 +553,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="security">Security</string>
     <string name="lock_switch">Lock app with fingerprint / phone PIN</string>
     <string name="secure_switch">Block screenshots and screen recording</string>
-    <string name="security_note">• The app has no internet permission: it cannot send your data anywhere.\n• It reads only WhatsApp, and only the group and numbers you chose.\n• Messages with an OTP, verification code, PIN or password are never read or saved.\n• Data is stored privately on this phone and is excluded from phone backups.</string>
+    <string name="security_note">• It reads only WhatsApp, and only the group and numbers you chose.\n• Messages with an OTP, verification code, PIN or password are never read or saved.\n• Data is stored privately on this phone and is excluded from phone backups.</string>
     <string name="lock_title">Daily Vehicle Report</string>
     <string name="lock_subtitle">Unlock to open</string>
     <string name="lock_unavailable">Set a screen lock (PIN, pattern or fingerprint) in phone Settings to use the app lock.</string>
