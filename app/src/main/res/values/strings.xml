@@ -705,7 +705,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
 
     <!-- DMart Drishti gate log -->
     <string name="drishti_title">DMart Drishti</string>
-    <string name="drishti_card_title">Drishti gate log</string>
+    <string name="drishti_card_title">Vehicle log</string>
     <string name="drishti_open">Open</string>
     <string name="drishti_back">Close Drishti</string>
     <string name="drishti_more">More</string>
@@ -815,12 +815,12 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="drishti_live_battery">Open App info</string>
     <string name="drishti_live_suffix"> · live every 3 min</string>
     <string name="drishti_gate_suffix"> · gate mode</string>
-    <string name="drishti_card_log">Gate log</string>
+    <string name="drishti_card_log">View log</string>
     <string name="gate_updated_at">Drishti gate read at %1$s</string>
     <string name="gate_not_read_today">Drishti gate not read yet today</string>
     <string name="gate_replacement_line">Came as replacement %1$s (gate)</string>
     <string name="gate_source">At gate (Drishti)</string>
-    <string name="gate_log_title">Drishti gate log – today</string>
+    <string name="gate_log_title">Vehicle log – today</string>
     <string name="gate_log_summary">%1$d vehicles at the gate · %2$d of %3$d dedicated came · %4$d still inside</string>
     <string name="gate_f_all">All %1$d</string>
     <string name="gate_f_dedicated">Dedicated %1$d</string>
@@ -835,7 +835,7 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="gate_for_vehicle">For dedicated vehicle %1$s</string>
     <string name="gate_store_line">To %1$s → %2$s %3$s</string>
     <string name="gate_dest_line">To %1$s (no store match)</string>
-    <string name="gate_not_in_log">Not in the Drishti gate log today</string>
+    <string name="gate_not_in_log">Not in the vehicle log today</string>
     <string name="gate_log_empty">Nothing read from Drishti today yet. Open Drishti and tap Pull now.</string>
     <string name="live_channel">Drishti live</string>
     <string name="live_alert_channel">Gate check-in / check-out</string>

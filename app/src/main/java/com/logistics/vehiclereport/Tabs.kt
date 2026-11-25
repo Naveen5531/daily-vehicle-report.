@@ -280,7 +280,7 @@ class TodayTab(private val a: MainActivity, root: View) {
             adapter = this@TodayTab.adapter
         }
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
-        // Drishti gate log and Yard stay closed until their header is tapped (the arrow opens and closes them).
+        // Vehicle log (with Yard inside it) stays closed until its header is tapped (the arrow opens and closes it).
         val drishtiBody = root.findViewById<View>(R.id.drishtiBody)
         val drishtiArrow = root.findViewById<TextView>(R.id.drishtiArrow)
         root.findViewById<View>(R.id.drishtiHeader).setOnClickListener { drishtiBody.toggleSection(drishtiArrow) }
@@ -292,14 +292,7 @@ class TodayTab(private val a: MainActivity, root: View) {
         root.findViewById<View>(R.id.drishtiCard).setOnLongClickListener(linkLaptop)
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
-        val yardBody = root.findViewById<View>(R.id.yardBody)
-        val yardHeader = root.findViewById<MaterialButton>(R.id.yardHeader)
-        fun yardTitle() = a.getString(R.string.yard_button) + if (yardBody.visibility == View.VISIBLE) " ▴" else " ▾"
-        yardHeader.text = yardTitle()
-        yardHeader.setOnClickListener {
-            yardBody.toggleSection(null)
-            yardHeader.text = yardTitle()
-        }
+        // Yard sits inside the vehicle log card, so the one arrow hides both.
         root.findViewById<MaterialButton>(R.id.yardButton).setOnClickListener { YardActivity.open(a) }
         root.findViewById<MaterialButton>(R.id.markReportedButton).setOnClickListener { a.openMarkReported() }
 

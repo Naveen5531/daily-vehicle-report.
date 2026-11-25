@@ -403,40 +403,18 @@
                             android:layout_marginStart="6dp"
                             android:text="@string/drishti_open" />
                     </LinearLayout>
+
+                    <!-- Yard: Standing / In-transit vehicles sent by the office Excel. Hidden with the vehicle log. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/yardButton"
+                        style="@style/DTonal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/yard_button" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <!-- Yard: Standing / In-transit vehicles sent by the office Excel. Header toggles; closed until tapped. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="vertical">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/yardHeader"
-                style="@style/DTonal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/yard_button" />
-
-            <LinearLayout
-                android:id="@+id/yardBody"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/yardButton"
-                    style="@style/DTonal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/drishti_open" />
-            </LinearLayout>
-        </LinearLayout>
 
         <!-- Mark reported from a camera scan at the gate, a photo or an Excel file -->
         <com.google.android.material.button.MaterialButton
