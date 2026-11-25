@@ -21,9 +21,17 @@ object FirebaseLink {
 
     fun available(c: Context) = Account.isSignedIn(c) && !Account.isLocal(c) && Account.cloudReady(c)
 
+    /** The Firebase sign-in is still active on this phone. Without it the cloud refuses every read and write. */
+    private fun firebaseSignedIn(): Boolean = try {
+        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null
+    } catch (e: Throwable) { false }
+
+    const val NOT_CONNECTED = "Cloud is not connected on this phone. Sign out, then sign in again with your email and password."
+
     fun start(c: Context) {
         stop()
         if (!available(c)) return
+        if (!firebaseSignedIn()) return
         val uid = Account.uid(c) ?: return
         appCtx = c.applicationContext
         // Default (no MetadataChanges.INCLUDE): fire only on real document changes, not on every cache/metadata event.
@@ -43,6 +51,7 @@ object FirebaseLink {
     /** One-off fetch (Yard screen "Pull now"). done(ok, errorOrNull). */
     fun pullOnce(c: Context, done: (Boolean, String?) -> Unit) {
         if (!available(c)) { done(false, "Sign in with your email and password first."); return }
+        if (!firebaseSignedIn()) { done(false, NOT_CONNECTED); return }
         val uid = Account.uid(c) ?: run { done(false, "Not signed in."); return }
         appCtx = c.applicationContext
         doc(uid).get()
@@ -50,7 +59,11 @@ object FirebaseLink {
                 val json = snap.getString("json")
                 if (json == null) done(false, null) else { apply(json); done(true, null) }
             }
-            .addOnFailureListener { e -> done(false, e.message ?: e.toString()) }
+            .addOnFailureListener { e ->
+                val denied = (e as? com.google.firebase.firestore.FirebaseFirestoreException)?.code ==
+                    com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
+                done(false, if (denied) NOT_CONNECTED else (e.message ?: e.toString()))
+            }
     }
 
     private fun doc(uid: String) =

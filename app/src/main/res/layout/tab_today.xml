@@ -319,69 +319,124 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="14dp">
+                android:orientation="vertical">
 
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_truck"
-                    app:tint="@color/emerald" />
-
+                <!-- Header: tap the arrow to open or close. Closed until tapped. -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:id="@+id/drishtiHeader"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="14dp">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_truck"
+                        app:tint="@color/emerald" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
                         android:fontFamily="@font/jakarta_bold"
                         android:text="@string/drishti_card_title"
                         android:textColor="@color/ink"
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/drishtiArrow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="6dp"
+                        android:text="▾"
+                        android:textColor="@color/emerald"
+                        android:textSize="18sp" />
+                </LinearLayout>
+
+                <!-- Body: hidden until the header is tapped -->
+                <LinearLayout
+                    android:id="@+id/drishtiBody"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="14dp"
+                    android:visibility="gone">
+
+                    <TextView
                         android:id="@+id/drishtiCardStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginStart="34dp"
                         android:maxLines="2"
                         android:ellipsize="end"
                         android:textColor="@color/muted"
                         android:textSize="12.5sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="end"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/drishtiCardLog"
+                            style="@style/DTonal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/drishti_card_log" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/drishtiCardOpen"
+                            style="@style/DTonal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="@string/drishti_open" />
+                    </LinearLayout>
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drishtiCardLog"
-                    style="@style/DTonal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/drishti_card_log" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/drishtiCardOpen"
-                    style="@style/DTonal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="@string/drishti_open" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Yard: Standing / In-transit vehicles sent by the office Excel -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/yardButton"
-            style="@style/DTonal"
+        <!-- Yard: Standing / In-transit vehicles sent by the office Excel. Header toggles; closed until tapped. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/yard_button" />
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/yardHeader"
+                style="@style/DTonal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/yard_button" />
+
+            <LinearLayout
+                android:id="@+id/yardBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/yardButton"
+                    style="@style/DTonal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/drishti_open" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Mark reported from a camera scan at the gate, a photo or an Excel file -->
         <com.google.android.material.button.MaterialButton

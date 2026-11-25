@@ -29,6 +29,13 @@ private fun afterTextChanged(block: (String) -> Unit) = object : TextWatcher {
     override fun afterTextChanged(s: Editable?) = block(s?.toString().orEmpty())
 }
 
+/** Opens or closes a section; [arrow] shows ▴ while open and ▾ while closed. */
+private fun View.toggleSection(arrow: TextView?) {
+    val open = visibility != View.VISIBLE
+    visibility = if (open) View.VISIBLE else View.GONE
+    arrow?.text = if (open) "▴" else "▾"
+}
+
 // =====================================================================
 // TODAY
 // =====================================================================
@@ -273,13 +280,26 @@ class TodayTab(private val a: MainActivity, root: View) {
             adapter = this@TodayTab.adapter
         }
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
-        root.findViewById<View>(R.id.drishtiCard).setOnClickListener { a.openDrishti() }
-        // Long press: link the office laptop (the Chrome add-on reads Drishti there and sends it here).
-        root.findViewById<View>(R.id.drishtiCard).setOnLongClickListener {
+        // Drishti gate log and Yard stay closed until their header is tapped (the arrow opens and closes them).
+        val drishtiBody = root.findViewById<View>(R.id.drishtiBody)
+        val drishtiArrow = root.findViewById<TextView>(R.id.drishtiArrow)
+        root.findViewById<View>(R.id.drishtiHeader).setOnClickListener { drishtiBody.toggleSection(drishtiArrow) }
+        // Long press on the card: link the office laptop (the Chrome add-on reads Drishti there and sends it here).
+        val linkLaptop = View.OnLongClickListener {
             DrishtiActivity.showLaptopLink(a) { last?.let { refresh(it) } }; true
         }
+        root.findViewById<View>(R.id.drishtiHeader).setOnLongClickListener(linkLaptop)
+        root.findViewById<View>(R.id.drishtiCard).setOnLongClickListener(linkLaptop)
         root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
+        val yardBody = root.findViewById<View>(R.id.yardBody)
+        val yardHeader = root.findViewById<MaterialButton>(R.id.yardHeader)
+        fun yardTitle() = a.getString(R.string.yard_button) + if (yardBody.visibility == View.VISIBLE) " ▴" else " ▾"
+        yardHeader.text = yardTitle()
+        yardHeader.setOnClickListener {
+            yardBody.toggleSection(null)
+            yardHeader.text = yardTitle()
+        }
         root.findViewById<MaterialButton>(R.id.yardButton).setOnClickListener { YardActivity.open(a) }
         root.findViewById<MaterialButton>(R.id.markReportedButton).setOnClickListener { a.openMarkReported() }
 

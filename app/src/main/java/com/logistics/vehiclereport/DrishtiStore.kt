@@ -38,9 +38,9 @@ object DrishtiStore {
     const val OK = "OK"; const val LOGIN = "LOGIN"; const val NO_TABLE = "NO_TABLE"
 
     /** Auto pull every this long while the app is open. */
-    const val AUTO_EVERY_MS = 3L * 60 * 1000
+    const val AUTO_EVERY_MS = 5L * 60 * 1000
     /** Live (even with the app closed): read the gate log every this long. */
-    const val LIVE_EVERY_MS = 3L * 60 * 1000
+    const val LIVE_EVERY_MS = 5L * 60 * 1000
 
     fun isDrishtiUrl(url: String?): Boolean {
         if (url == null || !url.startsWith("https://")) return false
