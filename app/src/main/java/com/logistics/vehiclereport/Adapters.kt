@@ -236,15 +236,42 @@ private fun regular(ctx: android.content.Context): android.graphics.Typeface? {
 }
 
 /** WhatsApp tab: captured messages, each shown as DC → store with detail chips. */
-class FeedAdapter(private val onOpen: (VehicleRecord) -> Unit = {}) : RecyclerView.Adapter<FeedAdapter.Holder>() {
-    private var items: List<VehicleRecord> = emptyList()
+class FeedAdapter(private val onOpen: (VehicleRecord) -> Unit = {}) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    /** Each entry is a [DayHead] (heading of a day, "All" view only) or a [VehicleRecord]. */
+    private var items: List<Any> = emptyList()
     private var vehicles: Map<String, DedicatedVehicle> = emptyMap()
     private var showDate = false
     private val time = SimpleDateFormat("hh:mm a", Locale.getDefault())
     private val dateTime = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
 
+    private companion object {
+        const val TYPE_DAY = 0
+        const val TYPE_RECORD = 1
+    }
+
     fun submit(list: List<VehicleRecord>, vehicleMap: Map<String, DedicatedVehicle>, withDate: Boolean) {
-        items = list; vehicles = vehicleMap; showDate = withDate; notifyDataSetChanged()
+        vehicles = vehicleMap; showDate = withDate
+        items = if (!withDate) list else {
+            // "All": a heading for each day, newest day first; the messages of a day keep their order.
+            list.groupBy { ReportBuilder.startOfDay(it.time) }.toSortedMap(reverseOrder())
+                .flatMap { (day, recs) -> listOf<Any>(DayHead(day)) + recs }
+        }
+        notifyDataSetChanged()
+    }
+
+    /** Heading of one day in the "All" view: Today, Yesterday, or the date. */
+    private class DayHead(val day: Long)
+
+    class DayHolder(v: View) : RecyclerView.ViewHolder(v) {
+        private val text = v as TextView
+        fun bind(day: Long) {
+            val ctx = itemView.context
+            text.text = when (day) {
+                ReportBuilder.startOfDay() -> ctx.getString(R.string.quick_today)
+                ReportBuilder.startOfDay() - ReportBuilder.DAY_MS -> ctx.getString(R.string.quick_yesterday)
+                else -> SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(day))
+            }
+        }
     }
 
     class Holder(v: View) : RecyclerView.ViewHolder(v) {
@@ -258,13 +285,31 @@ class FeedAdapter(private val onOpen: (VehicleRecord) -> Unit = {}) : RecyclerVi
         val msg: TextView = v.findViewById(R.id.msgText)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-        Holder(LayoutInflater.from(parent.context).inflate(R.layout.item_feed, parent, false))
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        if (viewType == TYPE_DAY) {
+            val dp = parent.context.resources.displayMetrics.density
+            val head = TextView(parent.context).apply {
+                setPadding((16 * dp).toInt(), (14 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt())
+                textSize = 13f
+                setTextColor(Ui.color(parent.context, R.color.muted))
+                typeface = androidx.core.content.res.ResourcesCompat.getFont(parent.context, R.font.jakarta_bold)
+            }
+            return DayHolder(head)
+        }
+        return Holder(LayoutInflater.from(parent.context).inflate(R.layout.item_feed, parent, false))
+    }
 
     override fun getItemCount() = items.size
 
-    override fun onBindViewHolder(h: Holder, position: Int) {
-        val r = items[position]
+    override fun getItemViewType(position: Int) = if (items[position] is DayHead) TYPE_DAY else TYPE_RECORD
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val entry = items[position]
+        if (holder is DayHolder && entry is DayHead) { holder.bind(entry.day); return }
+        bindRecord(holder as Holder, entry as VehicleRecord)
+    }
+
+    private fun bindRecord(h: Holder, r: VehicleRecord) {
         val ctx = h.itemView.context
         h.plate.text = r.vehicle
         h.timeText.text = (if (showDate) dateTime else time).format(Date(r.time)) + if (r.count > 1) " · ${r.count}×" else ""
