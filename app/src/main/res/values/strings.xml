@@ -882,8 +882,8 @@ On Poco / HyperOS: open App info → Battery saver → No restrictions, and turn
     <string name="laptop_checking">Checking what the office laptop sent…</string>
     <string name="laptop_nothing_new">Nothing new from the office laptop yet. Is Chrome open there with Vehicle Summary and the add-on on?</string>
     <string name="laptop_net_error">Couldn\'t reach the relay: %1$s</string>
-    <string name="laptop_status">Office laptop · last read %1$s · %2$d vehicles</string>
-    <string name="laptop_waiting">Office laptop linked – waiting for its first send</string>
+    <string name="laptop_status">Last refresh %1$s · %2$d vehicles</string>
+    <string name="laptop_waiting">Waiting for the first refresh</string>
     <string name="laptop_login">Office laptop: Drishti sign-in expired – log in again on the laptop</string>
 
     <!-- Yard: Standing / In-transit / At DC now, sent by the office Excel (App Data workbook) -->
