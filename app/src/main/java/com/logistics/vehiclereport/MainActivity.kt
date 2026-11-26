@@ -610,6 +610,11 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { }
         }
         refreshAll()
+        // Pull the latest vehicle data from the cloud (sent by the office Excel) every time the app opens.
+        safe("Cloud pull") {
+            FirebaseLink.start(this)
+            FirebaseLink.pullOnce(this) { ok, _ -> if (ok && !isFinishing) refreshAll() }
+        }
         safe("Drishti live") { DrishtiLiveService.startIfOn(this) }
         safe("Drishti") { drishti?.resume() }
         safe("Update") { AppUpdate.checkIfDue(this) }

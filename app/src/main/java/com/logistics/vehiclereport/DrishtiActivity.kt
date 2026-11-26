@@ -348,7 +348,7 @@ class DrishtiActivity : AppCompatActivity(), DrishtiPage.Listener {
         /** One line about Drishti for this screen and the Today card. */
         fun statusText(a: android.content.Context): String {
             val last = DrishtiStore.lastPull(a)
-            if (LaptopLink.linked(a)) return when {
+            if (LaptopLink.linked(a) || FirebaseLink.available(a)) return when {
                 DrishtiStore.status(a) == DrishtiStore.LOGIN -> a.getString(R.string.laptop_login)
                 last <= 0 -> a.getString(R.string.laptop_waiting)
                 else -> a.getString(R.string.laptop_status, ReportBuilder.timeFmt().format(Date(last)), DrishtiStore.lastCount(a))
