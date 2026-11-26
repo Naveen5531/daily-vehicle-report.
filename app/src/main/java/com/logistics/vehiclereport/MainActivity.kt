@@ -205,8 +205,17 @@ class MainActivity : AppCompatActivity() {
 
         // Long-press the title to check for a new version at once.
         titleText.setOnLongClickListener { AppUpdate.check(this, manual = true); true }
-        // Tap the title on the Vehicles (Today) screen to show / hide the vehicle log and Yard.
-        titleText.setOnClickListener { if (currentTab == R.id.nav_today && ::today.isInitialized) today.toggleLog() }
+        // Tap the title 3 times on the Vehicles (Today) screen to show / hide the vehicle log and Yard.
+        // Three quick taps (each within 1.5 s of the last) open / close it.
+        var titleTaps = 0
+        var lastTitleTap = 0L
+        titleText.setOnClickListener {
+            if (currentTab != R.id.nav_today || !::today.isInitialized) return@setOnClickListener
+            val now = android.os.SystemClock.elapsedRealtime()
+            titleTaps = if (now - lastTitleTap <= 1500) titleTaps + 1 else 1
+            lastTitleTap = now
+            if (titleTaps >= 3) { titleTaps = 0; today.toggleLog() }
+        }
         bottomNav.setOnItemReselectedListener { item -> showTab(item.itemId) }
         bottomNav.setOnItemSelectedListener { item ->
             showTab(item.itemId)
