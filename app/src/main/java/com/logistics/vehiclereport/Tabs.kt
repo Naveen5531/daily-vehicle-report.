@@ -46,6 +46,7 @@ class TodayTab(private val a: MainActivity, root: View) {
     private val heroTotal: TextView = root.findViewById(R.id.heroTotal)
     private val heroText: TextView = root.findViewById(R.id.heroText)
     private val heroUpdated: TextView = root.findViewById(R.id.heroUpdated)
+    private lateinit var logCard: View
     private val vendorSection: View = root.findViewById(R.id.vendorSection)
     private val vendorRow: android.widget.LinearLayout = root.findViewById(R.id.vendorRow)
     private val clock = SimpleDateFormat("hh:mm a", Locale.getDefault())
@@ -312,8 +313,6 @@ class TodayTab(private val a: MainActivity, root: View) {
             last?.let { refresh(it) }
         }
     }
-
-    private lateinit var logCard: View
 
     /** Tapping the page title "Vehicles" shows / hides the vehicle log card (with Yard) at the top. */
     fun toggleLog() { logCard.toggleSection(null) }
