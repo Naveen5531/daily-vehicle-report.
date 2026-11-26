@@ -91,14 +91,6 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/drishti_card_log" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/drishtiCardOpen"
-                            style="@style/DTonal"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:text="@string/drishti_open" />
                     </LinearLayout>
 
                     <!-- Yard: Standing / In-transit vehicles sent by the office Excel. Hidden with the vehicle log. -->

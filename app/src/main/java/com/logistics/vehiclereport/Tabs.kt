@@ -289,7 +289,6 @@ class TodayTab(private val a: MainActivity, root: View) {
         }
         root.findViewById<View>(R.id.drishtiHeader).setOnLongClickListener(linkLaptop)
         root.findViewById<View>(R.id.drishtiCard).setOnLongClickListener(linkLaptop)
-        root.findViewById<MaterialButton>(R.id.drishtiCardOpen).setOnClickListener { a.openDrishti() }
         root.findViewById<MaterialButton>(R.id.drishtiCardLog).setOnClickListener { GateLogSheet.show(a) }
         // Yard sits inside the vehicle log card, so the one arrow hides both.
         root.findViewById<MaterialButton>(R.id.yardButton).setOnClickListener { YardActivity.open(a) }
