@@ -40,6 +40,7 @@ private fun View.toggleSection(arrow: TextView?) {
 // TODAY
 // =====================================================================
 class TodayTab(private val a: MainActivity, root: View) {
+    private val rootView: View = root
     private val ring: CircularProgressIndicator = root.findViewById(R.id.progressRing)
     private val ringText: TextView = root.findViewById(R.id.ringText)
     private val heroDone: TextView = root.findViewById(R.id.heroDone)
@@ -283,6 +284,39 @@ class TodayTab(private val a: MainActivity, root: View) {
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
         // Vehicle log (with Yard inside it) shows only after the page title "Vehicles" is tapped (see toggleLog).
         logCard = root.findViewById(R.id.drishtiCard)
+        // Account (sign-in, DC name, backup / restore, sign out) lives in the same card.
+        updateAccount()
+        rootView.findViewById<MaterialButton>(R.id.dcNameButton).setOnClickListener { a.editDcName() }
+        rootView.findViewById<MaterialButton>(R.id.backupButton).setOnClickListener {
+            android.widget.Toast.makeText(a, R.string.backup_doing, android.widget.Toast.LENGTH_SHORT).show()
+            CloudSync.backupNow(a) { ok ->
+                android.widget.Toast.makeText(a, if (ok) R.string.backup_done else R.string.backup_fail, android.widget.Toast.LENGTH_LONG).show()
+                updateBackupStatus(rootView)
+            }
+        }
+        rootView.findViewById<MaterialButton>(R.id.restoreButton).setOnClickListener {
+            MaterialAlertDialogBuilder(a)
+                .setTitle(R.string.restore_now)
+                .setMessage(R.string.restore_confirm)
+                .setPositiveButton(R.string.restore_now) { _, _ ->
+                    android.widget.Toast.makeText(a, R.string.restore_doing, android.widget.Toast.LENGTH_SHORT).show()
+                    CloudSync.forceRestore(a) { count, err ->
+                        if (count >= 0) {
+                            android.widget.Toast.makeText(a, a.getString(R.string.restore_done, count), android.widget.Toast.LENGTH_LONG).show()
+                            a.refreshAll()
+                        } else android.widget.Toast.makeText(a, a.getString(R.string.restore_fail, err ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+        updateBackupStatus(rootView)
+        rootView.findViewById<MaterialButton>(R.id.signOutButton).setOnClickListener { a.signOut() }
+        rootView.findViewById<MaterialButton>(R.id.deleteAccountButton).apply {
+            visibility = if (Account.isLocal(a)) View.GONE else View.VISIBLE
+            setOnClickListener { a.deleteAccount() }
+        }
+
         // Long press on the card: link the office laptop (the Chrome add-on reads Drishti there and sends it here).
         val linkLaptop = View.OnLongClickListener {
             DrishtiActivity.showLaptopLink(a) { last?.let { refresh(it) } }; true
@@ -311,6 +345,25 @@ class TodayTab(private val a: MainActivity, root: View) {
             filter = chipFor.entries.firstOrNull { it.value.id == id }?.key
             last?.let { refresh(it) }
         }
+    }
+
+
+    /** Who is signed in, where the data is kept, and the DC name. */
+    fun updateAccount() {
+        rootView.findViewById<TextView>(R.id.accountName).text =
+            if (Account.isLocal(a)) a.getString(R.string.sign_local_name)
+            else Account.email(a).ifBlank { Account.name(a) }
+        rootView.findViewById<TextView>(R.id.accountNote).setText(
+            if (Account.isLocal(a)) R.string.account_note_local else R.string.account_note_cloud)
+        rootView.findViewById<TextView>(R.id.dcNameText).text =
+            a.getString(R.string.dc_name_line, Masters.dispatchName.ifBlank { a.getString(R.string.dc_name_unset) })
+    }
+
+    private fun updateBackupStatus(root: View) {
+        val t = root.findViewById<TextView>(R.id.backupStatus) ?: return
+        val last = VehicleStore.prefs(a).getLong(CloudSync.KEY_LAST_BACKUP, 0L)
+        t.text = if (last <= 0) a.getString(R.string.backup_none)
+                 else a.getString(R.string.backup_last, ReportBuilder.timeFmt().format(java.util.Date(last)))
     }
 
     /** Tapping the page title "Vehicles" shows / hides the vehicle log card (with Yard) at the top. */
@@ -933,38 +986,6 @@ class ExportTab(private val a: MainActivity, private val root: View) {
             }
         }
 
-        updateAccount()
-        root.findViewById<MaterialButton>(R.id.dcNameButton).setOnClickListener { a.editDcName() }
-        root.findViewById<MaterialButton>(R.id.backupButton).setOnClickListener {
-            android.widget.Toast.makeText(a, R.string.backup_doing, android.widget.Toast.LENGTH_SHORT).show()
-            CloudSync.backupNow(a) { ok ->
-                android.widget.Toast.makeText(a, if (ok) R.string.backup_done else R.string.backup_fail, android.widget.Toast.LENGTH_LONG).show()
-                updateBackupStatus(root)
-            }
-        }
-        root.findViewById<MaterialButton>(R.id.restoreButton).setOnClickListener {
-            MaterialAlertDialogBuilder(a)
-                .setTitle(R.string.restore_now)
-                .setMessage(R.string.restore_confirm)
-                .setPositiveButton(R.string.restore_now) { _, _ ->
-                    android.widget.Toast.makeText(a, R.string.restore_doing, android.widget.Toast.LENGTH_SHORT).show()
-                    CloudSync.forceRestore(a) { count, err ->
-                        if (count >= 0) {
-                            android.widget.Toast.makeText(a, a.getString(R.string.restore_done, count), android.widget.Toast.LENGTH_LONG).show()
-                            a.refreshAll()
-                        } else android.widget.Toast.makeText(a, a.getString(R.string.restore_fail, err ?: ""), android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
-        updateBackupStatus(root)
-        root.findViewById<MaterialButton>(R.id.signOutButton).setOnClickListener { a.signOut() }
-        root.findViewById<MaterialButton>(R.id.deleteAccountButton).apply {
-            visibility = if (Account.isLocal(a)) View.GONE else View.VISIBLE
-            setOnClickListener { a.deleteAccount() }
-        }
-
         root.findViewById<MaterialButton>(R.id.clearButton).setOnClickListener {
             MaterialAlertDialogBuilder(a)
                 .setTitle(R.string.clear_title)
@@ -976,17 +997,6 @@ class ExportTab(private val a: MainActivity, private val root: View) {
     }
 
     private fun snapshot() = a.loadSnapshot()
-
-    /** Who is signed in, where the data is kept, and the DC name. */
-    fun updateAccount() {
-        root.findViewById<TextView>(R.id.accountName).text =
-            if (Account.isLocal(a)) a.getString(R.string.sign_local_name)
-            else Account.email(a).ifBlank { Account.name(a) }
-        root.findViewById<TextView>(R.id.accountNote).setText(
-            if (Account.isLocal(a)) R.string.account_note_local else R.string.account_note_cloud)
-        root.findViewById<TextView>(R.id.dcNameText).text =
-            a.getString(R.string.dc_name_line, Masters.dispatchName.ifBlank { a.getString(R.string.dc_name_unset) })
-    }
 
     private fun lookups() = ReportBuilder.Lookups(MasterData.get(a), RateCard.get(a))
 
@@ -1061,10 +1071,4 @@ class ExportTab(private val a: MainActivity, private val root: View) {
         }.show()
     }
 
-    private fun updateBackupStatus(root: View) {
-        val t = root.findViewById<TextView>(R.id.backupStatus) ?: return
-        val last = VehicleStore.prefs(a).getLong(CloudSync.KEY_LAST_BACKUP, 0L)
-        t.text = if (last <= 0) a.getString(R.string.backup_none)
-                 else a.getString(R.string.backup_last, ReportBuilder.timeFmt().format(java.util.Date(last)))
-    }
 }

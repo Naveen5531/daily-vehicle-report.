@@ -252,7 +252,7 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setPositiveButton(R.string.save) { _, _ ->
                 Account.setDcName(this, input.text?.toString().orEmpty())
-                export?.updateAccount(); refreshAll(); showTab(bottomNav.selectedItemId)
+                if (::today.isInitialized) today.updateAccount(); refreshAll(); showTab(bottomNav.selectedItemId)
             }
             .setNegativeButton(R.string.later) { _, _ -> VehicleStore.prefs(this).edit().putBoolean(Account.K_DC_ASKED, true).apply() }
             .show()
