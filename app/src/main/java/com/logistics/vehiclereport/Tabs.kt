@@ -280,18 +280,8 @@ class TodayTab(private val a: MainActivity, root: View) {
             adapter = this@TodayTab.adapter
         }
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
-        // Vehicle log (with Yard inside it) sits under the "Vehicles" heading and shows only after "Vehicles" is tapped.
-        val drishtiCard = root.findViewById<View>(R.id.drishtiCard)
-        val vehiclesTitle = root.findViewById<TextView>(R.id.vehiclesTitle)
-        val vehiclesLabel = a.getString(R.string.tab_vehicles)
-        vehiclesTitle.text = "$vehiclesLabel ▾"
-        vehiclesTitle.setOnClickListener {
-            drishtiCard.toggleSection(null)
-            vehiclesTitle.text = vehiclesLabel + if (drishtiCard.visibility == View.VISIBLE) " ▴" else " ▾"
-        }
-        val drishtiBody = root.findViewById<View>(R.id.drishtiBody)
-        val drishtiArrow = root.findViewById<TextView>(R.id.drishtiArrow)
-        root.findViewById<View>(R.id.drishtiHeader).setOnClickListener { drishtiBody.toggleSection(drishtiArrow) }
+        // Vehicle log (with Yard inside it) shows only after the page title "Vehicles" is tapped (see toggleLog).
+        logCard = root.findViewById(R.id.drishtiCard)
         // Long press on the card: link the office laptop (the Chrome add-on reads Drishti there and sends it here).
         val linkLaptop = View.OnLongClickListener {
             DrishtiActivity.showLaptopLink(a) { last?.let { refresh(it) } }; true
@@ -322,6 +312,11 @@ class TodayTab(private val a: MainActivity, root: View) {
             last?.let { refresh(it) }
         }
     }
+
+    private lateinit var logCard: View
+
+    /** Tapping the page title "Vehicles" shows / hides the vehicle log card (with Yard) at the top. */
+    fun toggleLog() { logCard.toggleSection(null) }
 
     private fun updateSortLabel() {
         sortButton.setText(if (timeWise) R.string.sort_time else R.string.sort_status)

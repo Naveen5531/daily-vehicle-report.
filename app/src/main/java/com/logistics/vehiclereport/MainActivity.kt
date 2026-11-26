@@ -205,6 +205,8 @@ class MainActivity : AppCompatActivity() {
 
         // Long-press the title to check for a new version at once.
         titleText.setOnLongClickListener { AppUpdate.check(this, manual = true); true }
+        // Tap the title on the Vehicles (Today) screen to show / hide the vehicle log and Yard.
+        titleText.setOnClickListener { if (currentTab == R.id.nav_today && ::today.isInitialized) today.toggleLog() }
         bottomNav.setOnItemReselectedListener { item -> showTab(item.itemId) }
         bottomNav.setOnItemSelectedListener { item ->
             showTab(item.itemId)
