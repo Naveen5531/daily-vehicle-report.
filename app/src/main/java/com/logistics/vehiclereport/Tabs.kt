@@ -280,7 +280,15 @@ class TodayTab(private val a: MainActivity, root: View) {
             adapter = this@TodayTab.adapter
         }
         root.findViewById<MaterialButton>(R.id.enableButton).setOnClickListener { a.openAccessSettings() }
-        // Vehicle log (with Yard inside it) stays closed until its header is tapped (the arrow opens and closes it).
+        // Vehicle log (with Yard inside it) sits under the "Vehicles" heading and shows only after "Vehicles" is tapped.
+        val drishtiCard = root.findViewById<View>(R.id.drishtiCard)
+        val vehiclesTitle = root.findViewById<TextView>(R.id.vehiclesTitle)
+        val vehiclesLabel = a.getString(R.string.tab_vehicles)
+        vehiclesTitle.text = "$vehiclesLabel ▾"
+        vehiclesTitle.setOnClickListener {
+            drishtiCard.toggleSection(null)
+            vehiclesTitle.text = vehiclesLabel + if (drishtiCard.visibility == View.VISIBLE) " ▴" else " ▾"
+        }
         val drishtiBody = root.findViewById<View>(R.id.drishtiBody)
         val drishtiArrow = root.findViewById<TextView>(R.id.drishtiArrow)
         root.findViewById<View>(R.id.drishtiHeader).setOnClickListener { drishtiBody.toggleSection(drishtiArrow) }
