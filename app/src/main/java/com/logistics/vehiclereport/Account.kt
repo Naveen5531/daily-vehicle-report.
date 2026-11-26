@@ -48,6 +48,7 @@ object Account {
         Thread { try { VehicleStore.upgradeOldRecords(c.applicationContext) } catch (e: Throwable) { } }.start()
         CloudSync.start(c)
         FirebaseLink.start(c)
+        CloudPullWorker.schedule(c)
         DaySync.start(c)
     }
 
@@ -57,6 +58,7 @@ object Account {
         CloudSync.stop()
         DaySync.stop()
         FirebaseLink.stop()
+        CloudPullWorker.cancel(c)
         try { if (cloudReady(c)) FirebaseAuth.getInstance().signOut() } catch (e: Exception) { }
         device(c).edit().remove(K_UID).remove(K_EMAIL).remove(K_NAME).commit()
         resetCaches()
