@@ -61,7 +61,13 @@ object VehicleDetailSheet {
             else number in r.candidates || r.vehicle == number
         }.sortedByDescending { it.time }
         val m = MasterData.get(a)
-        val seen = fromWhatsApp(a, number, posts, codeOnly)
+        // Today this vehicle may be running as a replacement: the cancelled vehicle's post names it and carries today's store,
+        // which must win over the old store from this vehicle's own earlier posts.
+        val todayRepl = if (codeOnly) null else replacementTripToday(s.records, number, ReportBuilder.startOfDay())
+        val replCity = todayRepl?.let { r -> r.replInfo?.city?.takeIf { it.isNotBlank() } ?: r.city }.orEmpty().trim()
+        val seen = fromWhatsApp(a, number, posts, codeOnly).let { x ->
+            if (replCity.isBlank()) x else x.copy(route = PostedDetails.routeOf(a, replCity), routeAt = todayRepl?.time ?: 0L)
+        }
         // The latest WhatsApp post wins (the same number comes with another vendor / driver / contact); the list fills what it lacks.
         val shown = (v ?: DedicatedVehicle(number)).let { x ->
             x.copy(
@@ -154,7 +160,8 @@ object VehicleDetailSheet {
             Field(R.string.field_transporter, v?.transporter.orEmpty(), seen.transporter, at { it.vendor }) { x, t -> x.copy(transporter = t) },
             Field(R.string.field_driver, v?.driver.orEmpty(), seen.driver, at { it.driver }) { x, t -> x.copy(driver = t) },
             Field(R.string.field_mobile, v?.mobile.orEmpty(), seen.mobile, at { it.mobile }) { x, t -> x.copy(mobile = t) },
-            Field(R.string.field_route, v?.route.orEmpty(), seen.route, at { it.city }) { x, t -> x.copy(route = t) }
+            Field(R.string.field_route, v?.route.orEmpty(), seen.route,
+                if (replCity.isNotBlank()) todayRepl?.time else at { it.city }) { x, t -> x.copy(route = t) }
         )
         fun name(f: Field) = a.getString(f.label).removeSuffix(" *")
         val missing = fields.filter { it.inList.isBlank() && it.posted.isBlank() }
@@ -271,7 +278,10 @@ object VehicleDetailSheet {
                     action = if (f.label == R.string.field_mobile) a.getString(R.string.call) else null,
                     onAction = { Ui.dial(a, value) })
                 f.posted.isNotBlank() -> row(name(f), value,
-                    sub = Ui.joinNonBlank(extra, a.getString(R.string.det_from_whatsapp, f.postedAt?.let { day.format(Date(it)) }.orEmpty())),
+                    sub = Ui.joinNonBlank(extra,
+                        if (f.label == R.string.field_route && postedWins && todayRepl != null && replCity.isNotBlank())
+                            a.getString(R.string.det_repl_for, todayRepl.vehicle, day.format(Date(todayRepl.time)))
+                        else a.getString(R.string.det_from_whatsapp, f.postedAt?.let { day.format(Date(it)) }.orEmpty())),
                     subTone = R.color.ok,
                     action = if (v != null) a.getString(R.string.det_save) else null,
                     onAction = { saveToList(listOf(f)) })
@@ -332,6 +342,19 @@ object VehicleDetailSheet {
                 p.size, p.mobile, if (p.replacement.isNotBlank()) a.getString(R.string.replacement_line, p.replacement) else "")
             list.addView(r)
         }
+    }
+
+    /** Today's post of a cancelled vehicle that names [number] as its replacement (latest one), or null. */
+    private fun replacementTripToday(records: List<VehicleRecord>, number: String, today: Long): VehicleRecord? {
+        fun norm(s: String) = s.uppercase().filter { it.isLetterOrDigit() }
+        val n = norm(number)
+        if (n.isEmpty()) return null
+        return records.filter { it.time >= today && it.replacement.isNotBlank() }
+            .filter { r ->
+                val p = norm(r.replacement)
+                p.isNotEmpty() && (p == n || (p.length <= 4 && p.all { it.isDigit() } && n.endsWith(p)))
+            }
+            .maxByOrNull { it.time }
     }
 
     /** For the Vehicles list: what WhatsApp posts say about each vehicle. */

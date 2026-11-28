@@ -636,6 +636,7 @@ Tip: Download Excel gives every store with its location now – fill the missing
     <string name="det_found_text">%1$s came from WhatsApp posts but are not saved in your vehicle list yet.</string>
     <string name="det_save_found">Save to vehicle list</string>
     <string name="det_from_whatsapp">From WhatsApp · %1$s</string>
+    <string name="det_repl_for">Today · replacing %1$s · %2$s</string>
     <string name="det_save">Save</string>
     <string name="wa_short">WhatsApp</string>
 
