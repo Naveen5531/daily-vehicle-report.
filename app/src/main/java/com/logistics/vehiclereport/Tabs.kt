@@ -858,9 +858,14 @@ class VehiclesTab(private val a: MainActivity, root: View) {
     fun refresh(s: Snapshot) {
         last = s
         val mine = ++gen
+        // Also finds a vehicle by a driver name, mobile, vendor or place written in its WhatsApp posts.
+        val posts = if (query.isEmpty()) emptyMap() else s.records.groupBy { it.vehicle }
         val list = s.vehicles.filter { v ->
             query.isEmpty() || listOf(v.number, v.type, v.driver, v.mobile, v.transporter, v.route)
-                .any { it.lowercase().contains(query) }
+                .any { it.lowercase().contains(query) } ||
+                posts[v.number].orEmpty().any { r ->
+                    listOf(r.driver, r.mobile, r.city, r.vendor).any { it.lowercase().contains(query) }
+                }
         }
         count.text = a.getString(R.string.vehicle_count, list.size, s.vehicles.size)
         if (adapter.itemCount == 0) { empty.text = "Loading…"; empty.visibility = View.VISIBLE }
