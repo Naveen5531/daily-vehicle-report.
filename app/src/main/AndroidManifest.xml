@@ -111,6 +111,28 @@
                 android:resource="@xml/screen_reader" />
         </service>
 
+        <!-- Driver names on incoming calls (Android 10+, once made the call screening app) -->
+        <service
+            android:name=".CallLookupService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <!-- Launcher entry that asks Android to make this app the call screening app -->
+        <activity
+            android:name=".CallRoleActivity"
+            android:exported="true"
+            android:label="Allow driver names on calls"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- Ask Google Play services to fetch the number-plate text reader when the app is installed -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
